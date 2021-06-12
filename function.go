@@ -1,0 +1,1627 @@
+package mbt
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+func (it *Engine)start(ptr interface{}, xml []byte) {
+	bean := reflect.ValueOf(ptr)
+	if bean.Kind() != reflect.Ptr {
+		panic("参数<ptr>必须是指针!")
+	}
+	bt := bean.Type().Elem()
+	be := bean.Elem()
+	outPut := makeReturnTypeMap(be.Type(), it.printWarn)
+	mapperTree := parseXml(xml)
+	resultMaps := makeResultMaps(mapperTree)
+	decodeTree(mapperTree, bt, it.printXml)
+	methodXmlMap := makeMethodXmlMap(bt, mapperTree)
+	proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
+		funcName := funcField.Name
+		ret := outPut[funcName]
+		m := methodXmlMap[funcName]
+		var resultMap map[string]*resultProperty
+		if funcName != sessionFunc {
+			resultMapId := m.xml.SelectAttrValue(elementResultMap, "")
+			if resultMapId != "" {
+				resultMap = resultMaps[resultMapId]
+			}
+		}
+		if funcName == sessionFunc {
+			proxyFunc := func(arg proxyArg) []reflect.Value {
+				var res *reflect.Value = nil
+				returnV := reflect.New(*ret.Value)
+				switch (*ret.Value).Kind() {
+				case reflect.Map:
+					returnV.Elem().Set(reflect.MakeMap(*ret.Value))
+				case reflect.Slice:
+					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
+				}
+				res = &returnV
+				s := it.session()
+				res.Elem().Set(reflect.ValueOf(s).Elem().Addr().Convert(*ret.Value))
+				return buildReturnValue(ret, res)
+			}
+			return proxyFunc
+		} else {
+			proxyFunc := func(arg proxyArg) []reflect.Value {
+				var res *reflect.Value = nil
+				returnV := reflect.New(*ret.Value)
+				switch (*ret.Value).Kind() {
+				case reflect.Map:
+					returnV.Elem().Set(reflect.MakeMap(*ret.Value))
+				case reflect.Slice:
+					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
+				}
+				res = &returnV
+				it.exeMethodByXml(m.xml.Tag, arg, m.nodes, resultMap, res)
+				return buildReturnValue(ret, res)
+			}
+			return proxyFunc
+		}
+	})
+}
+func makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap map[string]*returnValue) {
+	num := bean.NumField()
+	if num == 0 {
+		panic(fmt.Sprintf("%s这个结构体里必须有字段",bean.String()))
+	}
+	returnMap = make(map[string]*returnValue)
+	for i := 0; i < num; i++ {
+		fieldItem := bean.Field(i)
+		funcType := fieldItem.Type
+		funcKind := funcType.Kind()
+		funcName := fieldItem.Name
+		if funcKind != reflect.Func {
+			if funcKind == reflect.Struct {
+				childMap := makeReturnTypeMap(funcType,warning)
+				for k, v := range childMap {
+					returnMap[k] = v
+				}
+			}
+			continue
+		}
+		argsLen := funcType.NumIn()
+		customLen := 0
+		for j := 0; j < argsLen; j++ {
+			inType := funcType.In(j)
+			if inType.String() == mSessionPtr {
+				panic(fmt.Sprintf("%s() 的输入参数不能是: %s,只能是 %s",funcName,mSessionPtr,mSession))
+			}
+			if isCustomStruct(inType) {
+				customLen++
+			}
+		}
+		if argsLen > 1 && customLen > 1 {
+			panic(`[Panic] ` + funcName + ` 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
+		}
+		arg := fieldItem.Tag.Get("arg")
+		if argsLen > 0 && customLen == 0 && arg == "" && warning {
+			log.Println("[Warn] 警告 ======================== " + bean.Name() + "." + fieldItem.Name + "() have not define tag arg:\"\",maybe can not get param value!")
+		}
+		numOut := funcType.NumOut()
+		if numOut > 2 || numOut == 0 {
+			panic("[Error] func '" + funcName + "()' return num out must = 1 or = 2!")
+		}
+		for k := 0; k < numOut; k++ {
+			outType := funcType.Out(k)
+			if funcName != sessionFunc {
+				if outType.Kind() == reflect.Ptr || (outType.Kind() == reflect.Interface && outType.String() != "error") {
+					panic("[Error] func '" + funcName + "()' return '" + outType.String() + "' can not be a 'ptr' or 'interface'!")
+				}
+			}
+			ret := returnMap[funcName]
+			if ret == nil {
+				returnMap[funcName] = &returnValue{
+					Index: -1,
+					Num:      numOut,
+				}
+			}
+			if outType.String() != "error" {
+				returnMap[funcName].Index = k
+				returnMap[funcName].Value = &outType
+			} else {
+				returnMap[funcName].Error = &outType
+			}
+		}
+		if returnMap[funcName].Error == nil && funcName != sessionFunc{
+			panic("[Error] func '" + funcName + "()' must return an 'error'!")
+		}
+	}
+	return returnMap
+}
+func isCustomStruct(value reflect.Type) bool {
+	if value.Kind() == reflect.Struct && value.String() != mTime && value.String() != mTimePtr {
+		return true
+	} else {
+		return false
+	}
+}
+// ==============================================================================================================
+func makeMethodXmlMap(beanType reflect.Type, mapperTree map[string]*element) map[string]*mapper {
+	methodXmlMap := make(map[string]*mapper)
+	totalField := beanType.NumField()
+	for i := 0; i < totalField; i++ {
+		fieldItem := beanType.Field(i)
+		if fieldItem.Type.Kind() == reflect.Func && fieldItem.Name != sessionFunc{
+			mapperXml := findMapperXml(mapperTree, beanType.String(),fieldItem.Name)
+			methodXmlMap[fieldItem.Name] = &mapper{
+				xml:   mapperXml,
+				nodes: newNodeParser().Parser(mapperXml.Child),
+			}
+		}
+	}
+	return methodXmlMap
+}
+func findMapperXml(mapperTree map[string]*element, beanName,methodName string) *element {
+	for _, mapperXml := range mapperTree {
+		key := mapperXml.SelectAttrValue("id", "")
+		if strings.EqualFold(key, methodName) {
+			return mapperXml
+		}
+	}
+	panic("[Error] can not find method " + beanName + "." + methodName + "() in xml !")
+}
+func newNodeParser() express {
+	return express{
+		Proxy: &nodeExpress{},
+	}
+}
+// ======================================= 将 []byte 类型的XML数据解析成结构体 ================================================
+func expressSymbol(bytes *[]byte) {
+	byteStr := string(*bytes)
+	testRegex, _ := regexp.Compile(`test=".*"`)
+	findList := testRegex.FindAllString(byteStr, -1)
+	for _, findStr := range findList {
+		newStr := findStr
+		newStr = strings.Replace(newStr, "<", "&lt;", -1)
+		newStr = strings.Replace(newStr, ">", "&gt;", -1)
+		byteStr = strings.Replace(byteStr, findStr, newStr, -1)
+	}
+	*bytes = []byte(byteStr)
+}
+func parseXml(bytes []byte) (items map[string]*element) {
+	expressSymbol(&bytes)
+	doc := newDocument()
+	if err := doc.ReadFromBytes(bytes); err != nil {
+		panic(err)
+	}
+	items = make(map[string]*element)
+	root := doc.SelectElement(elementMapper)
+	for _, s := range root.ChildElements() {
+		if s.Tag == elementInsert ||
+			s.Tag == elementDelete ||
+			s.Tag == elementUpdate ||
+			s.Tag == elementSelect ||
+			s.Tag == elementResultMap ||
+			s.Tag == elementSql ||
+			s.Tag == elementInsertTemplate ||
+			s.Tag == elementDeleteTemplate ||
+			s.Tag == elementUpdateTemplate ||
+			s.Tag == elementSelectTemplate {
+			idValue := s.SelectAttrValue(iD, "")
+			if idValue == "" {
+				idValue = s.Tag
+			}
+			if idValue != "" {
+				oldItem := items[idValue]
+				if oldItem != nil {
+					panic(`[Panic] 在同一个 <` + s.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一个标签中不能重复!)`)
+				}
+			}
+			items[idValue] = s
+		}
+	}
+	for _, mapperXml := range items {
+		for _, v := range mapperXml.ChildElements() {
+			includeElementReplace(v, &items)
+		}
+	}
+	return items
+}
+func includeElementReplace(xml *element, xmlMap *map[string]*element) {
+	if xml.Tag == elementInclude {
+		ref := xml.SelectAttr("refid").Value
+		if ref == "" {
+			panic(`[Panic] xml <include refid=""> 'refid' 不能为 ""`)
+		}
+		mapperXml := (*xmlMap)[ref]
+		if mapperXml == nil {
+			panic(`[Error] xml <includ refid="` + ref + `"> element can not find !`)
+		}
+		if xml != nil {
+			(*xml).Child = mapperXml.Child
+		}
+	}
+	if xml.Child != nil {
+		for _, v := range xml.ChildElements() {
+			includeElementReplace(v, xmlMap)
+		}
+	}
+}
+// ========================================== 解析 xml文件中的 <Template></Template> 模版标签 ================================================
+var equalOperator = []string{"/", "+", "-", "*", "**", "|", "^", "&", "%", "<", ">", ">=", "<=", " in ", " not in ", " or ", "||", " and ", "&&", "==", "!="}
+
+type (
+	logicDeleteData struct {
+		Column        string
+		Property      string
+		LangType      string
+		Enable        bool
+		DeletedValue  string
+		UndeleteValue string
+	}
+	versionData struct {
+		Column   string
+		Property string
+		LangType string
+	}
+)
+func upperFirst(fieldStr string) string {
+	if fieldStr != "" {
+		var fieldBytes = []byte(fieldStr)
+		var fieldLength = len(fieldStr)
+		fieldStr = strings.ToUpper(string(fieldBytes[:1])) + string(fieldBytes[1:fieldLength])
+		fieldBytes = nil
+	}
+	return fieldStr
+}
+// 参数 tree肯定不为空,所以该方法内部不用对 tree判空!!!
+func decodeTree(tree map[string]*element, beanType reflect.Type,print bool){
+	for _, v := range tree {
+		var method *reflect.StructField
+		if isMethodElement(v.Tag) {
+			upperId := upperFirst(v.SelectAttrValue("id", ""))
+			if upperId == "" {
+				upperId = upperFirst(v.Tag)
+			}
+			m, _ := beanType.FieldByName(upperId)
+			method = &m
+		}
+		oldChild := v.Child
+		v.Child = []token{}
+		decode(method, v, tree)
+		v.Child = append(v.Child, oldChild...)
+		beanName := beanType.String()
+		if print {
+			s := "================输出 " + beanName + "." + v.SelectAttrValue("id", "") +"()"+" 对应的 xml 标签 ============\n"
+			printElement(v, &s)
+			println(s)//log.Println(s)这里可以将s输出到日志中
+		}
+	}
+}
+func printElement(ele *element, v *string) {
+	*v += "<" + ele.Tag + " "
+	for _, item := range ele.Attr {
+		*v += item.Key + "=\"" + item.Value + "\""
+	}
+	*v += " >"
+	if ele.Child != nil && len(ele.Child) != 0 {
+		for _, item := range ele.Child {
+			var typeString = reflect.TypeOf(item).String()
+			if typeString == "*mbt.element"{
+				str := ""
+				printElement(item.(*element), &str)
+				*v += str
+			} else if typeString == "*mbt.charData"{
+				*v += "" + item.(*charData).Data
+			}
+		}
+	}
+	*v += "</" + ele.Tag + ">\n"
+}
+func decode(method *reflect.StructField, mapper *element, tree map[string]*element){
+	switch mapper.Tag {
+	case elementSelectTemplate:
+		mapper.Tag = elementSelect
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", elementSelectTemplate)
+		}
+		tables := mapper.SelectAttrValue("table", "")
+		columns := mapper.SelectAttrValue("column", "")
+		wheres := mapper.SelectAttrValue("where", "")
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			resultMap = "BaseResultMap"
+		}
+		resultMapData := tree[resultMap]
+		if resultMapData == nil {
+			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+		}
+		checkTablesValue(mapper, &tables, resultMapData)
+		logic := decodeLogicDelete(resultMapData)
+		var sql bytes.Buffer
+		sql.WriteString("select ")
+		if columns == "" {
+			columns = "*"
+		}
+		sql.WriteString(columns)
+		sql.WriteString(" from ")
+		sql.WriteString(tables)
+		if len(wheres) > 0 {
+			mapper.Child = append(mapper.Child, &charData{
+				Data: sql.String(),
+			})
+			decodeWheres(wheres, mapper, logic, nil)
+		}
+		break
+	case elementInsertTemplate:
+		mapper.Tag = elementInsert
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", elementInsertTemplate)
+		}
+		tables := mapper.SelectAttrValue("table", "")
+		inserts := mapper.SelectAttrValue("insert", "")
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			resultMap = "BaseResultMap"
+		}
+		if inserts == "" {
+			inserts = "*?*"
+		}
+		resultMapData := tree[resultMap]
+		if resultMapData == nil {
+			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+		}
+		checkTablesValue(mapper, &tables, resultMapData)
+		logic := decodeLogicDelete(resultMapData)
+		collectionName := decodeCollectionName(method)
+		var sql bytes.Buffer
+		sql.WriteString("insert into ")
+		sql.WriteString(tables)
+		mapper.Child = append(mapper.Child, &charData{
+			Data: sql.String(),
+		})
+		var trimColumn = element{
+			Tag: elementTrim,
+			Attr: []attr{
+				{Key: "prefix", Value: "("},
+				{Key: "suffix", Value: ")"},
+				{Key: "trimSuffix", Value: ","},
+			},
+			Child: []token{},
+		}
+		if collectionName != "" {
+			for _, v := range resultMapData.ChildElements() {
+				if inserts == "*" || inserts == "*?*" {
+					trimColumn.Child = append(trimColumn.Child, &charData{
+						Data: v.SelectAttrValue("column", "") + ",",
+					})
+				}
+			}
+		} else {
+			for _, v := range resultMapData.ChildElements() {
+				if collectionName == "" && inserts == "*?*" {
+					trimColumn.Child = append(trimColumn.Child, &element{
+						Tag: elementIf,
+						Attr: []attr{
+							{Key: "test", Value: makeIfNotNull(v.SelectAttrValue("column", ""))},
+						},
+						Child: []token{
+							&charData{
+								Data: v.SelectAttrValue("column", "") + ",",
+							},
+						},
+					})
+				} else if inserts == "*" {
+					trimColumn.Child = append(trimColumn.Child, &charData{
+						Data: v.SelectAttrValue("column", "") + ",",
+					})
+				}
+			}
+		}
+		mapper.Child = append(mapper.Child, &trimColumn)
+		var tempElement = element{
+			Tag:   elementTrim,
+			Attr:  []attr{{Key: "prefix", Value: "values ("}, {Key: "suffix", Value: ")"}, {Key: "trimSuffix", Value: ","}},
+			Child: []token{},
+		}
+		if collectionName == "" {
+			for _, v := range resultMapData.ChildElements() {
+				if logic.Enable && v.SelectAttrValue("column", "") == logic.Property {
+					tempElement.Child = append(tempElement.Child, &charData{
+						Data: logic.UndeleteValue + ",",
+					})
+					continue
+				}
+				if inserts == "*?*" {
+					tempElement.Child = append(tempElement.Child, &element{
+						Tag:  elementIf,
+						Attr: []attr{{Key: "test", Value: makeIfNotNull(v.SelectAttrValue("column", ""))}},
+						Child: []token{
+							&charData{
+								Data: "#{" + v.SelectAttrValue("column", "") + "},",
+							},
+						},
+					})
+				} else if inserts == "*" {
+					tempElement.Child = append(tempElement.Child, &charData{
+						Data: "#{" + v.SelectAttrValue("column", "") + "},",
+					})
+				}
+			}
+		} else {
+			tempElement.Attr = []attr{}
+			tempElement.Tag = elementForeach
+			tempElement.Attr = []attr{{Key: "open", Value: "values "}, {Key: "close", Value: ""}, {Key: "separator", Value: ","}, {Key: "list", Value: collectionName}}
+			tempElement.Child = []token{}
+			for index, v := range resultMapData.ChildElements() {
+				var prefix = ""
+				if index == 0 {
+					prefix = "("
+				}
+				var defProperty = v.SelectAttrValue("column", "")
+				if method != nil {
+					for i := 0; i < method.Type.NumIn(); i++ {
+						var argItem = method.Type.In(i)
+						if argItem.Kind() == reflect.Ptr {
+							argItem = argItem.Elem()
+						}
+						if argItem.Kind() == reflect.Slice || argItem.Kind() == reflect.Array {
+							argItem = argItem.Elem()
+						}
+						if argItem.Kind() == reflect.Struct {
+							for k := 0; k < argItem.NumField(); k++ {
+								var argStructField = argItem.Field(k)
+								var js = argStructField.Tag.Get("json")
+								if strings.Index(js, ",") != -1 {
+									js = strings.Split(js, ",")[0]
+								}
+								if strings.ToLower(strings.Replace(defProperty, "_", "", -1)) ==
+									strings.ToLower(strings.Replace(argStructField.Name, "_", "", -1)) ||
+									js == defProperty {
+									defProperty = argStructField.Name
+								}
+							}
+						}
+					}
+				}
+				var value = prefix + "#{" + "item." + defProperty + "}"
+				if logic.Enable && v.SelectAttrValue("column", "") == logic.Property {
+					value = `'` + logic.UndeleteValue + "'"
+				}
+				if index+1 == len(resultMapData.ChildElements()) {
+					value += ")"
+				} else {
+					value += ","
+				}
+				tempElement.Child = append(tempElement.Child, &charData{
+					Data: value,
+				})
+			}
+		}
+		mapper.Child = append(mapper.Child, &tempElement)
+		break
+	case elementUpdateTemplate:
+		mapper.Tag = elementUpdate
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", elementUpdateTemplate)
+		}
+		tables := mapper.SelectAttrValue("table", "")
+		columns := mapper.SelectAttrValue("set", "")
+		wheres := mapper.SelectAttrValue("where", "")
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			resultMap = "BaseResultMap"
+		}
+		resultMapData := tree[resultMap]
+		if resultMapData == nil {
+			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+		}
+		checkTablesValue(mapper, &tables, resultMapData)
+		logic := decodeLogicDelete(resultMapData)
+		version := decodeVersionData(resultMapData)
+		var sql bytes.Buffer
+		sql.WriteString("update ")
+		sql.WriteString(tables)
+		sql.WriteString(" set ")
+		if columns == "" {
+			mapper.Child = append(mapper.Child, &charData{
+				Data: sql.String(),
+			})
+			sql.Reset()
+			for _, v := range resultMapData.ChildElements() {
+				if v.Tag == "id" {
+
+				} else {
+					if v.SelectAttrValue("version_enable", "") == "true" {
+						continue
+					}
+					columns += v.SelectAttrValue("column", "") + "?" + v.SelectAttrValue("column", "") + " = #{" + v.SelectAttrValue("column", "") + "},"
+				}
+			}
+			columns = strings.Trim(columns, ",")
+			decodeSets(columns, mapper, logicDeleteData{}, version)
+		} else {
+			mapper.Child = append(mapper.Child, &charData{
+				Data: sql.String(),
+			})
+			sql.Reset()
+			decodeSets(columns, mapper, logicDeleteData{}, version)
+		}
+		if len(wheres) > 0 || logic.Enable {
+			mapper.Child = append(mapper.Child, &charData{
+				Data: sql.String(),
+			})
+			decodeWheres(wheres, mapper, logic, version)
+		}
+		break
+	case elementDeleteTemplate:
+		mapper.Tag = elementDelete
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", elementDeleteTemplate)
+		}
+		tables := mapper.SelectAttrValue("table", "")
+		wheres := mapper.SelectAttrValue("where", "")
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			resultMap = "BaseResultMap"
+		}
+		resultMapData := tree[resultMap]
+		if resultMapData == nil {
+			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+		}
+		checkTablesValue(mapper, &tables, resultMapData)
+		logic := decodeLogicDelete(resultMapData)
+		if logic.Enable {
+			var sql bytes.Buffer
+			sql.WriteString("update ")
+			sql.WriteString(tables)
+			sql.WriteString(" set ")
+			mapper.Child = append(mapper.Child, &charData{
+				Data: sql.String(),
+			})
+			sql.Reset()
+			decodeSets("", mapper, logic, nil)
+			if len(wheres) > 0 {
+				mapper.Child = append(mapper.Child, &charData{
+					Data: sql.String(),
+				})
+				decodeWheres(wheres, mapper, logic, nil)
+			}
+			break
+		} else {
+			var sql bytes.Buffer
+			sql.WriteString("delete from ")
+			sql.WriteString(tables)
+			if len(wheres) > 0 {
+				mapper.Child = append(mapper.Child, &charData{
+					Data: sql.String(),
+				})
+				decodeWheres(wheres, mapper, logicDeleteData{}, nil)
+			}
+		}
+	}
+}
+func checkTablesValue(mapper *element, tables *string, resultMapData *element) {
+	if *tables == "" {
+		*tables = resultMapData.SelectAttrValue("table", "")
+		if *tables == "" {
+			panic("[TemplateDecoder] 属性 'table' 不能为空! 需要定义在 <resultMap> 或者 <" + mapper.Tag + "Template>中,mapper id=" + mapper.SelectAttrValue("id", ""))
+		}
+	}
+}
+func decodeWheres(arg string, mapper *element, logic logicDeleteData, version *versionData) {
+	var whereRoot = &element{
+		Tag:   elementWhere,
+		Attr:  []attr{},
+		Child: []token{},
+	}
+	if logic.Enable == true {
+		var appendAdd = ""
+		var item = &charData{
+			Data: appendAdd + logic.Column + " = " + logic.UndeleteValue,
+		}
+		whereRoot.Child = append(whereRoot.Child, item)
+	}
+	if version != nil {
+		var appendAdd = ""
+		if len(whereRoot.Child) >= 1 {
+			appendAdd = " and "
+		}
+		var item = &charData{
+			Data: appendAdd + version.Column + " = #{" + version.Property + "}",
+		}
+		whereRoot.Child = append(whereRoot.Child, item)
+	}
+	var wheres = strings.Split(arg, ",")
+	for index, v := range wheres {
+		if v == "" || strings.Trim(v, " ") == "" {
+			continue
+		}
+		var expressions = strings.Split(v, "?")
+		var appendAdd = ""
+		if index >= 1 || len(whereRoot.Child) > 0 {
+			appendAdd = " and "
+		}
+		var item token
+		if len(expressions) > 1 {
+			var newWheres bytes.Buffer
+			newWheres.WriteString(expressions[1])
+			item = &element{
+				Tag:   elementIf,
+				Attr:  []attr{{Key: "test", Value: makeIfNotNull(expressions[0])}},
+				Child: []token{&charData{Data: appendAdd + newWheres.String()}},
+			}
+		} else {
+			var newWheres bytes.Buffer
+			newWheres.WriteString(appendAdd)
+			newWheres.WriteString(v)
+			item = &charData{
+				Data: newWheres.String(),
+			}
+		}
+		whereRoot.Child = append(whereRoot.Child, item)
+	}
+	mapper.Child = append(mapper.Child, whereRoot)
+}
+func decodeSets(arg string, mapper *element, logic logicDeleteData, version *versionData) {
+	var sets = strings.Split(arg, ",")
+	for index, v := range sets {
+		if v == "" {
+			continue
+		}
+		var expressions = strings.Split(v, "?")
+		if len(expressions) > 1 {
+			var newWheres bytes.Buffer
+			if index > 0 {
+				newWheres.WriteString(",")
+			}
+			newWheres.WriteString(expressions[1])
+			var item = &element{
+				Tag:  elementIf,
+				Attr: []attr{{Key: "test", Value: makeIfNotNull(expressions[0])}},
+			}
+			item.SetText(newWheres.String())
+			mapper.Child = append(mapper.Child, item)
+		} else {
+			var newWheres bytes.Buffer
+			if index > 0 {
+				newWheres.WriteString(",")
+			}
+			newWheres.WriteString(v)
+			var item = &charData{
+				Data: newWheres.String(),
+			}
+			mapper.Child = append(mapper.Child, item)
+		}
+	}
+	if logic.Enable == true {
+		var appendAdd = ""
+		if len(sets) >= 1 && arg != "" {
+			appendAdd = ","
+		}
+		var item = &charData{
+			Data: appendAdd + logic.Column + " = " + logic.DeletedValue,
+		}
+		mapper.Child = append(mapper.Child, item)
+	}
+	if version != nil {
+		var appendAdd = ""
+		if len(sets) >= 1 && arg != "" {
+			appendAdd = ","
+		}
+		var item = &charData{
+			Data: appendAdd + version.Column + " = #{" + version.Property + "+1}",
+		}
+		mapper.Child = append(mapper.Child, item)
+	}
+}
+func makeIfNotNull(arg string) string {
+	for _, v := range equalOperator {
+		if v == "" {
+			continue
+		}
+		if strings.Contains(arg, v) {
+			return arg
+		}
+	}
+	return arg + ` != nil`
+}
+func decodeLogicDelete(xml *element) logicDeleteData {
+	if xml == nil || len(xml.Child) == 0 {
+		return logicDeleteData{}
+	}
+	logicData := logicDeleteData{}
+	for _, v := range xml.ChildElements() {
+		if v.SelectAttrValue("logic_enable", "") == "true" {
+			logicData.Enable = true
+			logicData.DeletedValue = v.SelectAttrValue("logic_deleted", "")
+			logicData.UndeleteValue = v.SelectAttrValue("logic_undelete", "")
+			logicData.Column = v.SelectAttrValue("column", "")
+			logicData.Property = v.SelectAttrValue("column", "")
+			logicData.LangType = v.SelectAttrValue("langType", "")
+			if logicData.DeletedValue == "" {
+				panic(errors.New(fmt.Sprint("TemplateDecoder", `<resultMap> logic_deleted="" can't be empty !`)))
+			}
+			if logicData.UndeleteValue == "" {
+				panic(errors.New(fmt.Sprint("TemplateDecoder", `<resultMap> logic_undelete="" can't be empty !`)))
+			}
+			if logicData.UndeleteValue == logicData.DeletedValue {
+				panic(errors.New(fmt.Sprint("TemplateDecoder", `<resultMap> logic_deleted value can't be logic_undelete value!`)))
+			}
+			break
+		}
+	}
+	return logicData
+}
+func decodeVersionData(xml *element) *versionData {
+	if xml == nil || len(xml.Child) == 0 {
+		return nil
+	}
+	for _, v := range xml.ChildElements() {
+		if v.SelectAttrValue("version_enable", "") == "true" {
+			version := versionData{}
+			version.Column = v.SelectAttrValue("column", "")
+			version.Property = v.SelectAttrValue("column", "")
+			version.LangType = v.SelectAttrValue("langType", "")
+			if !(strings.Contains(version.LangType, "int") || strings.Contains(version.LangType, "time.Time")) {
+				panic(errors.New(fmt.Sprint("TemplateDecoder", `version_enable only support int...,time.Time... number type!`)))
+			}
+			return &version
+		}
+	}
+	return nil
+}
+func decodeCollectionName(method *reflect.StructField) string {
+	var collection string
+	if method != nil {
+		var numIn = method.Type.NumIn()
+		for i := 0; i < numIn; i++ {
+			var itemType = method.Type.In(i)
+			if itemType.Kind() == reflect.Slice || itemType.Kind() == reflect.Array {
+				var params = method.Tag.Get("arg")
+				var args = strings.Split(params, ",")
+				if params == "" || args == nil || len(args) == 0 {
+					collection = defaultOneArg + strconv.Itoa(i)
+				} else {
+					if args[i] == "" {
+						collection = defaultOneArg + strconv.Itoa(i)
+					} else {
+						collection = args[i]
+					}
+				}
+				if collection != "" {
+					return collection
+				}
+			}
+		}
+	}
+	return collection
+}
+// =======================================
+func makeResultMaps(xml map[string]*element) map[string]map[string]*resultProperty {
+	resultMaps := make(map[string]map[string]*resultProperty)
+	for _, item := range xml {
+		xmlItem := item
+		if xmlItem.Tag == elementResultMap {
+			resultPropertyMap := make(map[string]*resultProperty)
+			for _, elementItem :=range xmlItem.ChildElements() {
+				property := resultProperty{
+					XMLName:  elementItem.Tag,
+					Column:   elementItem.SelectAttrValue("column", ""),
+					LangType: elementItem.SelectAttrValue("langType", ""),
+				}
+				resultPropertyMap[property.Column] = &property
+			}
+			resultMaps[xmlItem.SelectAttrValue("id", "")] = resultPropertyMap
+		}
+	}
+	return resultMaps
+}
+func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
+	list := make([]reflect.Value, ptr.Num)
+	for k, _ := range list {
+		if k == ptr.Index {
+			if value != nil {
+				list[k] = (*value).Elem()
+			}
+		} else {
+			list[k] = reflect.Zero(*ptr.Error)
+		}
+	}
+	return list
+}
+func printArray(array []interface{}) string {
+	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
+}
+func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, nodes []iiNode, resultMap map[string]*resultProperty, returnValue *reflect.Value){
+	var s Session
+	 s = findArgSession(proxyArg)
+	 if s == nil {
+		 if it.isGoroutine {
+			 s = it.get(goroutineID())
+			 if s == nil {
+				 s = it.session()
+				 defer s.Close()
+			 }
+		 }else {
+			 s = it.session()
+			 defer s.Close()
+		 }
+	 }
+	convert := s.stmtConvert()
+	array := make([]interface{},0)
+	sql := buildSql(proxyArg, nodes,&array, convert)
+	if elementType == elementSelect {
+		res, err := s.queryPrepare(sql, array...)
+		if err != nil {
+			panic(fmt.Sprintf("[Error] [%s] error == %s",s.Id(),err.Error()))
+		}
+		if it.printSql {
+			log.Println("[INFO] [", s.Id(), "] Query ==> "+sql)
+			log.Println("[INFO] [", s.Id(), "] Args  ==> "+printArray(array))
+		}
+		defer func() {
+			if it.printSql {
+				RowsAffected := "0"
+				if res != nil {
+					RowsAffected = strconv.Itoa(len(res))
+				}
+				log.Println("[INFO] [", s.Id(), "] ReturnRows <== "+RowsAffected)
+			}
+		}()
+		decodeSqlResult(resultMap, res, returnValue.Interface())
+	} else {
+		res, err := s.execPrepare(sql, array...)
+		if err != nil {
+			panic(fmt.Sprintf("[Error] [%s] error == %s",s.Id(),err.Error()))
+		}
+		if it.printSql {
+			log.Println("[INFO] [", s.Id(), "] Exec ==> "+sql)
+			log.Println("[INFO] [", s.Id(), "] Args ==> "+printArray(array))
+		}
+		defer func() {
+			if it.printSql {
+				var RowsAffected = "0"
+				if res != nil {
+					RowsAffected = strconv.FormatInt(res.RowsAffected, 10)
+				}
+				log.Println("[INFO] [", s.Id(), "] RowsAffected <== "+RowsAffected)
+			}
+		}()
+		returnValue.Elem().SetInt(res.RowsAffected)
+	}
+}
+func findArgSession(proxyArg proxyArg)Session{
+	for _, arg := range proxyArg.Args {
+		argInterface := arg.Interface()
+		argK := arg.Kind()
+		argS := arg.Type().String()
+		if argK == reflect.Interface && argInterface != nil && argS == mSession {
+			return argInterface.(Session)
+		}
+	}
+	return nil
+}
+func lowerFirst(fieldStr string) string {
+	if fieldStr != "" {
+		var fieldBytes = []byte(fieldStr)
+		var fieldLength = len(fieldStr)
+		fieldStr = strings.ToLower(string(fieldBytes[:1])) + string(fieldBytes[1:fieldLength])
+		fieldBytes = nil
+	}
+	return fieldStr
+}
+func buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert iConvert) string{
+	var (
+		paramMap = make(map[string]interface{})
+		tagArgsLen = proxyArg.TagArgsLen
+		argsLen = proxyArg.ArgsLen
+		customLen = 0
+		customIndex = -1
+	)
+	for argIndex, arg := range proxyArg.Args {
+		argInterface := arg.Interface()
+		argK := arg.Kind()
+		argT := arg.Type()
+		if argK == reflect.Ptr && arg.IsNil() == false && argInterface != nil && argT.String() == mSessionPtr {
+			if argsLen > 0 {
+				argsLen--
+			}
+			if tagArgsLen > 0 {
+				tagArgsLen--
+			}
+			continue
+		} else if argInterface != nil && argK == reflect.Interface {
+			continue
+		}
+		if isCustomStruct(argT) {
+			customLen++
+			customIndex = argIndex
+		}
+		if tagArgsLen > 0 && argIndex < tagArgsLen && proxyArg.TagArgs[argIndex].Name != "" {
+			//插入2份参数，兼容大小写不敏感的参数
+			lowerKey := lowerFirst(proxyArg.TagArgs[argIndex].Name)
+			upperKey := upperFirst(proxyArg.TagArgs[argIndex].Name)
+			paramMap[lowerKey] = argInterface
+			paramMap[upperKey] = argInterface
+		} else {
+			paramMap[defaultOneArg+strconv.Itoa(argIndex)] = argInterface
+		}
+	}
+	if customLen == 1 && customIndex != -1 {
+		var tag *tagArg
+		if proxyArg.TagArgsLen == 1 {
+			tag = &proxyArg.TagArgs[0]
+		}
+		paramMap = scanStructArgFields(proxyArg.Args[customIndex], tag)
+	}
+	return sqlBuild(paramMap, nodes, array, stmtConvert)
+}
+func sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert iConvert)string{
+	sql, err := doChildNodes(node, args, array, stmtConvert)
+	if err != nil {
+		panic(err)
+	}
+	return string(sql)
+}
+func scanStructArgFields(v reflect.Value, tag *tagArg) map[string]interface{} {
+	t := v.Type()
+	parameters := make(map[string]interface{})
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() == true {
+			return parameters
+		}
+		v = v.Elem()
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		panic(`[Error] the scanParameterBean() arg is not a struct type!,type =` + t.String())
+	}
+	structArg := make(map[string]interface{})
+	for i := 0; i < t.NumField(); i++ {
+		typeValue := t.Field(i)
+		field := v.Field(i)
+		var obj interface{}
+		if field.CanInterface() {
+			obj = field.Interface()
+		}
+		jsonKey := typeValue.Tag.Get(`json`)
+		if strings.Index(jsonKey, ",") != -1 {
+			jsonKey = strings.Split(jsonKey, ",")[0]
+		}
+		if jsonKey != "" {
+			parameters[jsonKey] = obj
+			structArg[jsonKey] = obj
+			parameters[typeValue.Name] = obj
+			structArg[typeValue.Name] = obj
+		} else {
+			parameters[typeValue.Name] = obj
+			structArg[typeValue.Name] = obj
+		}
+	}
+	if tag != nil && parameters[tag.Name] == nil {
+		parameters[tag.Name] = structArg
+	}
+	return parameters
+}
+func proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		ft := f.Type()
+		ftk := ft.Kind()
+		sf := v.Type().Field(i)
+		if ftk == reflect.Ptr{
+			ft = ft.Elem()
+		}
+		if f.CanSet() {
+			switch ftk {
+			case reflect.Struct:
+				proxyValue(f, buildFunc)
+			case reflect.Func:
+				buildRemoteMethod(f, ft, sf, buildFunc(sf, f))
+			}
+		}
+	}
+	v.Set(v)
+}
+func buildRemoteMethod(f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
+	var tagParams []string
+	args := sf.Tag.Get(`arg`)
+	if args != `` {
+		tagParams = strings.Split(args, `,`)
+	}
+	tagParamsLen := len(tagParams)
+	num := ft.NumIn()
+	for i := 0;i<num;i++ {
+		if ft.In(i).String() == mSession {
+			num --
+		}
+	}
+	if tagParamsLen > num{
+		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 > 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+	}
+	tagArgs := make([]tagArg, 0)
+	if tagParamsLen != 0 {
+		for index, v := range tagParams {
+			tag := tagArg{
+				Index: index,
+				Name:  v,
+			}
+			tagArgs = append(tagArgs, tag)
+		}
+	}
+	tagArgsLen := len(tagArgs)
+	if tagArgsLen > 0 && num != tagArgsLen {
+		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+	}
+	fn := func(args []reflect.Value) (results []reflect.Value) {
+		proxyResults := proxyFunc(newArg(tagArgs, args))
+		for _, returnV := range proxyResults {
+			results = append(results, returnV)
+		}
+		return results
+	}
+	f.Set(reflect.MakeFunc(ft, fn))
+	tagParams = nil
+}
+func decodeSqlResult(resultMap map[string]*resultProperty, sqlResult []map[string][]byte, result interface{}){
+	if sqlResult == nil || result == nil {
+		return
+	}
+	resultV := reflect.ValueOf(result).Elem()
+	value := make([]byte,0)
+	sqlResultLen := len(sqlResult)
+	if sqlResultLen == 0 {
+		return
+	}
+	if !isArray(resultV.Kind()) {
+		if sqlResultLen > 1 {
+			panic("SqlResultDecoder Decode one result,but find database result size find > 1 !")
+		}
+		if isBasicType(resultV.Type()) {
+			for _, s := range sqlResult[0] {
+				var b = strings.Builder{}
+				if resultV.Kind() == reflect.String || (resultV.Kind() == reflect.Struct) {
+					b.WriteString("\"")
+					b.Write(s)
+					b.WriteString("\"")
+				} else {
+					b.Write(s)
+				}
+				value = []byte(b.String())
+				break
+			}
+		} else {
+			structMap := makeStructMap(resultV.Type())
+			value = makeJsonObjBytes(resultMap, sqlResult[0], structMap)
+		}
+	} else {
+		if resultV.Type().Kind() != reflect.Array && resultV.Type().Kind() != reflect.Slice {
+			panic("SqlResultDecoder decode type not an struct array or slice!")
+		}
+		resultVItemType := resultV.Type().Elem()
+		structMap := makeStructMap(resultVItemType)
+		done := len(sqlResult) - 1
+		index := 0
+		jsonData := strings.Builder{}
+		jsonData.WriteString("[")
+		for _, v := range sqlResult {
+			jsonData.Write(makeJsonObjBytes(resultMap, v, structMap))
+			if index < done {
+				jsonData.WriteString(",")
+			}
+			index += 1
+		}
+		jsonData.WriteString("]")
+		value = []byte(jsonData.String())
+	}
+	err := json.Unmarshal(value, result)
+	if err != nil {
+		panic(err)
+	}
+}
+func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
+	if itemType.Kind() != reflect.Struct {
+		return nil
+	}
+	var structMap = map[string]*reflect.Type{}
+	for i := 0; i < itemType.NumField(); i++ {
+		var item = itemType.Field(i)
+		structMap[strings.ToLower(item.Tag.Get("json"))] = &item.Type
+	}
+	return structMap
+}
+func makeJsonObjBytes(resultMap map[string]*resultProperty, sqlData map[string][]byte, structMap map[string]*reflect.Type) []byte {
+	var jsonData = strings.Builder{}
+	jsonData.WriteString("{")
+	var done = len(sqlData) - 1
+	var index = 0
+	for k, sqlV := range sqlData {
+		jsonData.WriteString("\"")
+		jsonData.WriteString(k)
+		jsonData.WriteString("\":")
+		var isStringType = false
+		var fetched = true
+		if resultMap != nil {
+			var resultMapItem = resultMap[k]
+			if resultMapItem != nil && (resultMapItem.LangType == "string" || resultMapItem.LangType == "time.Time") {
+				isStringType = true
+			}
+			if resultMapItem == nil {
+				fetched = false
+			}
+		} else if structMap != nil {
+			var v = structMap[strings.ToLower(k)]
+			if v != nil {
+				if (*v).Kind() == reflect.String || (*v).String() == "time.Time" {
+					isStringType = true
+				}
+			}
+			if v == nil {
+				fetched = false
+			}
+		} else {
+			isStringType = true
+		}
+		if fetched {
+			if isStringType {
+				jsonData.WriteString("\"")
+				jsonData.WriteString(encodeStringValue(sqlV))
+				jsonData.WriteString("\"")
+			} else {
+				if sqlV == nil || len(sqlV) == 0 {
+					sqlV = []byte("null")
+				}
+				jsonData.Write(sqlV)
+			}
+		} else {
+			sqlV = []byte("null")
+			jsonData.Write(sqlV)
+		}
+		if index < done {
+			jsonData.WriteString(",")
+		}
+		index += 1
+	}
+	jsonData.WriteString("}")
+	return []byte(jsonData.String())
+}
+func encodeStringValue(v []byte) string {
+	if v == nil {
+		return "null"
+	}
+	if len(v) == 0 {
+		return ""
+	}
+	var s = string(v)
+	var b, e = json.Marshal(s)
+	if e != nil || len(b) == 0 {
+		return "null"
+	}
+	s = string(b[1 : len(b)-1])
+	return s
+}
+func isArray(kind reflect.Kind) bool {
+	if kind == reflect.Slice || kind == reflect.Array {
+		return true
+	}
+	return false
+}
+func isBasicType(tItemTypeFieldType reflect.Type) bool {
+	if tItemTypeFieldType.Kind() == reflect.Bool ||
+		tItemTypeFieldType.Kind() == reflect.Int ||
+		tItemTypeFieldType.Kind() == reflect.Int8 ||
+		tItemTypeFieldType.Kind() == reflect.Int16 ||
+		tItemTypeFieldType.Kind() == reflect.Int32 ||
+		tItemTypeFieldType.Kind() == reflect.Int64 ||
+		tItemTypeFieldType.Kind() == reflect.Uint ||
+		tItemTypeFieldType.Kind() == reflect.Uint8 ||
+		tItemTypeFieldType.Kind() == reflect.Uint16 ||
+		tItemTypeFieldType.Kind() == reflect.Uint32 ||
+		tItemTypeFieldType.Kind() == reflect.Uint64 ||
+		tItemTypeFieldType.Kind() == reflect.Float32 ||
+		tItemTypeFieldType.Kind() == reflect.Float64 ||
+		tItemTypeFieldType.Kind() == reflect.String {
+		return true
+	}
+	if tItemTypeFieldType.Kind() == reflect.Struct && tItemTypeFieldType.String() == "time.Time" {
+		return true
+	}
+	return false
+}
+// =========================================== 根据表的model实体,生成该表的 xml 文件 =====================================================
+var xmlData = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://gitee.com/gopher2011/mbt/blob/master/mybatis-3-mapper.dtd">
+<mapper>
+    <!--logic_enable 逻辑删除字段-->
+    <!--logic_deleted 逻辑删除已删除字段-->
+    <!--logic_undelete 逻辑删除 未删除字段-->
+    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
+    <resultMap id="BaseResultMap" table="#{table}">
+    #{resultMapBody}
+    </resultMap>
+	<insertTemplate/>
+	<updateTemplate/>
+	<deleteTemplate where="id?id=#{id}"/>
+	<selectTemplate where="id?id=#{id}"/>
+	<select id="list"></select>
+	<!--<for list="" index="index" item="item"  open="(" close=")" separator=","></for>-->
+</mapper>
+`
+var (
+	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
+	xmlVersionEnable = `version_enable="true"`
+	resultItem = `<result column="#{column}" langType="#{langType}" #{version} #{logic}/>`
+)
+func createXml(tableName string, tv reflect.Type) []byte {
+	content := ""
+	for i := 0; i < tv.NumField(); i++ {
+		item := tv.Field(i)
+		tagValue := item.Tag.Get("json")
+		itemStr := strings.Replace(resultItem, "#{column}", tagValue, -1) // tagValue将去替换 ResultItem这个字符串中的 #{column}。
+		if item.Type.Name() == "Time" {
+			itemStr = strings.Replace(itemStr, "#{langType}", "time." + item.Type.Name(), -1)
+		}else {
+			itemStr = strings.Replace(itemStr, "#{langType}", item.Type.Name(), -1)
+		}
+		gm := item.Tag.Get("gm")
+		if gm == "version" {
+			itemStr = strings.Replace(itemStr, "#{version}", xmlVersionEnable, -1)
+		}
+		if gm == "logic" {
+			itemStr = strings.Replace(itemStr, "#{logic}", xmlLogicEnable, -1)
+		}
+		itemStr = strings.Replace(itemStr, "#{version}", "", -1)
+		itemStr = strings.Replace(itemStr, "#{logic}", "", -1)
+		content += "\t" + itemStr
+		if i+1 < tv.NumField() {
+			content += "\n"
+		}
+	}
+	res := strings.Replace(xmlData, "#{resultMapBody}", content, -1)
+	res = strings.Replace(res, "#{table}", tableName, -1)
+	return []byte(res)
+}
+func createFile(abs,pkg string) (*os.File,string,error){
+	_, err := os.Stat(pkg)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err1 := os.MkdirAll(pkg, os.ModePerm)
+			if err1 != nil {
+				println(err1)
+			}
+		}
+	}
+	file, err2 := os.Create(abs)
+	if err2 != nil {
+		println(err2)
+	}
+	return file,abs,nil
+}
+func genXml(abs,fileName,tableName,pkg string,bean reflect.Type) string {
+	body := createXml(tableName,bean)
+	f,s,err := createFile(abs,pkg)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	defer f.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		_, err = f.Write(body)
+		if err != nil {
+			println("写入文件失败：" + err.Error())
+		} else {
+			println("写入文件成功：" + fileName)
+		}
+	}
+	return s
+}
+// 参数 <pointer>是数据库表的实体的指针,这里不能传结构体对象的原因是(即使传的结构体对象,最终该对象也会逃逸到堆内存上去)
+// https://mp.weixin.qq.com/s/ashgWyb-w4fT47xX60yNFA
+func xmlPath(pointer interface{},pkg string) (string,string,string,reflect.Type){
+	t := reflect.TypeOf(pointer)
+	if t.Kind() != reflect.Ptr {
+		panic(errors.New(fmt.Sprintf("%v{} 必须是指针类型!!!",t.Name())))
+	}
+	t = t.Elem()
+	table := snake(t.Name())
+	fileName := table+".xml"
+	var w strings.Builder
+	w.WriteString(pkg)
+	w.WriteString("/")
+	w.WriteString(fileName)
+	s := w.String()
+	return s,fileName,table,t
+}
+func isNotExist(abs string) bool {
+	_, err := os.Stat(abs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return true
+		}
+		return false
+	}
+	return false
+}
+func snake(s string) string {
+	data := make([]byte, 0, len(s)*2)
+	j := false
+	num := len(s)
+	for i := 0; i < num; i++ {
+		d := s[i]
+		if i > 0 && d >= 'A' && d <= 'Z' && j {
+			data = append(data, '_')
+		}
+		if d != '_' {
+			j = true
+		}
+		data = append(data, d)
+	}
+	return strings.ToLower(string(data[:]))
+}
+// 以下代码注释掉,并不影响程序的运行,还是先保留吧
+type sqlArgTypeConvert struct {}
+func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
+	if argValue == nil {
+		return "''"
+	}
+	switch argValue.(type) {
+	case string:
+		var argStr bytes.Buffer
+		argStr.WriteString(`'`)
+		argStr.WriteString(argValue.(string))
+		argStr.WriteString(`'`)
+		return argStr.String()
+	case *string:
+		var v = argValue.(*string)
+		if v == nil {
+			return "''"
+		}
+		var argStr bytes.Buffer
+		argStr.WriteString(`'`)
+		argStr.WriteString(*v)
+		argStr.WriteString(`'`)
+		return argStr.String()
+	case bool:
+		if argValue.(bool) {
+			return "true"
+		} else {
+			return "false"
+		}
+	case *bool:
+		var v = argValue.(*bool)
+		if v == nil {
+			return "''"
+		}
+		if *v {
+			return "true"
+		} else {
+			return "false"
+		}
+	case time.Time:
+		var argStr bytes.Buffer
+		argStr.WriteString(`'`)
+		argStr.WriteString(argValue.(time.Time).Format(adapterFormatDate))
+		argStr.WriteString(`'`)
+		return argStr.String()
+	case *time.Time:
+		var timePtr = argValue.(*time.Time)
+		if timePtr == nil {
+			return "''"
+		}
+		var argStr bytes.Buffer
+		argStr.WriteString(`'`)
+		argStr.WriteString(timePtr.Format(adapterFormatDate))
+		argStr.WriteString(`'`)
+		return argStr.String()
+
+	case int, int16, int32, int64, float32, float64:
+		return fmt.Sprint(argValue)
+	case *int:
+		var v = argValue.(*int)
+		if v == nil {
+			return ""
+		}
+		return fmt.Sprint(*v)
+	case *int16:
+		var v = argValue.(*int16)
+		if v == nil {
+			return ""
+		}
+		return fmt.Sprint(*v)
+	case *int32:
+		var v = argValue.(*int32)
+		if v == nil {
+			return ""
+		}
+		return fmt.Sprint(*v)
+	case *int64:
+		var v = argValue.(*int64)
+		if v == nil {
+			return ""
+		}
+		return fmt.Sprint(*v)
+	case *float32:
+		var v = argValue.(*float32)
+		if v == nil {
+			return ""
+		}
+		return fmt.Sprint(*v)
+	case *float64:
+		var v = argValue.(*float64)
+		if v == nil {
+			return ""
+		}
+		return fmt.Sprint(*v)
+	}
+
+	return it.toString(argValue)
+}
+func (it sqlArgTypeConvert) toString(argValue interface{}) string {
+	if argValue == nil {
+		return ""
+	}
+	return fmt.Sprint(argValue)
+}
+// ===================== 以下几个函数只给嵌套事务使用 =================================
+func (it *Engine)Tx(mapperPtr interface{}) {
+	service := reflect.ValueOf(mapperPtr)
+	if service.Kind() != reflect.Ptr {
+		panic("参数 mapperPtr 必须是指针类型")
+	}
+	txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
+		pro := Never
+		nativeImplFunc := reflect.ValueOf(field.Interface())
+		txTag, ok  := funcField.Tag.Lookup("tx")
+		rollbackTag := funcField.Tag.Get("rollback")
+		if ok {
+			pro = newPro(txTag)
+		}
+		fn := func(arg proxyArg) []reflect.Value {
+			var s Session
+			if it.isGoroutine {
+				goroutine := goroutineID()//协程id
+				s = it.session()
+				defer func() {
+					if s != nil {
+						s.Close()
+					}
+					it.delete(goroutine)
+				}()
+				it.put(goroutine,s)
+			}else {
+				s = it.session()
+			}
+			if !ok { //如果字段上没有定义 tx 这个tag
+				err := s.Begin(s.LastPropagation())
+				if err !=nil {
+					panic(err)
+				}
+			}else{
+				err := s.Begin(&pro)
+				if err != nil {
+					panic(err)
+				}
+			}
+			nativeImplResult := doNativeMethod(funcField, arg, nativeImplFunc, s)
+			if !haveRollBackType(nativeImplResult, rollbackTag) {
+				err := s.Commit()
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				err := s.Rollback()
+				if err != nil {
+					panic(err)
+				}
+			}
+			return nativeImplResult
+		}
+		return fn
+	})
+}
+// 输入参数<v>一定是 reflect.Ptr
+func txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
+	v = v.Elem()//这句代码执行完后,v.Kind()== reflect.Struct
+	t := v.Type()//这句代码执行完后,t.Kind()== reflect.Struct
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		ft := f.Type()
+		ftk := ft.Kind()
+		sf := t.Field(i)
+		if ftk == reflect.Ptr{
+			ft = ft.Elem()
+		}
+		if f.CanSet() {//如果该字段是可导出字段
+			switch ftk {
+			case reflect.Struct:
+				txStruct(f, buildFunc)
+			case reflect.Func:
+				txMethod(f, ft, sf, buildFunc(sf, f))
+			}
+		}
+	}
+	v.Set(v)
+}
+func txMethod(f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
+	var tagParams []string
+	args := sf.Tag.Get(`arg`)
+	if args != `` {
+		tagParams = strings.Split(args, `,`)
+	}
+	tagParamsLen := len(tagParams)
+	if tagParamsLen > ft.NumIn() {
+		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 > 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+	}
+	tagArgs := make([]tagArg, 0)
+	if tagParamsLen != 0 {
+		for index, v := range tagParams {
+			tag := tagArg{
+				Index: index,
+				Name:  v,
+			}
+			tagArgs = append(tagArgs, tag)
+		}
+	}
+	tagArgsLen := len(tagArgs)
+	if tagArgsLen > 0 && ft.NumIn() != tagArgsLen {
+		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+	}
+	fn := func(args []reflect.Value) (results []reflect.Value) {
+		proxyResults := proxyFunc(newArg(tagArgs, args))
+		for _, returnV := range proxyResults {
+			results = append(results, returnV)
+		}
+		return results
+	}
+	if f.Kind() == reflect.Ptr {
+		fp := reflect.New(ft)
+		fp.Elem().Set(reflect.MakeFunc(ft, fn))
+		f.Set(fp)
+	} else {
+		f.Set(reflect.MakeFunc(ft, fn))
+	}
+	tagParams = nil
+}
+func doNativeMethod(funcField reflect.StructField, arg proxyArg, nativeImplFunc reflect.Value, s Session) []reflect.Value {
+	defer func() {
+		err := recover()
+		if err != nil {
+			rollbackErr := s.Rollback()
+			if rollbackErr != nil {
+				panic(fmt.Sprint(err) + rollbackErr.Error())
+			}
+			log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + funcField.Name + "()"))
+			panic(err)
+		}
+	}()
+	return nativeImplFunc.Call(arg.Args)
+}
+func haveRollBackType(v []reflect.Value, typeString string) bool {
+	if v == nil || len(v) == 0 || typeString == "" {
+		return false
+	}
+	for _, item := range v {
+		if item.Kind() == reflect.Interface {
+			if strings.Contains(item.String(), typeString) {
+				if !item.IsNil() {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+
+
+
