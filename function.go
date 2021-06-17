@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -14,19 +15,18 @@ import (
 	"time"
 )
 
-func (it *Engine)start(ptr interface{}, xml []byte) {
+func (it *Engine)start(ptr interface{}, name string) {
+	xml, _ := ioutil.ReadFile(name)
 	bean := reflect.ValueOf(ptr)
-	if bean.Kind() != reflect.Ptr {
-		panic("参数<ptr>必须是指针!")
-	}
+	// 代码能够执行到这里 bean.Kind() 一定是 reflect.Ptr类型
 	bt := bean.Type().Elem()
 	be := bean.Elem()
-	outPut := makeReturnTypeMap(be.Type(), it.printWarn)
-	mapperTree := parseXml(xml)
+	outPut := it.makeReturnTypeMap(be.Type(), it.printWarn)
+	mapperTree := it.parseXml(name,xml)
 	resultMaps := makeResultMaps(mapperTree)
-	decodeTree(mapperTree, bt, it.printXml)
-	methodXmlMap := makeMethodXmlMap(bt, mapperTree)
-	proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
+	it.decodeTree(mapperTree, bt,name)
+	methodXmlMap := it.makeMethodXmlMap(bt, mapperTree,name)
+	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		funcName := funcField.Name
 		ret := outPut[funcName]
 		m := methodXmlMap[funcName]
@@ -64,27 +64,24 @@ func (it *Engine)start(ptr interface{}, xml []byte) {
 					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
 				}
 				res = &returnV
-				it.exeMethodByXml(m.xml.Tag, arg, m.nodes, resultMap, res)
+				it.exeMethodByXml(m.xml.Tag, arg, m.nodes, resultMap, res,bt.String(),funcName)
 				return buildReturnValue(ret, res)
 			}
 			return proxyFunc
 		}
 	})
 }
-func makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap map[string]*returnValue) {
-	num := bean.NumField()
-	if num == 0 {
-		panic(fmt.Sprintf("%s这个结构体里必须有字段",bean.String()))
-	}
+func (it *Engine)makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap map[string]*returnValue) {
 	returnMap = make(map[string]*returnValue)
-	for i := 0; i < num; i++ {
+	name := bean.String()
+	for i := 0; i < bean.NumField(); i++ {// 代码执行到这里,bean.NumField() != 0
 		fieldItem := bean.Field(i)
 		funcType := fieldItem.Type
-		funcKind := funcType.Kind()
 		funcName := fieldItem.Name
+		funcKind := funcType.Kind()
 		if funcKind != reflect.Func {
 			if funcKind == reflect.Struct {
-				childMap := makeReturnTypeMap(funcType,warning)
+				childMap := it.makeReturnTypeMap(funcType,warning)
 				for k, v := range childMap {
 					returnMap[k] = v
 				}
@@ -96,28 +93,30 @@ func makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap map[string]*r
 		for j := 0; j < argsLen; j++ {
 			inType := funcType.In(j)
 			if inType.String() == mSessionPtr {
-				panic(fmt.Sprintf("%s() 的输入参数不能是: %s,只能是 %s",funcName,mSessionPtr,mSession))
+				it.log.Fatalln(fmt.Sprintf("%s() 的输入参数不能是: %s,只能是 %s",name+"."+funcName,mSessionPtr,mSession))
 			}
 			if isCustomStruct(inType) {
 				customLen++
 			}
 		}
 		if argsLen > 1 && customLen > 1 {
-			panic(`[Panic] ` + funcName + ` 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
+			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
 		}
 		arg := fieldItem.Tag.Get("arg")
 		if argsLen > 0 && customLen == 0 && arg == "" && warning {
-			log.Println("[Warn] 警告 ======================== " + bean.Name() + "." + fieldItem.Name + "() have not define tag arg:\"\",maybe can not get param value!")
+			it.log.Println("[Warn] 警告 ======================== " + name + "." + funcName + "() have not define tag arg:\"\",maybe can not get param value!")
 		}
 		numOut := funcType.NumOut()
 		if numOut > 2 || numOut == 0 {
-			panic("[Error] func '" + funcName + "()' return num out must = 1 or = 2!")
+			it.log.Fatalln(name + "." + funcName + "()' return num out must = 1 or = 2!")
 		}
 		for k := 0; k < numOut; k++ {
 			outType := funcType.Out(k)
+			outTypeK := outType.Kind()
+			outTypeS := outType.String()
 			if funcName != sessionFunc {
-				if outType.Kind() == reflect.Ptr || (outType.Kind() == reflect.Interface && outType.String() != "error") {
-					panic("[Error] func '" + funcName + "()' return '" + outType.String() + "' can not be a 'ptr' or 'interface'!")
+				if outTypeK == reflect.Ptr || (outTypeK == reflect.Interface && outTypeS != "error") {
+					it.log.Fatalln(name + "." + funcName + "()' return '" + outTypeS + "' can not be a 'ptr' or 'interface'!")
 				}
 			}
 			ret := returnMap[funcName]
@@ -127,7 +126,7 @@ func makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap map[string]*r
 					Num:      numOut,
 				}
 			}
-			if outType.String() != "error" {
+			if outTypeS != "error" {
 				returnMap[funcName].Index = k
 				returnMap[funcName].Value = &outType
 			} else {
@@ -135,7 +134,7 @@ func makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap map[string]*r
 			}
 		}
 		if returnMap[funcName].Error == nil && funcName != sessionFunc{
-			panic("[Error] func '" + funcName + "()' must return an 'error'!")
+			it.log.Fatalln(name + "." + funcName + "()' must return an 'error'!")
 		}
 	}
 	return returnMap
@@ -148,13 +147,13 @@ func isCustomStruct(value reflect.Type) bool {
 	}
 }
 // ==============================================================================================================
-func makeMethodXmlMap(beanType reflect.Type, mapperTree map[string]*element) map[string]*mapper {
+func(it *Engine) makeMethodXmlMap(beanType reflect.Type, mapperTree map[string]*element,xmlName string) map[string]*mapper {
 	methodXmlMap := make(map[string]*mapper)
 	totalField := beanType.NumField()
 	for i := 0; i < totalField; i++ {
 		fieldItem := beanType.Field(i)
 		if fieldItem.Type.Kind() == reflect.Func && fieldItem.Name != sessionFunc{
-			mapperXml := findMapperXml(mapperTree, beanType.String(),fieldItem.Name)
+			mapperXml := it.findMapperXml(mapperTree, beanType.String(),fieldItem.Name,xmlName)
 			methodXmlMap[fieldItem.Name] = &mapper{
 				xml:   mapperXml,
 				nodes: newNodeParser().Parser(mapperXml.Child),
@@ -163,14 +162,15 @@ func makeMethodXmlMap(beanType reflect.Type, mapperTree map[string]*element) map
 	}
 	return methodXmlMap
 }
-func findMapperXml(mapperTree map[string]*element, beanName,methodName string) *element {
+func (it *Engine)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
 	for _, mapperXml := range mapperTree {
 		key := mapperXml.SelectAttrValue("id", "")
 		if strings.EqualFold(key, methodName) {
 			return mapperXml
 		}
 	}
-	panic("[Error] can not find method " + beanName + "." + methodName + "() in xml !")
+	it.log.Fatalln("在 "+ xmlName +" 文件中没有找到 "+ beanName + "." + methodName +"() 对应的 id 值 "+ methodName)
+	return nil
 }
 func newNodeParser() express {
 	return express{
@@ -190,11 +190,11 @@ func expressSymbol(bytes *[]byte) {
 	}
 	*bytes = []byte(byteStr)
 }
-func parseXml(bytes []byte) (items map[string]*element) {
+func (it *Engine)parseXml(xmlName string,bytes []byte) (items map[string]*element) {
 	expressSymbol(&bytes)
 	doc := newDocument()
 	if err := doc.ReadFromBytes(bytes); err != nil {
-		panic(err)
+		it.log.Fatalln("解析 "+xmlName+" 文件错误,err=",err)
 	}
 	items = make(map[string]*element)
 	root := doc.SelectElement(elementMapper)
@@ -216,7 +216,7 @@ func parseXml(bytes []byte) (items map[string]*element) {
 			if idValue != "" {
 				oldItem := items[idValue]
 				if oldItem != nil {
-					panic(`[Panic] 在同一个 <` + s.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一个标签中不能重复!)`)
+					it.log.Fatalln(xmlName+` 文件内的同一类 <` + s.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
 				}
 			}
 			items[idValue] = s
@@ -224,20 +224,20 @@ func parseXml(bytes []byte) (items map[string]*element) {
 	}
 	for _, mapperXml := range items {
 		for _, v := range mapperXml.ChildElements() {
-			includeElementReplace(v, &items)
+			it.includeElementReplace(v, &items,xmlName)
 		}
 	}
 	return items
 }
-func includeElementReplace(xml *element, xmlMap *map[string]*element) {
+func (it *Engine)includeElementReplace(xml *element, xmlMap *map[string]*element,xmlName string) {
 	if xml.Tag == elementInclude {
 		ref := xml.SelectAttr("refid").Value
 		if ref == "" {
-			panic(`[Panic] xml <include refid=""> 'refid' 不能为 ""`)
+			it.log.Fatalln(xmlName+` 文件中标签 <include refid=""> 'refid' 不能为 ""`)
 		}
 		mapperXml := (*xmlMap)[ref]
 		if mapperXml == nil {
-			panic(`[Error] xml <includ refid="` + ref + `"> element can not find !`)
+			it.log.Fatalln(xmlName+` 文件中标签 <includ refid="` + ref + `"> element can not find !`)
 		}
 		if xml != nil {
 			(*xml).Child = mapperXml.Child
@@ -245,7 +245,7 @@ func includeElementReplace(xml *element, xmlMap *map[string]*element) {
 	}
 	if xml.Child != nil {
 		for _, v := range xml.ChildElements() {
-			includeElementReplace(v, xmlMap)
+			it.includeElementReplace(v, xmlMap,xmlName)
 		}
 	}
 }
@@ -277,7 +277,7 @@ func upperFirst(fieldStr string) string {
 	return fieldStr
 }
 // 参数 tree肯定不为空,所以该方法内部不用对 tree判空!!!
-func decodeTree(tree map[string]*element, beanType reflect.Type,print bool){
+func (it *Engine)decodeTree(tree map[string]*element, beanType reflect.Type,xmlName string){
 	for _, v := range tree {
 		var method *reflect.StructField
 		if isMethodElement(v.Tag) {
@@ -290,10 +290,10 @@ func decodeTree(tree map[string]*element, beanType reflect.Type,print bool){
 		}
 		oldChild := v.Child
 		v.Child = []token{}
-		decode(method, v, tree)
+		it.decode(method, v, tree,xmlName)
 		v.Child = append(v.Child, oldChild...)
 		beanName := beanType.String()
-		if print {
+		if it.printXml {
 			s := "================输出 " + beanName + "." + v.SelectAttrValue("id", "") +"()"+" 对应的 xml 标签 ============\n"
 			printElement(v, &s)
 			println(s)//log.Println(s)这里可以将s输出到日志中
@@ -320,7 +320,7 @@ func printElement(ele *element, v *string) {
 	}
 	*v += "</" + ele.Tag + ">\n"
 }
-func decode(method *reflect.StructField, mapper *element, tree map[string]*element){
+func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[string]*element,xmlName string){
 	switch mapper.Tag {
 	case elementSelectTemplate:
 		mapper.Tag = elementSelect
@@ -337,10 +337,10 @@ func decode(method *reflect.StructField, mapper *element, tree map[string]*eleme
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
-			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
-		checkTablesValue(mapper, &tables, resultMapData)
-		logic := decodeLogicDelete(resultMapData)
+		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
+		logic := it.decodeLogicDelete(resultMapData,xmlName)
 		var sql bytes.Buffer
 		sql.WriteString("select ")
 		if columns == "" {
@@ -373,10 +373,10 @@ func decode(method *reflect.StructField, mapper *element, tree map[string]*eleme
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
-			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
-		checkTablesValue(mapper, &tables, resultMapData)
-		logic := decodeLogicDelete(resultMapData)
+		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
+		logic := it.decodeLogicDelete(resultMapData,xmlName)
 		collectionName := decodeCollectionName(method)
 		var sql bytes.Buffer
 		sql.WriteString("insert into ")
@@ -519,11 +519,11 @@ func decode(method *reflect.StructField, mapper *element, tree map[string]*eleme
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
-			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
-		checkTablesValue(mapper, &tables, resultMapData)
-		logic := decodeLogicDelete(resultMapData)
-		version := decodeVersionData(resultMapData)
+		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
+		logic := it.decodeLogicDelete(resultMapData,xmlName)
+		version := it.decodeVersionData(resultMapData,xmlName)
 		var sql bytes.Buffer
 		sql.WriteString("update ")
 		sql.WriteString(tables)
@@ -573,10 +573,10 @@ func decode(method *reflect.StructField, mapper *element, tree map[string]*eleme
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
-			panic(errors.New(fmt.Sprint("TemplateDecoder", "resultMap not define! id = ", resultMap)))
+			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
-		checkTablesValue(mapper, &tables, resultMapData)
-		logic := decodeLogicDelete(resultMapData)
+		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
+		logic := it.decodeLogicDelete(resultMapData,xmlName)
 		if logic.Enable {
 			var sql bytes.Buffer
 			sql.WriteString("update ")
@@ -607,11 +607,11 @@ func decode(method *reflect.StructField, mapper *element, tree map[string]*eleme
 		}
 	}
 }
-func checkTablesValue(mapper *element, tables *string, resultMapData *element) {
+func (it *Engine)checkTablesValue(mapper *element, tables *string, resultMapData *element,xmlName string) {
 	if *tables == "" {
 		*tables = resultMapData.SelectAttrValue("table", "")
 		if *tables == "" {
-			panic("[TemplateDecoder] 属性 'table' 不能为空! 需要定义在 <resultMap> 或者 <" + mapper.Tag + "Template>中,mapper id=" + mapper.SelectAttrValue("id", ""))
+			it.log.Fatalln(xmlName+"[TemplateDecoder] 属性 'table' 不能为空! 需要定义在 <resultMap> 或者 <" + mapper.Tag + "Template>中,mapper id=" + mapper.SelectAttrValue("id", ""))
 		}
 	}
 }
@@ -732,7 +732,7 @@ func makeIfNotNull(arg string) string {
 	}
 	return arg + ` != nil`
 }
-func decodeLogicDelete(xml *element) logicDeleteData {
+func (it *Engine)decodeLogicDelete(xml *element,xmlName string) logicDeleteData {
 	if xml == nil || len(xml.Child) == 0 {
 		return logicDeleteData{}
 	}
@@ -746,20 +746,20 @@ func decodeLogicDelete(xml *element) logicDeleteData {
 			logicData.Property = v.SelectAttrValue("column", "")
 			logicData.LangType = v.SelectAttrValue("langType", "")
 			if logicData.DeletedValue == "" {
-				panic(errors.New(fmt.Sprint("TemplateDecoder", `<resultMap> logic_deleted="" can't be empty !`)))
+				it.log.Fatalln(xmlName+"TemplateDecoder", `<resultMap> logic_deleted="" can't be empty !`)
 			}
 			if logicData.UndeleteValue == "" {
-				panic(errors.New(fmt.Sprint("TemplateDecoder", `<resultMap> logic_undelete="" can't be empty !`)))
+				it.log.Fatalln(xmlName+"TemplateDecoder", `<resultMap> logic_undelete="" can't be empty !`)
 			}
 			if logicData.UndeleteValue == logicData.DeletedValue {
-				panic(errors.New(fmt.Sprint("TemplateDecoder", `<resultMap> logic_deleted value can't be logic_undelete value!`)))
+				it.log.Fatalln(xmlName+"TemplateDecoder", `<resultMap> logic_deleted value can't be logic_undelete value!`)
 			}
 			break
 		}
 	}
 	return logicData
 }
-func decodeVersionData(xml *element) *versionData {
+func (it *Engine)decodeVersionData(xml *element,xmlName string) *versionData {
 	if xml == nil || len(xml.Child) == 0 {
 		return nil
 	}
@@ -770,7 +770,7 @@ func decodeVersionData(xml *element) *versionData {
 			version.Property = v.SelectAttrValue("column", "")
 			version.LangType = v.SelectAttrValue("langType", "")
 			if !(strings.Contains(version.LangType, "int") || strings.Contains(version.LangType, "time.Time")) {
-				panic(errors.New(fmt.Sprint("TemplateDecoder", `version_enable only support int...,time.Time... number type!`)))
+				it.log.Fatalln(xmlName+"TemplateDecoder", `version_enable only support int...,time.Time... number type!`)
 			}
 			return &version
 		}
@@ -839,7 +839,7 @@ func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
 func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
-func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, nodes []iiNode, resultMap map[string]*resultProperty, returnValue *reflect.Value){
+func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, nodes []iiNode, resultMap map[string]*resultProperty, returnValue *reflect.Value,name string,function string){
 	var s Session
 	 s = findArgSession(proxyArg)
 	 if s == nil {
@@ -856,15 +856,15 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 	 }
 	convert := s.stmtConvert()
 	array := make([]interface{},0)
-	sql := buildSql(proxyArg, nodes,&array, convert)
+	sql := it.buildSql(proxyArg, nodes,&array, convert,name+"."+function+"() ")
 	if elementType == elementSelect {
 		res, err := s.queryPrepare(sql, array...)
 		if err != nil {
-			panic(fmt.Sprintf("[Error] [%s] error == %s",s.Id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+"."+function+"() "+"[Error] [%s] error == %s",s.Id(),err.Error()))
 		}
 		if it.printSql {
-			log.Println("[INFO] [", s.Id(), "] Query ==> "+sql)
-			log.Println("[INFO] [", s.Id(), "] Args  ==> "+printArray(array))
+			it.log.Println(name+"."+function+"() "+"[",s.Id(),"] Query ==> "+sql)
+			it.log.Println(name+"."+function+"() "+"[",s.Id(),"] Args  ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -872,18 +872,18 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 				if res != nil {
 					RowsAffected = strconv.Itoa(len(res))
 				}
-				log.Println("[INFO] [", s.Id(), "] ReturnRows <== "+RowsAffected)
+				it.log.Println(name+"."+function+"() "+"[", s.Id(), "] ReturnRows <== "+RowsAffected)
 			}
 		}()
 		decodeSqlResult(resultMap, res, returnValue.Interface())
 	} else {
 		res, err := s.execPrepare(sql, array...)
 		if err != nil {
-			panic(fmt.Sprintf("[Error] [%s] error == %s",s.Id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+"."+function+"() "+"[Error] [%s] error == %s",s.Id(),err.Error()))
 		}
 		if it.printSql {
-			log.Println("[INFO] [", s.Id(), "] Exec ==> "+sql)
-			log.Println("[INFO] [", s.Id(), "] Args ==> "+printArray(array))
+			it.log.Println(name+"."+function+"() "+"[", s.Id(), "] Exec ==> "+sql)
+			it.log.Println(name+"."+function+"() "+"[", s.Id(), "] Args ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -891,7 +891,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 				if res != nil {
 					RowsAffected = strconv.FormatInt(res.RowsAffected, 10)
 				}
-				log.Println("[INFO] [", s.Id(), "] RowsAffected <== "+RowsAffected)
+				it.log.Println(name+"."+function+"() "+"[", s.Id(), "] RowsAffected <== "+RowsAffected)
 			}
 		}()
 		returnValue.Elem().SetInt(res.RowsAffected)
@@ -910,14 +910,14 @@ func findArgSession(proxyArg proxyArg)Session{
 }
 func lowerFirst(fieldStr string) string {
 	if fieldStr != "" {
-		var fieldBytes = []byte(fieldStr)
-		var fieldLength = len(fieldStr)
+		fieldBytes := []byte(fieldStr)
+		fieldLength := len(fieldStr)
 		fieldStr = strings.ToLower(string(fieldBytes[:1])) + string(fieldBytes[1:fieldLength])
 		fieldBytes = nil
 	}
 	return fieldStr
 }
-func buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert iConvert) string{
+func (it *Engine)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert iConvert,name string) string{
 	var (
 		paramMap = make(map[string]interface{})
 		tagArgsLen = proxyArg.TagArgsLen
@@ -959,18 +959,18 @@ func buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConve
 		if proxyArg.TagArgsLen == 1 {
 			tag = &proxyArg.TagArgs[0]
 		}
-		paramMap = scanStructArgFields(proxyArg.Args[customIndex], tag)
+		paramMap = it.scanStructArgFields(proxyArg.Args[customIndex], tag,name)
 	}
-	return sqlBuild(paramMap, nodes, array, stmtConvert)
+	return it.sqlBuild(paramMap, nodes, array, stmtConvert,name)
 }
-func sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert iConvert)string{
+func (it *Engine)sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert iConvert,name string)string{
 	sql, err := doChildNodes(node, args, array, stmtConvert)
 	if err != nil {
-		panic(err)
+		it.log.Fatalln(name+err.Error())
 	}
 	return string(sql)
 }
-func scanStructArgFields(v reflect.Value, tag *tagArg) map[string]interface{} {
+func (it *Engine)scanStructArgFields(v reflect.Value, tag *tagArg,name string) map[string]interface{} {
 	t := v.Type()
 	parameters := make(map[string]interface{})
 	if v.Kind() == reflect.Ptr {
@@ -981,7 +981,7 @@ func scanStructArgFields(v reflect.Value, tag *tagArg) map[string]interface{} {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {
-		panic(`[Error] the scanParameterBean() arg is not a struct type!,type =` + t.String())
+		it.log.Fatalln(name +`the scanParameterBean() arg is not a struct type!,type =` + t.String())
 	}
 	structArg := make(map[string]interface{})
 	for i := 0; i < t.NumField(); i++ {
@@ -1010,7 +1010,7 @@ func scanStructArgFields(v reflect.Value, tag *tagArg) map[string]interface{} {
 	}
 	return parameters
 }
-func proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
+func (it *Engine)proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		ft := f.Type()
@@ -1022,15 +1022,15 @@ func proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, f
 		if f.CanSet() {
 			switch ftk {
 			case reflect.Struct:
-				proxyValue(f, buildFunc)
+				it.proxyValue(f, buildFunc)
 			case reflect.Func:
-				buildRemoteMethod(f, ft, sf, buildFunc(sf, f))
+				it.buildRemoteMethod(v.String()+"."+ft.Name(),f, ft, sf, buildFunc(sf, f))
 			}
 		}
 	}
 	v.Set(v)
 }
-func buildRemoteMethod(f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
+func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
 	var tagParams []string
 	args := sf.Tag.Get(`arg`)
 	if args != `` {
@@ -1044,7 +1044,7 @@ func buildRemoteMethod(f reflect.Value, ft reflect.Type, sf reflect.StructField,
 		}
 	}
 	if tagParamsLen > num{
-		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 > 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+		it.log.Fatalln(name+`方法错误,当前方法上的 tag "arg:" 的值的个数 > 方法的输入参数的个数!! 当前方法是:` + sf.Name)
 	}
 	tagArgs := make([]tagArg, 0)
 	if tagParamsLen != 0 {
@@ -1058,7 +1058,8 @@ func buildRemoteMethod(f reflect.Value, ft reflect.Type, sf reflect.StructField,
 	}
 	tagArgsLen := len(tagArgs)
 	if tagArgsLen > 0 && num != tagArgsLen {
-		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+		//panic(name+`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+		it.log.Fatalln(name+`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
 	}
 	fn := func(args []reflect.Value) (results []reflect.Value) {
 		proxyResults := proxyFunc(newArg(tagArgs, args))

@@ -1,0 +1,177 @@
+[INFO] 2021/06/17 19:20:58 ActivityDao.Choose2() [ c63ad5b3-5583-4fc3-8b9a-dd5e5ce26026 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?
+[INFO] 2021/06/17 19:20:58 ActivityDao.Choose2() [ c63ad5b3-5583-4fc3-8b9a-dd5e5ce26026 ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:20:58 ActivityDao.Choose2() [ c63ad5b3-5583-4fc3-8b9a-dd5e5ce26026 ] ReturnRows <== 3
+[INFO] 2021/06/17 19:20:58 ActivityDao.Choose2() [ c84ac703-7ba2-4d15-ba7e-e1eae4d1c99e ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:20:58 ActivityDao.Choose2() [ c84ac703-7ba2-4d15-ba7e-e1eae4d1c99e ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:20:58 ActivityDao.Choose2() [ c84ac703-7ba2-4d15-ba7e-e1eae4d1c99e ] ReturnRows <== 0
+[INFO] 2021/06/17 19:21:12 ActivityDao.Choose2() [ 024791ef-a310-44da-9f92-32b6271e9988 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:21:12 ActivityDao.Choose2() [ 024791ef-a310-44da-9f92-32b6271e9988 ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:21:12 ActivityDao.Choose2() [ 024791ef-a310-44da-9f92-32b6271e9988 ] ReturnRows <== 3
+[INFO] 2021/06/17 19:21:12 ActivityDao.Choose2() [ 83277c40-dfda-47ec-add6-23403fde4b2a ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:21:12 ActivityDao.Choose2() [ 83277c40-dfda-47ec-add6-23403fde4b2a ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:21:12 ActivityDao.Choose2() [ 83277c40-dfda-47ec-add6-23403fde4b2a ] ReturnRows <== 0
+[INFO] 2021/06/17 19:21:26 ActivityDao.Choose2() [ cba47b8c-c114-4a73-b6c2-b5210488d448 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:21:26 ActivityDao.Choose2() [ cba47b8c-c114-4a73-b6c2-b5210488d448 ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:21:26 ActivityDao.Choose2() [ cba47b8c-c114-4a73-b6c2-b5210488d448 ] ReturnRows <== 3
+[INFO] 2021/06/17 19:21:26 ActivityDao.Choose2() [ e37113f9-270b-42e4-ac0d-345121bb7ff5 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:21:26 ActivityDao.Choose2() [ e37113f9-270b-42e4-ac0d-345121bb7ff5 ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:21:26 ActivityDao.Choose2() [ e37113f9-270b-42e4-ac0d-345121bb7ff5 ] ReturnRows <== 0
+[INFO] 2021/06/17 19:36:34 ActivityDao.Choose2() [ 4b17b053-1a1e-4af2-ac8d-3714e528f743 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:36:34 ActivityDao.Choose2() [ 4b17b053-1a1e-4af2-ac8d-3714e528f743 ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:36:34 ActivityDao.Choose2() [ 4b17b053-1a1e-4af2-ac8d-3714e528f743 ] ReturnRows <== 3
+[INFO] 2021/06/17 19:36:34 ActivityDao.Choose2() [ cda168e3-65cb-405b-9958-2b8db8dd453a ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:36:34 ActivityDao.Choose2() [ cda168e3-65cb-405b-9958-2b8db8dd453a ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:36:34 ActivityDao.Choose2() [ cda168e3-65cb-405b-9958-2b8db8dd453a ] ReturnRows <== 0
+[INFO] 2021/06/17 19:37:47 ActivityDao.Choose2() [ 4f1f1a4f-07be-4404-bb4f-bf192652eb8b ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:37:47 ActivityDao.Choose2() [ 4f1f1a4f-07be-4404-bb4f-bf192652eb8b ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:37:47 ActivityDao.Choose2() [ 4f1f1a4f-07be-4404-bb4f-bf192652eb8b ] ReturnRows <== 3
+[INFO] 2021/06/17 19:37:47 ActivityDao.Choose2() [ ef0b1add-92cb-4e08-afd0-b45cd3c8d958 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:37:47 ActivityDao.Choose2() [ ef0b1add-92cb-4e08-afd0-b45cd3c8d958 ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:37:47 ActivityDao.Choose2() [ ef0b1add-92cb-4e08-afd0-b45cd3c8d958 ] ReturnRows <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ fa36d34d-4730-4f3c-95e6-77518364e02b ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ fa36d34d-4730-4f3c-95e6-77518364e02b ] Args ==> [0]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ fa36d34d-4730-4f3c-95e6-77518364e02b ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ ecca46ce-90c9-43dc-a23d-187abc0b9019 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ ecca46ce-90c9-43dc-a23d-187abc0b9019 ] Args ==> [1]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ ecca46ce-90c9-43dc-a23d-187abc0b9019 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 1816dade-46c2-4ab0-a04c-78aa922c02e8 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 1816dade-46c2-4ab0-a04c-78aa922c02e8 ] Args ==> [2]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 1816dade-46c2-4ab0-a04c-78aa922c02e8 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ e39cfd78-10e9-46a3-86c9-daab135ea008 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ e39cfd78-10e9-46a3-86c9-daab135ea008 ] Args ==> [3]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ e39cfd78-10e9-46a3-86c9-daab135ea008 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2ac5e412-6779-4bf6-94ba-3b1b65af979c ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2ac5e412-6779-4bf6-94ba-3b1b65af979c ] Args ==> [4]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2ac5e412-6779-4bf6-94ba-3b1b65af979c ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2ec989d4-8dbe-4783-8ff8-d80c8f34b795 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2ec989d4-8dbe-4783-8ff8-d80c8f34b795 ] Args ==> [5]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2ec989d4-8dbe-4783-8ff8-d80c8f34b795 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 9c1d365f-d4d5-4a6f-8a38-b3cb46087491 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 9c1d365f-d4d5-4a6f-8a38-b3cb46087491 ] Args ==> [6]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 9c1d365f-d4d5-4a6f-8a38-b3cb46087491 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ c8c434cb-8167-4e24-add9-8af4a8e9639e ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ c8c434cb-8167-4e24-add9-8af4a8e9639e ] Args ==> [7]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ c8c434cb-8167-4e24-add9-8af4a8e9639e ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ fcda8226-5110-4e9e-a84d-4e240b9a17ea ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ fcda8226-5110-4e9e-a84d-4e240b9a17ea ] Args ==> [8]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ fcda8226-5110-4e9e-a84d-4e240b9a17ea ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ e1cd4c05-5eb6-4c18-964c-12b506cf31ca ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ e1cd4c05-5eb6-4c18-964c-12b506cf31ca ] Args ==> [9]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ e1cd4c05-5eb6-4c18-964c-12b506cf31ca ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 5e7904d8-ab79-4e04-8b9e-b6effdffad18 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 5e7904d8-ab79-4e04-8b9e-b6effdffad18 ] Args ==> [10]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 5e7904d8-ab79-4e04-8b9e-b6effdffad18 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 09ab8f4d-cc0b-4777-bd4e-71a10b7faab9 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 09ab8f4d-cc0b-4777-bd4e-71a10b7faab9 ] Args ==> [11]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 09ab8f4d-cc0b-4777-bd4e-71a10b7faab9 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ dfc6bc3d-5adc-4188-8618-8ec376e42b60 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ dfc6bc3d-5adc-4188-8618-8ec376e42b60 ] Args ==> [12]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ dfc6bc3d-5adc-4188-8618-8ec376e42b60 ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 1a9ce4a8-0f56-4907-8881-f9a2b1f262d9 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 1a9ce4a8-0f56-4907-8881-f9a2b1f262d9 ] Args ==> [13]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 1a9ce4a8-0f56-4907-8881-f9a2b1f262d9 ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2a0cde36-ad8b-4193-89c3-36cd86f7a130 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2a0cde36-ad8b-4193-89c3-36cd86f7a130 ] Args ==> [14]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 2a0cde36-ad8b-4193-89c3-36cd86f7a130 ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ dfefa470-b5e3-4707-993d-910472441a75 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ dfefa470-b5e3-4707-993d-910472441a75 ] Args ==> [15]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ dfefa470-b5e3-4707-993d-910472441a75 ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ f1d3c6ca-2e2e-4e7d-9ae1-dffc0e00e4ec ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ f1d3c6ca-2e2e-4e7d-9ae1-dffc0e00e4ec ] Args ==> [16]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ f1d3c6ca-2e2e-4e7d-9ae1-dffc0e00e4ec ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 95c9b216-49b0-4b31-ae73-1f7548e57391 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 95c9b216-49b0-4b31-ae73-1f7548e57391 ] Args ==> [17]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 95c9b216-49b0-4b31-ae73-1f7548e57391 ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 3aaf9d1e-6973-459f-a12b-9ce431964492 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 3aaf9d1e-6973-459f-a12b-9ce431964492 ] Args ==> [18]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ 3aaf9d1e-6973-459f-a12b-9ce431964492 ] RowsAffected <== 0
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ d0002bb7-fb5a-4b1c-9652-a8dd6cf491a2 ] Exec ==>  delete from biz_activity where id =  ? 
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ d0002bb7-fb5a-4b1c-9652-a8dd6cf491a2 ] Args ==> [19]
+[INFO] 2021/06/17 19:38:52 ActivityDao.DeleteById() [ d0002bb7-fb5a-4b1c-9652-a8dd6cf491a2 ] RowsAffected <== 0
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 8b64b0ae-42ad-430b-a531-4e49d02faae5 ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 8b64b0ae-42ad-430b-a531-4e49d02faae5 ] Args ==> [1,刺客,韩信,,,2021-06-17,19:39:16.054432,+0800,CST,m=+0.003967067,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 8b64b0ae-42ad-430b-a531-4e49d02faae5 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ ef6c8278-f046-4f2e-bfd3-bfc61173f1ed ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ ef6c8278-f046-4f2e-bfd3-bfc61173f1ed ] Args ==> [2,刺客,孙悟空,,,2021-06-17,19:39:16.056564,+0800,CST,m=+0.006098509,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ ef6c8278-f046-4f2e-bfd3-bfc61173f1ed ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 2bf75fe0-3b6f-4c1b-aaef-33984e59c4bf ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 2bf75fe0-3b6f-4c1b-aaef-33984e59c4bf ] Args ==> [3,刺客,兰陵王,,,2021-06-17,19:39:16.058213,+0800,CST,m=+0.007747941,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 2bf75fe0-3b6f-4c1b-aaef-33984e59c4bf ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 4fd36e30-760c-434e-8e1a-cbb87f998ba5 ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 4fd36e30-760c-434e-8e1a-cbb87f998ba5 ] Args ==> [4,法师,妲己,,,2021-06-17,19:39:16.059632,+0800,CST,m=+0.009166617,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 4fd36e30-760c-434e-8e1a-cbb87f998ba5 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ fbee6346-369a-4d26-a231-740208650359 ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ fbee6346-369a-4d26-a231-740208650359 ] Args ==> [5,法师,安琪拉,,,2021-06-17,19:39:16.060887,+0800,CST,m=+0.010422242,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ fbee6346-369a-4d26-a231-740208650359 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ a85341d5-6bd3-49dc-8cda-e34ff7b1605c ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ a85341d5-6bd3-49dc-8cda-e34ff7b1605c ] Args ==> [6,战士,夏侯敦,,,2021-06-17,19:39:16.06213,+0800,CST,m=+0.011665064,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ a85341d5-6bd3-49dc-8cda-e34ff7b1605c ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 91bc2131-a5dd-470d-aba3-b6b8531d577f ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 91bc2131-a5dd-470d-aba3-b6b8531d577f ] Args ==> [7,战士,凯,,,2021-06-17,19:39:16.06332,+0800,CST,m=+0.012854432,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 91bc2131-a5dd-470d-aba3-b6b8531d577f ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ b8423109-8195-4397-9b35-6eec89907546 ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ b8423109-8195-4397-9b35-6eec89907546 ] Args ==> [8,射手,鲁班,,,2021-06-17,19:39:16.064408,+0800,CST,m=+0.013942580,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ b8423109-8195-4397-9b35-6eec89907546 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 7cf58a91-33cd-4b95-9fb6-0bcecd542ac3 ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 7cf58a91-33cd-4b95-9fb6-0bcecd542ac3 ] Args ==> [9,射手,虞姬,,,2021-06-17,19:39:16.065592,+0800,CST,m=+0.015126681,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ 7cf58a91-33cd-4b95-9fb6-0bcecd542ac3 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ ad673334-665b-4d24-93b7-d727bae09d11 ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ ad673334-665b-4d24-93b7-d727bae09d11 ] Args ==> [10,射手,后裔,,,2021-06-17,19:39:16.066767,+0800,CST,m=+0.016301887,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ ad673334-665b-4d24-93b7-d727bae09d11 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ eee30fa4-5256-43f2-abe5-dac0d9b564d4 ] Exec ==>  insert into biz_activity ( id,  name,  pc_link,  h5_link,  remark,  create_time,  delete_flag )  values ( ? ,   ? ,   ? ,   ? ,   ? ,   ? ,   ?  ) 
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ eee30fa4-5256-43f2-abe5-dac0d9b564d4 ] Args ==> [11,辅助,太乙真人,,,2021-06-17,19:39:16.067974,+0800,CST,m=+0.017508804,1]
+[INFO] 2021/06/17 19:39:16 ActivityDao.Insert() [ eee30fa4-5256-43f2-abe5-dac0d9b564d4 ] RowsAffected <== 1
+[INFO] 2021/06/17 19:40:49 在 xml 文件中没有找到 example.AdminDao.UsernameEqualTo() 对应的 id 值 UsernameEqualTo
+[INFO] 2021/06/17 19:41:39 ActivityDao.Choose2() [ b739029d-5c66-460b-938d-05acedca29e1 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:41:39 ActivityDao.Choose2() [ b739029d-5c66-460b-938d-05acedca29e1 ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:41:39 ActivityDao.Choose2() [ b739029d-5c66-460b-938d-05acedca29e1 ] ReturnRows <== 3
+[INFO] 2021/06/17 19:41:39 ActivityDao.Choose2() [ 93540811-df26-4b5d-9500-cdfdc4f7a20a ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:41:39 ActivityDao.Choose2() [ 93540811-df26-4b5d-9500-cdfdc4f7a20a ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:41:39 ActivityDao.Choose2() [ 93540811-df26-4b5d-9500-cdfdc4f7a20a ] ReturnRows <== 0
+[INFO] 2021/06/17 19:42:14 ActivityDao.Choose2() [ aff99979-2537-4ee0-98b4-813869e66b23 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:42:14 ActivityDao.Choose2() [ aff99979-2537-4ee0-98b4-813869e66b23 ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:42:14 ActivityDao.Choose2() [ aff99979-2537-4ee0-98b4-813869e66b23 ] ReturnRows <== 3
+[INFO] 2021/06/17 19:42:14 ActivityDao.Choose2() [ 79581b32-dcff-4753-aa61-f996496f3cc5 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:42:14 ActivityDao.Choose2() [ 79581b32-dcff-4753-aa61-f996496f3cc5 ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:42:14 ActivityDao.Choose2() [ 79581b32-dcff-4753-aa61-f996496f3cc5 ] ReturnRows <== 0
+[INFO] 2021/06/17 19:48:03 ./xml/biz_activity.xml文件中的同一类 <select> 标签中，有且只能有一个 id = Choose2! (即:id 的值在同一类标签中不能重复!)
+[INFO] 2021/06/17 19:48:38 ./xml/biz_activity.xml 文件中的同一类 <select> 标签中，有且只能有一个 id = Choose2! (即:id 的值在同一类标签中不能重复!)
+[INFO] 2021/06/17 19:48:55 ./xml/biz_activity.xml 文件内的同一类 <select> 标签中，有且只能有一个 id = Choose2! (即:id 的值在同一类标签中不能重复!)
+[INFO] 2021/06/17 19:49:32 ActivityDao.Choose2() [ fd6cd1d9-e40d-4481-b28a-91ab94eb8dfd ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:49:32 ActivityDao.Choose2() [ fd6cd1d9-e40d-4481-b28a-91ab94eb8dfd ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:49:32 ActivityDao.Choose2() [ fd6cd1d9-e40d-4481-b28a-91ab94eb8dfd ] ReturnRows <== 3
+[INFO] 2021/06/17 19:49:32 ActivityDao.Choose2() [ d994f2c3-1cbb-48d4-b597-ab18e4458fe3 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:49:32 ActivityDao.Choose2() [ d994f2c3-1cbb-48d4-b597-ab18e4458fe3 ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:49:32 ActivityDao.Choose2() [ d994f2c3-1cbb-48d4-b597-ab18e4458fe3 ] ReturnRows <== 0
+[INFO] 2021/06/17 19:53:22 ActivityDao.Choose2() [ 54afb10f-79d4-4c50-bbfe-6b6b79c6557a ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:53:22 ActivityDao.Choose2() [ 54afb10f-79d4-4c50-bbfe-6b6b79c6557a ] Args  ==> [刺客,]
+[INFO] 2021/06/17 19:53:22 ActivityDao.Choose2() [ 54afb10f-79d4-4c50-bbfe-6b6b79c6557a ] ReturnRows <== 3
+[INFO] 2021/06/17 19:53:22 ActivityDao.Choose2() [ f58f850b-c49b-4178-ac3f-8b12073f01ab ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/17 19:53:22 ActivityDao.Choose2() [ f58f850b-c49b-4178-ac3f-8b12073f01ab ] Args  ==> [,后羿]
+[INFO] 2021/06/17 19:53:22 ActivityDao.Choose2() [ f58f850b-c49b-4178-ac3f-8b12073f01ab ] ReturnRows <== 0
+[INFO] 2021/06/17 19:53:52 ActivityDao.SelectLinks() [Error] [930259df-7690-4e2e-97ab-71c5b4f25902] error == Error 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'from biz_activity where delete_flag = 1' at line 1
+[INFO] 2021/06/17 19:54:15 ./xml/biz_activity.xml 文件中标签 <include refid=""> 'refid' 不能为 ""
+[INFO] 2021/06/17 19:54:57 ActivityDao.SelectLinks() [ b86fa9ca-13cc-48de-ba9f-70a2084906de ] Query ==>  select pc_link,h5_link  ,name  from biz_activity where delete_flag = 1
+[INFO] 2021/06/17 19:54:57 ActivityDao.SelectLinks() [ b86fa9ca-13cc-48de-ba9f-70a2084906de ] Args  ==> []
+[INFO] 2021/06/17 19:54:57 ActivityDao.SelectLinks() [ b86fa9ca-13cc-48de-ba9f-70a2084906de ] ReturnRows <== 11
+[INFO] 2021/06/17 20:12:14 ActivityDao.Choose() [ b17a0667-a5b7-40e0-a5fd-2a61d3186d76 ] Query ==>  select * from biz_activity where delete_flag < 1 
+[INFO] 2021/06/17 20:12:14 ActivityDao.Choose() [ b17a0667-a5b7-40e0-a5fd-2a61d3186d76 ] Args  ==> []
+[INFO] 2021/06/17 20:12:14 ActivityDao.Choose() [ b17a0667-a5b7-40e0-a5fd-2a61d3186d76 ] ReturnRows <== 3
+[INFO] 2021/06/17 20:13:21 example.ActivityDao.Choose() [ 4420dda4-3ba7-4c7f-8711-d52ebadbbd51 ] Query ==>  select * from biz_activity where delete_flag < 1 
+[INFO] 2021/06/17 20:13:21 example.ActivityDao.Choose() [ 4420dda4-3ba7-4c7f-8711-d52ebadbbd51 ] Args  ==> []
+[INFO] 2021/06/17 20:13:21 example.ActivityDao.Choose() [ 4420dda4-3ba7-4c7f-8711-d52ebadbbd51 ] ReturnRows <== 3
+[INFO] 2021/06/17 20:16:27 example.ActivityDao.Choose() [ 5cd70ad6-81aa-4545-b485-b6fac9ee1405 ] Query ==>  select * from biz_activity where delete_flag < 1 
+[INFO] 2021/06/17 20:16:27 example.ActivityDao.Choose() [ 5cd70ad6-81aa-4545-b485-b6fac9ee1405 ] Args  ==> []
+[INFO] 2021/06/17 20:16:27 example.ActivityDao.Choose() [ 5cd70ad6-81aa-4545-b485-b6fac9ee1405 ] ReturnRows <== 3
+[INFO] 2021/06/17 20:40:09 example.ActivityDao.SelectByName() [ f6cb206b-aaa1-4d5c-b3ea-07f05b515688 ] Query ==>  select id,name,pc_link,h5_link,remark,sort,status,version,create_time,delete_flag from biz_activity where `name` =  ?  and pc_link =  ? 
+[INFO] 2021/06/17 20:40:09 example.ActivityDao.SelectByName() [ f6cb206b-aaa1-4d5c-b3ea-07f05b515688 ] Args  ==> [<nil>,<nil>]
+[INFO] 2021/06/17 20:40:09 example.ActivityDao.SelectByName() [ f6cb206b-aaa1-4d5c-b3ea-07f05b515688 ] ReturnRows <== 0
+[INFO] 2021/06/17 20:40:33 example.ActivityDao.SelectByName() [ 7f0367ec-2fe9-4b69-a74a-e685704df426 ] Query ==>  select id,name,pc_link,h5_link,remark,sort,status,version,create_time,delete_flag from biz_activity where `name` =  ?  and pc_link =  ? 
+[INFO] 2021/06/17 20:40:33 example.ActivityDao.SelectByName() [ 7f0367ec-2fe9-4b69-a74a-e685704df426 ] Args  ==> [<nil>,<nil>]
+[INFO] 2021/06/17 20:40:33 example.ActivityDao.SelectByName() [ 7f0367ec-2fe9-4b69-a74a-e685704df426 ] ReturnRows <== 0
+[INFO] 2021/06/17 20:41:52 example.ActivityDao.SelectByName() [ a8f38eb4-c0f8-4ade-9390-31654eca820d ] Query ==>  select id,name,pc_link,h5_link,remark,sort,status,version,create_time,delete_flag from biz_activity where `name` =  ?  and pc_link =  ? 
+[INFO] 2021/06/17 20:41:52 example.ActivityDao.SelectByName() [ a8f38eb4-c0f8-4ade-9390-31654eca820d ] Args  ==> [<nil>,<nil>]
+[INFO] 2021/06/17 20:41:52 example.ActivityDao.SelectByName() [ a8f38eb4-c0f8-4ade-9390-31654eca820d ] ReturnRows <== 0
+[INFO] 2021/06/17 20:43:47 example.ActivityDao.SelectByName() [ 17d0e286-2abe-4188-a63b-083f79b35720 ] Query ==>  select id,name,pc_link,h5_link,remark,sort,status,version,create_time,delete_flag from biz_activity where `name` =  ?  and pc_link =  ? 
+[INFO] 2021/06/17 20:43:47 example.ActivityDao.SelectByName() [ 17d0e286-2abe-4188-a63b-083f79b35720 ] Args  ==> [<nil>,<nil>]
+[INFO] 2021/06/17 20:43:47 example.ActivityDao.SelectByName() [ 17d0e286-2abe-4188-a63b-083f79b35720 ] ReturnRows <== 0

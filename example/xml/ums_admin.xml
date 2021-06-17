@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://gitee.com/gopher2011/mbt/blob/master/mybatis-3-mapper.dtd">
+<mapper>
+    <!--logic_enable 逻辑删除字段-->
+    <!--logic_deleted 逻辑删除已删除字段-->
+    <!--logic_undelete 逻辑删除 未删除字段-->
+    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
+    <resultMap id="BaseResultMap" table="ums_admin">
+    	<result column="id" langType="int64"  />
+	<result column="parent_id" langType="int64"  />
+	<result column="username" langType="string"  />
+	<result column="password" langType="string"  />
+	<result column="icon" langType="string"  />
+	<result column="email" langType="string"  />
+	<result column="nick_name" langType="string"  />
+	<result column="note" langType="string"  />
+	<result column="create_time" langType="time.Time"  />
+	<result column="login_time" langType="time.Time"  />
+	<result column="status" langType="int32"  />
+    </resultMap>
+	<insertTemplate/>
+
+	<select id="getBase">
+		select id,username,password,icon from ums_admin
+	</select>
+
+	<select id="usernameEqualTo" >
+		select * from ums_admin where username = #{username} order by id desc;
+	</select>
+
+	<insert id="insert">
+		insert into ums_admin
+		<trim prefix="(" suffix=")" trimSuffix=",">
+			<if test="id != nil">id,</if>
+			<if test="username != nil">username,</if>
+			<if test="password != nil">password,</if>
+			<if test="icon != nil">icon,</if>
+			<if test="email != nil">email,</if>
+			<if test="nick_name != nil">nick_name,</if>
+			<if test="note != nil">note,</if>
+			<if test="create_time != nil">create_time,</if>
+			<if test="login_time != nil">login_time,</if>
+			<if test="status != nil">status,</if>
+		</trim>
+		<trim prefix="values (" suffix=")" trimSuffix=",">
+			<if test="id != nil">#{id},</if>
+			<if test="username != nil">#{username},</if>
+			<if test="password != nil">#{password},</if>
+			<if test="icon != nil">#{icon},</if>
+			<if test="email != nil">#{email},</if>
+			<if test="nick_name != nil">#{nick_name},</if>
+			<if test="note != nil">#{note},</if>
+			<if test="create_time != nil">#{create_time},</if>
+			<if test="login_time != nil">#{login_time},</if>
+			<if test="status != nil">#{status},</if>
+		</trim>
+	</insert>
+
+	<sql id="column">
+		id,username,password,icon,email,nick_name,note,create_time,login_time,status
+	</sql>
+
+	<select id="selectByPrimaryKey">
+		select
+		<include refid="column"/>
+		from ums_admin
+		where id = #{id}
+	</select>
+
+	<select id="userExist">
+		select
+		<include refid="column"/>
+		from ums_admin
+		<where>
+			<if test="username!=''">username = #{username}</if>
+			<if test="password!=''">and password = #{password}</if>
+		</where>
+	</select>
+
+	<update id="updateColumn">update ums_admin set login_time = #{loginTime}</update>
+
+	<select id="list">
+		select
+		<include refid="column"/>
+		from ums_admin
+		<where>
+			<if test="keyword!=''">username like #{'%'+keyword+'%'} or nick_name like #{'%'+keyword+'%'}</if>
+		</where>
+		limit #{pageNum},#{pageSize}
+	</select>
+
+	<updateTemplate id="updateByPrimaryKeySelective" where="id = #{id}"/>
+
+	<select id="getAdmin">
+		select * from ums_admin
+		<where>
+			<if test="username!=''">username = #{username}</if>
+			<if test="password!=''">and password = #{password}</if>
+		</where>
+		order by id desc;
+	</select>
+
+	<update id="updatePassword">
+		update ums_admin
+		set password = #{password}
+		where id = #{id}
+	</update>
+
+	<update id="updateByPrimaryKey">
+		update ums_admin
+		set username = #{username},
+			password = #{password},
+			icon = #{icon},
+			email = #{email},
+			nick_name = #{nickName},
+			note = #{note},
+			status = #{status}
+		where id = #{id}
+	</update>
+
+	<delete id="deleteByPrimaryKey">delete from ums_admin where id=#{id}</delete>
+
+	<select id="listWithChildren">
+		select a1.* ,
+			   a2.*
+		from ums_admin as a1
+				 left join ums_admin as a2 on a1.id = a2.parent_id
+		where a1.parent_id=0
+	</select>
+</mapper>

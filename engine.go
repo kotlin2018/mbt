@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"go/scanner"
 	tk "go/token"
-	"io/ioutil"
+	"io"
+	"log"
+	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -30,12 +32,14 @@ type (
 		PrintXml        bool          `yaml:"print_xml" toml:"print_xml"`   // 是否打印 xml文件信息
 		PrintWarn       bool          `yaml:"print_warn" toml:"print_warn"` // 是否打印警告
 		TxEnable        bool          `yaml:"tx_enable" toml:"tx_enable"`   // 是否启用嵌套事务(如果使用嵌套事务,则必须设置 TxEnable == true)
+		LogFile         string        `yaml:"log_file" toml:"log_file"`     // 日志输出路径
 	}
 	H map[interface{}]interface{}
 )
 type Engine struct {
 	db          *sql.DB
 	m           sync.Map //用来缓存*Session
+	log         *log.Logger
 	driver      string
 	dsn         string
 	pkg         string
@@ -59,7 +63,6 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
-	it.printSql = cfg.PrintSql
 	it.pkg = cfg.Pkg
 	it.data = make(map[interface{}]string,0)
 	it.flag = false
@@ -67,14 +70,20 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	it.driver=cfg.DriverName
 	it.dsn=cfg.DSN
 	it.printXml = cfg.PrintXml
+	it.printSql = cfg.PrintSql
 	it.printWarn = cfg.PrintWarn
 	it.isGoroutine = cfg.TxEnable
+	if cfg.LogFile == "" {
+		it.log = log.New(os.Stdout,"[Debug]",log.LstdFlags)
+	}else {
+		file,_ := os.OpenFile(cfg.LogFile, os.O_CREATE | os.O_APPEND | os.O_RDWR, 0766)
+		it.log = log.New(io.MultiWriter(os.Stdout,file), "[INFO] ", log.LstdFlags)
+	}
 	return it,db,nil
 }
 func (it *Engine) One(mapperPtr interface{})*Engine{
 	if v,ok := it.data[mapperPtr];ok{
-		xml, _ := ioutil.ReadFile(v)
-		it.start(mapperPtr, xml)
+		it.start(mapperPtr, v)
 	}
 	return it
 }
@@ -99,8 +108,7 @@ func (it *Engine) Register(h H)*Engine{
 }
 func (it *Engine) Run(){
 	for i,v := range it.data{
-		xml, _ := ioutil.ReadFile(v)
-		it.start(i, xml)
+		it.start(i, v)
 	}
 }
 // 生成雪花算法的ID
@@ -158,9 +166,7 @@ func (it *Engine)Driver(driverType string)string{
 func (it *Engine) session()Session{
 	return newSession(it.driver, it.dsn, it.db,it.printSql)
 }
-
 type elementType = string
-
 const (
 	elementResultMap elementType = "resultMap"
 	elementInsert    elementType = "insert"
@@ -240,9 +246,7 @@ func newArg(tagArgs []tagArg,args []reflect.Value)proxyArg{
 		ArgsLen:    len(args),
 	}
 }
-
 type nodeType int
-
 const (
 	nArg    nodeType = iota
 	nString
@@ -277,9 +281,7 @@ func (it nodeType) ToString() string {
 	}
 	return "Unknown"
 }
-
 type operator = string
-
 const (
 	add    operator = "+"
 	reduce operator = "-"
@@ -461,7 +463,6 @@ func findReplaceOpt(express string, operator operator, list *[]iNode) error {
 			var newNodes []iNode
 			newNodes = append(array[:nIndex-1], nod)
 			newNodes = append(newNodes, array[nIndex+2:]...)
-
 			if haveOpt(newNodes) {
 				findReplaceOpt(express, operator, &newNodes)
 			}

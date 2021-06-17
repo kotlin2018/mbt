@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://gitee.com/gopher2011/mbt/blob/master/mybatis-3-mapper.dtd">
+<mapper>
+    <!--logic_enable 逻辑删除字段-->
+    <!--logic_deleted 逻辑删除已删除字段-->
+    <!--logic_undelete 逻辑删除 未删除字段-->
+    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
+    <resultMap id="BaseResultMap" table="ums_role">
+    	<result column="id" langType="int64"  />
+	<result column="name" langType="string"  />
+	<result column="description" langType="string"  />
+	<result column="admin_count" langType="int32"  />
+	<result column="create_time" langType="time.Time"  />
+	<result column="status" langType="int32"  />
+	<result column="sort" langType="int32"  />
+    </resultMap>
+	<insert id="insert">
+		insert into ums_role (name, description, admin_count, create_time, status, sort)
+		values(#{name},#{description},#{admin_count},#{create_time},#{status},#{sort})
+	</insert>
+
+	<select id="getItem">select * from ums_role where id=#{id}</select>
+</mapper>
