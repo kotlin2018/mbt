@@ -48,7 +48,6 @@ func init(){
 }
 
 func Test(t *testing.T){
-	//init()
 	fmt.Println(cfg.Database.Pkg)
 	fmt.Println(cfg.Database.DriverName)
 	fmt.Println(cfg.Database.DSN)
@@ -58,7 +57,6 @@ func Test(t *testing.T){
 	fmt.Println(cfg.Database.ConnMaxIdleTime)
 	fmt.Println(cfg.Database.PrintSql)
 	fmt.Println(cfg.Database.PrintXml)
-	fmt.Println(cfg.Database.PrintWarn)
 	fmt.Println(cfg.Database.TxEnable)
 
 	fmt.Println(cfg.Database2.Pkg)
@@ -70,8 +68,11 @@ func Test(t *testing.T){
 	fmt.Println(cfg.Database2.ConnMaxIdleTime)
 	fmt.Println(cfg.Database2.PrintSql)
 	fmt.Println(cfg.Database2.PrintXml)
-	fmt.Println(cfg.Database2.PrintWarn)
 	fmt.Println(cfg.Database2.TxEnable)
+}
+
+func TestClear(t *testing.T){
+	en.Clear()
 }
 
 // 操作 MysqlUri 对应的 test 数据库
@@ -138,8 +139,8 @@ type ActivityDao struct {
 
 	SelectByCondition  func(base Base) ([]BizActivity, error)
 	SelectByCondition2 func(base Base) ([]BizActivity, error)
-	SelectByName       func(name, pcLink string) (Activity, error)
-	UpdateById         func(session mbt.Session, arg Activity) (int64, error)
+	SelectByName       func(name, pcLink string) (Activity, error)`arg:"name,pc_link"`
+	UpdateById         func(arg Activity,session mbt.Session) (int64, error)
 	Insert             func(arg Activity) (int64, error)
 	CountByCondition   func(name string, startTime time.Time, endTime time.Time) (int, error) `arg:"name,start_time,end_time"`
 	RemoveById         func(id string) (int64, error)                                         `arg:"id"`
@@ -149,6 +150,13 @@ type ActivityDao struct {
 	Choose             func(deleteFlag int) ([]Activity, error)                               `arg:"delete_flag"`
 	Choose2            func(arg Choose)([]Activity,error)
 	SelectLinks        func(column string) ([]Activity, error)                                `arg:"column"`
+}
+
+func TestSelectByName(t *testing.T) {
+	res, err := activity.SelectByName("刺客", "韩信")
+	if err == nil{
+		fmt.Println(res)
+	}
 }
 
 //插入
@@ -207,7 +215,7 @@ func TestUpdate(t *testing.T) {
 		DeleteFlag: 1,
 	}
 	//sessionId 有值则使用已经创建的session，否则新建一个session
-	updateNum, err := activity.UpdateById(nil, activityBean)
+	updateNum, err := activity.UpdateById(activityBean,nil)
 	fmt.Println("updateNum=", updateNum)
 	if err != nil {
 		panic(err)
@@ -372,13 +380,6 @@ func TestSelectAll(t *testing.T) {
 	fmt.Println("num=", len(result))
 }
 
-func TestSelectByName(t *testing.T) {
-	res, err := activity.SelectByName("刺客", "韩信")
-	fmt.Println(err)
-	fmt.Println(res)
-
-}
-
 //查询
 func TestCount(t *testing.T) {
 	start := time.Now().Add(-1*time.Hour)
@@ -530,12 +531,12 @@ func TestLocalTransaction(t *testing.T) {
 
 	}
 	//sessionId 有值则使用已经创建的session，否则新建一个session
-	updateNum, err := activity.UpdateById(session, activityBean)
+	updateNum, err := activity.UpdateById(activityBean,session)
 	fmt.Println("updateNum=", updateNum)
 	if err != nil {
 		panic(err)
 	}
-	session.Close()  //关闭事务
+	//session.Close(reflect.TypeOf(activityBean).String())  //关闭事务
 }
 
 //第二种使用事务的方法: 声明式事务

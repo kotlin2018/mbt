@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "https://gitee.com/gopher2011/mbt/blob/master/mybatis-3-mapper.dtd">
+        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
     <!--logic_enable 逻辑删除字段-->
     <!--logic_deleted 逻辑删除已删除字段-->
@@ -42,13 +42,13 @@
 		id,name,pc_link,h5_link,remark,sort,status,version,create_time,delete_flag
 	</sql>
 
-	<select id="selectTpl">select * from biz_activity where name = #{name}</select>
-
 	<select id="selectByName">
 		select
 		<include refid="column"/>
 		from biz_activity where `name` = #{name} and pc_link = #{pc_link}
 	</select>
+
+	<select id="selectTpl">select * from biz_activity where name = #{name}</select>
 
 	<select id="selectByCondition" resultMap="BaseResultMap">
 		<bind name="pattern" value="'%' + name + '%'"/>

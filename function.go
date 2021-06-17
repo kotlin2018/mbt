@@ -3,10 +3,8 @@ package mbt
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"reflect"
 	"regexp"
@@ -21,7 +19,7 @@ func (it *Engine)start(ptr interface{}, name string) {
 	// 代码能够执行到这里 bean.Kind() 一定是 reflect.Ptr类型
 	bt := bean.Type().Elem()
 	be := bean.Elem()
-	outPut := it.makeReturnTypeMap(be.Type(), it.printWarn)
+	outPut := it.makeReturnTypeMap(be.Type())
 	mapperTree := it.parseXml(name,xml)
 	resultMaps := makeResultMaps(mapperTree)
 	it.decodeTree(mapperTree, bt,name)
@@ -64,24 +62,24 @@ func (it *Engine)start(ptr interface{}, name string) {
 					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
 				}
 				res = &returnV
-				it.exeMethodByXml(m.xml.Tag, arg, m.nodes, resultMap, res,bt.String(),funcName)
+				it.exeMethodByXml(m.xml.Tag, arg, m.nodes, resultMap, res,bt.String()+"."+funcName+"() ")
 				return buildReturnValue(ret, res)
 			}
 			return proxyFunc
 		}
 	})
 }
-func (it *Engine)makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap map[string]*returnValue) {
+func (it *Engine)makeReturnTypeMap(bean reflect.Type) (returnMap map[string]*returnValue) {
 	returnMap = make(map[string]*returnValue)
 	name := bean.String()
-	for i := 0; i < bean.NumField(); i++ {// 代码执行到这里,bean.NumField() != 0
+	for i := 0; i < bean.NumField(); i++ {
 		fieldItem := bean.Field(i)
 		funcType := fieldItem.Type
 		funcName := fieldItem.Name
 		funcKind := funcType.Kind()
 		if funcKind != reflect.Func {
 			if funcKind == reflect.Struct {
-				childMap := it.makeReturnTypeMap(funcType,warning)
+				childMap := it.makeReturnTypeMap(funcType)
 				for k, v := range childMap {
 					returnMap[k] = v
 				}
@@ -93,7 +91,7 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap m
 		for j := 0; j < argsLen; j++ {
 			inType := funcType.In(j)
 			if inType.String() == mSessionPtr {
-				it.log.Fatalln(fmt.Sprintf("%s() 的输入参数不能是: %s,只能是 %s",name+"."+funcName,mSessionPtr,mSession))
+				it.log.Fatalln(name+"."+funcName+"()"+" 的输入参数不能是:"+mSessionPtr+",只能是:"+mSession)
 			}
 			if isCustomStruct(inType) {
 				customLen++
@@ -101,10 +99,6 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type, warning bool) (returnMap m
 		}
 		if argsLen > 1 && customLen > 1 {
 			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
-		}
-		arg := fieldItem.Tag.Get("arg")
-		if argsLen > 0 && customLen == 0 && arg == "" && warning {
-			it.log.Println("[Warn] 警告 ======================== " + name + "." + funcName + "() have not define tag arg:\"\",maybe can not get param value!")
 		}
 		numOut := funcType.NumOut()
 		if numOut > 2 || numOut == 0 {
@@ -839,7 +833,7 @@ func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
 func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
-func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, nodes []iiNode, resultMap map[string]*resultProperty, returnValue *reflect.Value,name string,function string){
+func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, nodes []iiNode, resultMap map[string]*resultProperty, returnValue *reflect.Value,name string){
 	var s Session
 	 s = findArgSession(proxyArg)
 	 if s == nil {
@@ -847,24 +841,24 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 			 s = it.get(goroutineID())
 			 if s == nil {
 				 s = it.session()
-				 defer s.Close()
+				 defer s.Close(name)
 			 }
 		 }else {
 			 s = it.session()
-			 defer s.Close()
+			 defer s.Close(name)
 		 }
 	 }
 	convert := s.stmtConvert()
 	array := make([]interface{},0)
-	sql := it.buildSql(proxyArg, nodes,&array, convert,name+"."+function+"() ")
+	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
 	if elementType == elementSelect {
 		res, err := s.queryPrepare(sql, array...)
 		if err != nil {
-			it.log.Fatalln(fmt.Sprintf(name+"."+function+"() "+"[Error] [%s] error == %s",s.Id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.Id(),err.Error()))
 		}
 		if it.printSql {
-			it.log.Println(name+"."+function+"() "+"[",s.Id(),"] Query ==> "+sql)
-			it.log.Println(name+"."+function+"() "+"[",s.Id(),"] Args  ==> "+printArray(array))
+			it.log.Println(name+"[",s.Id(),"] Query ==> "+sql)
+			it.log.Println(name+"[",s.Id(),"] Args  ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -872,18 +866,18 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 				if res != nil {
 					RowsAffected = strconv.Itoa(len(res))
 				}
-				it.log.Println(name+"."+function+"() "+"[", s.Id(), "] ReturnRows <== "+RowsAffected)
+				it.log.Println(name+"[", s.Id(), "] ReturnRows <== "+RowsAffected)
 			}
 		}()
-		decodeSqlResult(resultMap, res, returnValue.Interface())
+		it.decodeSqlResult(resultMap, res, returnValue.Interface(),name)
 	} else {
 		res, err := s.execPrepare(sql, array...)
 		if err != nil {
-			it.log.Fatalln(fmt.Sprintf(name+"."+function+"() "+"[Error] [%s] error == %s",s.Id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.Id(),err.Error()))
 		}
 		if it.printSql {
-			it.log.Println(name+"."+function+"() "+"[", s.Id(), "] Exec ==> "+sql)
-			it.log.Println(name+"."+function+"() "+"[", s.Id(), "] Args ==> "+printArray(array))
+			it.log.Println(name+"[", s.Id(), "] Exec ==> "+sql)
+			it.log.Println(name+"[", s.Id(), "] Args ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -891,7 +885,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 				if res != nil {
 					RowsAffected = strconv.FormatInt(res.RowsAffected, 10)
 				}
-				it.log.Println(name+"."+function+"() "+"[", s.Id(), "] RowsAffected <== "+RowsAffected)
+				it.log.Println(name+"[", s.Id(), "] RowsAffected <== "+RowsAffected)
 			}
 		}()
 		returnValue.Elem().SetInt(res.RowsAffected)
@@ -1024,42 +1018,45 @@ func (it *Engine)proxyValue(v reflect.Value, buildFunc func(funcField reflect.St
 			case reflect.Struct:
 				it.proxyValue(f, buildFunc)
 			case reflect.Func:
-				it.buildRemoteMethod(v.String()+"."+ft.Name(),f, ft, sf, buildFunc(sf, f))
+				it.buildRemoteMethod(v.Type().String(),f, ft, sf, buildFunc(sf, f))
 			}
 		}
 	}
 	v.Set(v)
 }
 func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
-	var tagParams []string
+	var (
+		tagParams []string
+		num = ft.NumIn()
+		tagArgs = make([]tagArg, 0)
+	)
 	args := sf.Tag.Get(`arg`)
-	if args != `` {
-		tagParams = strings.Split(args, `,`)
-	}
-	tagParamsLen := len(tagParams)
-	num := ft.NumIn()
-	for i := 0;i<num;i++ {
-		if ft.In(i).String() == mSession {
-			num --
-		}
-	}
-	if tagParamsLen > num{
-		it.log.Fatalln(name+`方法错误,当前方法上的 tag "arg:" 的值的个数 > 方法的输入参数的个数!! 当前方法是:` + sf.Name)
-	}
-	tagArgs := make([]tagArg, 0)
-	if tagParamsLen != 0 {
-		for index, v := range tagParams {
-			tag := tagArg{
-				Index: index,
-				Name:  v,
+	if args == ""{
+		for i := 0;i<num;i++ {
+			fti := ft.In(i)
+			ftk := fti.Kind()
+			if fti.String() == mSession || ftk == reflect.Struct || ftk == reflect.Slice && fti.Elem().Kind() == reflect.Struct{
+				continue
+			}else {
+				it.log.Fatalln(name+"."+sf.Name+"()"+` 上的 tag "arg:" 的值的个数 != `+name+"."+sf.Name+"()"+` 的输入参数的个数!!`)
 			}
-			tagArgs = append(tagArgs, tag)
 		}
-	}
-	tagArgsLen := len(tagArgs)
-	if tagArgsLen > 0 && num != tagArgsLen {
-		//panic(name+`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
-		it.log.Fatalln(name+`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
+	}else {
+		tagParams = strings.Split(args, `,`)
+		tagParamsLen := len(tagParams)
+		if tagParamsLen != 0 {
+			for index, v := range tagParams {
+				tag := tagArg{
+					Index: index,
+					Name:  v,
+				}
+				tagArgs = append(tagArgs, tag)
+			}
+		}
+		tagArgsLen := len(tagArgs)
+		if tagArgsLen > 0 && num != tagArgsLen{
+			it.log.Fatalln(name+"."+sf.Name+"()"+` 上的 tag "arg:" 的值的个数 != `+name+"."+sf.Name+"()"+` 的输入参数的个数!!`)
+		}
 	}
 	fn := func(args []reflect.Value) (results []reflect.Value) {
 		proxyResults := proxyFunc(newArg(tagArgs, args))
@@ -1071,7 +1068,7 @@ func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type,
 	f.Set(reflect.MakeFunc(ft, fn))
 	tagParams = nil
 }
-func decodeSqlResult(resultMap map[string]*resultProperty, sqlResult []map[string][]byte, result interface{}){
+func (it *Engine)decodeSqlResult(resultMap map[string]*resultProperty, sqlResult []map[string][]byte, result interface{},name string){
 	if sqlResult == nil || result == nil {
 		return
 	}
@@ -1083,7 +1080,7 @@ func decodeSqlResult(resultMap map[string]*resultProperty, sqlResult []map[strin
 	}
 	if !isArray(resultV.Kind()) {
 		if sqlResultLen > 1 {
-			panic("SqlResultDecoder Decode one result,but find database result size find > 1 !")
+			it.log.Fatalln(name+"SqlResultDecoder Decode one result,but find database result size find > 1 !")
 		}
 		if isBasicType(resultV.Type()) {
 			for _, s := range sqlResult[0] {
@@ -1104,7 +1101,7 @@ func decodeSqlResult(resultMap map[string]*resultProperty, sqlResult []map[strin
 		}
 	} else {
 		if resultV.Type().Kind() != reflect.Array && resultV.Type().Kind() != reflect.Slice {
-			panic("SqlResultDecoder decode type not an struct array or slice!")
+			it.log.Fatalln(name+"SqlResultDecoder decode type not an struct array or slice!")
 		}
 		resultVItemType := resultV.Type().Elem()
 		structMap := makeStructMap(resultVItemType)
@@ -1124,7 +1121,7 @@ func decodeSqlResult(resultMap map[string]*resultProperty, sqlResult []map[strin
 	}
 	err := json.Unmarshal(value, result)
 	if err != nil {
-		panic(err)
+		it.log.Fatalln(name+err.Error())
 	}
 }
 func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
@@ -1239,7 +1236,7 @@ func isBasicType(tItemTypeFieldType reflect.Type) bool {
 // =========================================== 根据表的model实体,生成该表的 xml 文件 =====================================================
 var xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "https://gitee.com/gopher2011/mbt/blob/master/mybatis-3-mapper.dtd">
+        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
     <!--logic_enable 逻辑删除字段-->
     <!--logic_deleted 逻辑删除已删除字段-->
@@ -1290,54 +1287,46 @@ func createXml(tableName string, tv reflect.Type) []byte {
 	res = strings.Replace(res, "#{table}", tableName, -1)
 	return []byte(res)
 }
-func createFile(abs,pkg string) (*os.File,string,error){
-	_, err := os.Stat(pkg)
+func (it *Engine)createFile(abs string) (*os.File,string){
+	_, err := os.Stat(it.pkg)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err1 := os.MkdirAll(pkg, os.ModePerm)
+			err1 := os.MkdirAll(it.pkg, os.ModePerm)
 			if err1 != nil {
-				println(err1)
+				it.log.Fatalln(err1)
 			}
 		}
 	}
 	file, err2 := os.Create(abs)
 	if err2 != nil {
-		println(err2)
+		it.log.Fatalln(err2)
 	}
-	return file,abs,nil
+	return file,abs
 }
-func genXml(abs,fileName,tableName,pkg string,bean reflect.Type) string {
+func (it *Engine)genXml(abs,fileName,tableName string,bean reflect.Type) string {
 	body := createXml(tableName,bean)
-	f,s,err := createFile(abs,pkg)
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
+	f,s := it.createFile(abs)
 	defer f.Close()
+	_, err := f.Write(body)
 	if err != nil {
-		fmt.Println(err.Error())
+		it.log.Fatalln("写入文件失败：" + err.Error())
 	} else {
-		_, err = f.Write(body)
-		if err != nil {
-			println("写入文件失败：" + err.Error())
-		} else {
-			println("写入文件成功：" + fileName)
-		}
+		it.log.Println("写入文件成功：" + fileName)
 	}
 	return s
 }
 // 参数 <pointer>是数据库表的实体的指针,这里不能传结构体对象的原因是(即使传的结构体对象,最终该对象也会逃逸到堆内存上去)
 // https://mp.weixin.qq.com/s/ashgWyb-w4fT47xX60yNFA
-func xmlPath(pointer interface{},pkg string) (string,string,string,reflect.Type){
+func (it *Engine)xmlPath(pointer interface{}) (string,string,string,reflect.Type){
 	t := reflect.TypeOf(pointer)
 	if t.Kind() != reflect.Ptr {
-		panic(errors.New(fmt.Sprintf("%v{} 必须是指针类型!!!",t.Name())))
+		it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
 	}
 	t = t.Elem()
 	table := snake(t.Name())
 	fileName := table+".xml"
 	var w strings.Builder
-	w.WriteString(pkg)
+	w.WriteString(it.pkg)
 	w.WriteString("/")
 	w.WriteString(fileName)
 	s := w.String()
@@ -1477,13 +1466,15 @@ func (it sqlArgTypeConvert) toString(argValue interface{}) string {
 func (it *Engine)Tx(mapperPtr interface{}) {
 	service := reflect.ValueOf(mapperPtr)
 	if service.Kind() != reflect.Ptr {
-		panic("参数 mapperPtr 必须是指针类型")
+		it.log.Fatalln(service.Type().String()+"{} 必须是指针类型")
 	}
-	txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
+	it.txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		pro := Never
 		nativeImplFunc := reflect.ValueOf(field.Interface())
 		txTag, ok  := funcField.Tag.Lookup("tx")
 		rollbackTag := funcField.Tag.Get("rollback")
+		name := service.String()+"."
+		funcName := funcField.Name
 		if ok {
 			pro = newPro(txTag)
 		}
@@ -1494,7 +1485,7 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 				s = it.session()
 				defer func() {
 					if s != nil {
-						s.Close()
+						s.Close(name+"."+funcName+"() ")
 					}
 					it.delete(goroutine)
 				}()
@@ -1513,14 +1504,14 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 					panic(err)
 				}
 			}
-			nativeImplResult := doNativeMethod(funcField, arg, nativeImplFunc, s)
+			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, s)
 			if !haveRollBackType(nativeImplResult, rollbackTag) {
-				err := s.Commit()
+				err := s.Commit(name+"."+funcName+"() ")
 				if err != nil {
 					panic(err)
 				}
 			} else {
-				err := s.Rollback()
+				err := s.Rollback(name+"."+funcName+"() ")
 				if err != nil {
 					panic(err)
 				}
@@ -1531,7 +1522,7 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 	})
 }
 // 输入参数<v>一定是 reflect.Ptr
-func txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
+func (it *Engine)txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
 	v = v.Elem()//这句代码执行完后,v.Kind()== reflect.Struct
 	t := v.Type()//这句代码执行完后,t.Kind()== reflect.Struct
 	for i := 0; i < v.NumField(); i++ {
@@ -1545,64 +1536,24 @@ func txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, fie
 		if f.CanSet() {//如果该字段是可导出字段
 			switch ftk {
 			case reflect.Struct:
-				txStruct(f, buildFunc)
+				it.txStruct(f, buildFunc)
 			case reflect.Func:
-				txMethod(f, ft, sf, buildFunc(sf, f))
+				it.buildRemoteMethod(v.Type().String(),f, ft, sf, buildFunc(sf, f))
 			}
 		}
 	}
 	v.Set(v)
 }
-func txMethod(f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
-	var tagParams []string
-	args := sf.Tag.Get(`arg`)
-	if args != `` {
-		tagParams = strings.Split(args, `,`)
-	}
-	tagParamsLen := len(tagParams)
-	if tagParamsLen > ft.NumIn() {
-		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 > 方法的输入参数的个数!! 当前方法是:` + sf.Name)
-	}
-	tagArgs := make([]tagArg, 0)
-	if tagParamsLen != 0 {
-		for index, v := range tagParams {
-			tag := tagArg{
-				Index: index,
-				Name:  v,
-			}
-			tagArgs = append(tagArgs, tag)
-		}
-	}
-	tagArgsLen := len(tagArgs)
-	if tagArgsLen > 0 && ft.NumIn() != tagArgsLen {
-		panic(`方法错误,当前方法上的 tag "arg:" 的值的个数 != 方法的输入参数的个数!! 当前方法是:` + sf.Name)
-	}
-	fn := func(args []reflect.Value) (results []reflect.Value) {
-		proxyResults := proxyFunc(newArg(tagArgs, args))
-		for _, returnV := range proxyResults {
-			results = append(results, returnV)
-		}
-		return results
-	}
-	if f.Kind() == reflect.Ptr {
-		fp := reflect.New(ft)
-		fp.Elem().Set(reflect.MakeFunc(ft, fn))
-		f.Set(fp)
-	} else {
-		f.Set(reflect.MakeFunc(ft, fn))
-	}
-	tagParams = nil
-}
-func doNativeMethod(funcField reflect.StructField, arg proxyArg, nativeImplFunc reflect.Value, s Session) []reflect.Value {
+
+func (it *Engine)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplFunc reflect.Value, s Session) []reflect.Value {
 	defer func() {
 		err := recover()
 		if err != nil {
-			rollbackErr := s.Rollback()
+			rollbackErr := s.Rollback(name+funcName+"() ")
 			if rollbackErr != nil {
-				panic(fmt.Sprint(err) + rollbackErr.Error())
+				it.log.Fatalln(fmt.Sprint(err) + rollbackErr.Error())
 			}
-			log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + funcField.Name + "()"))
-			panic(err)
+			it.log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + funcName + "()"))
 		}
 	}()
 	return nativeImplFunc.Call(arg.Args)

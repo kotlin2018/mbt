@@ -8,7 +8,6 @@
     connMaxIdleTime = 5 #默认5分钟
     printSql = true
     printXml = false
-    printWarn = false
     txEnable = false
     logFile = "./log" #""
 
@@ -22,7 +21,6 @@
     connMaxIdleTime = 5 #默认5分钟
     printSql = false
     printXml = false
-    printWarn = false
     txEnable = false
     logFile = "./log"
 

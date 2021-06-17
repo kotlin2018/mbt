@@ -30,7 +30,6 @@ type (
 		ConnMaxIdleTime time.Duration `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"`
 		PrintSql        bool          `yaml:"print_sql" toml:"print_sql"`   // 设置是否打印SQL语句
 		PrintXml        bool          `yaml:"print_xml" toml:"print_xml"`   // 是否打印 xml文件信息
-		PrintWarn       bool          `yaml:"print_warn" toml:"print_warn"` // 是否打印警告
 		TxEnable        bool          `yaml:"tx_enable" toml:"tx_enable"`   // 是否启用嵌套事务(如果使用嵌套事务,则必须设置 TxEnable == true)
 		LogFile         string        `yaml:"log_file" toml:"log_file"`     // 日志输出路径
 	}
@@ -43,7 +42,6 @@ type Engine struct {
 	driver      string
 	dsn         string
 	pkg         string
-	printWarn   bool
 	printXml    bool
 	printSql    bool
 	isGoroutine bool
@@ -55,10 +53,16 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	if err != nil{
 		return nil,nil,err
 	}
-	if cfg.Pkg == "" {
-		panic(errors.New(`*mbt.Config.Pkg 这个参数不能为空!!请配置它,例如: "./test", "./app/dao"`))
-	}
 	it := new(Engine)
+	if cfg.LogFile == "" {
+		it.log = log.New(os.Stdout,"[Debug]",log.LstdFlags)
+	}else {
+		file,_ := os.OpenFile(cfg.LogFile, os.O_CREATE | os.O_APPEND | os.O_RDWR, 0766)
+		it.log = log.New(io.MultiWriter(os.Stdout,file), "[INFO] ", log.LstdFlags)
+	}
+	if cfg.Pkg == "" {
+		it.log.Fatalln(`*mbt.Database.Pkg 这个参数不能为空!!请配置它,例如: "./test", "./app/dao"`)
+	}
 	db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
@@ -71,14 +75,7 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	it.dsn=cfg.DSN
 	it.printXml = cfg.PrintXml
 	it.printSql = cfg.PrintSql
-	it.printWarn = cfg.PrintWarn
 	it.isGoroutine = cfg.TxEnable
-	if cfg.LogFile == "" {
-		it.log = log.New(os.Stdout,"[Debug]",log.LstdFlags)
-	}else {
-		file,_ := os.OpenFile(cfg.LogFile, os.O_CREATE | os.O_APPEND | os.O_RDWR, 0766)
-		it.log = log.New(io.MultiWriter(os.Stdout,file), "[INFO] ", log.LstdFlags)
-	}
 	return it,db,nil
 }
 func (it *Engine) One(mapperPtr interface{})*Engine{
@@ -88,15 +85,15 @@ func (it *Engine) One(mapperPtr interface{})*Engine{
 	return it
 }
 func (it *Engine)register(mapperPtr,modelPtr interface{}){
-	abs,name,table,bean:= xmlPath(modelPtr,it.pkg)
+	abs,name,table,bean:= it.xmlPath(modelPtr)
 	if isNotExist(abs){
-		genXml(abs,name,table,it.pkg,bean)
+		it.genXml(abs,name,table,bean)
 	}
 	it.data[mapperPtr]=abs
 }
 func (it *Engine) Register(h H)*Engine{
 	if it.flag {
-		panic(errors.New(" 一个 Engine 实例全局只能调用一次 Register()!"))
+		it.log.Fatalln(" 一个 Engine 实例全局只能调用一次 Register()!")
 	}
 	if len(it.data) != len(h){
 		for i, v:= range h {
@@ -105,6 +102,9 @@ func (it *Engine) Register(h H)*Engine{
 		it.flag = true
 	}
 	return it
+}
+func (it *Engine)Clear(){
+	it.data = nil
 }
 func (it *Engine) Run(){
 	for i,v := range it.data{
@@ -164,7 +164,7 @@ func (it *Engine)Driver(driverType string)string{
 	}
 }
 func (it *Engine) session()Session{
-	return newSession(it.driver, it.dsn, it.db,it.printSql)
+	return newSession(it.driver, it.dsn, it.db,it.log,it.printSql)
 }
 type elementType = string
 const (
@@ -843,7 +843,6 @@ func eval(express string, operator operator, a interface{}, b interface{}) (inte
 	switch operator {
 	case and:
 		if a == nil || b == nil {
-			//equal nil
 			return nil, errors.New("[express] " + express + " eval fail,value can not be nil")
 		}
 		a, av = getDeepValue(av, a)
@@ -853,7 +852,6 @@ func eval(express string, operator operator, a interface{}, b interface{}) (inte
 		return ab == true && bb == true, nil
 	case or:
 		if a == nil || b == nil {
-			//equal nil
 			return nil, errors.New("[express] " + express + " eval fail,value can not be nil")
 		}
 		a, av = getDeepValue(av, a)
