@@ -18,18 +18,18 @@ import (
 
 type (
 	Tx func()Session
-	Config struct {
-		Pkg             string        // 生成的xml文件的包名
-		DriverName      string        // 驱动名称。例如: mysql,postgreSQL...
-		DSN             string        // 数据库连接信息。例如: "root:root@(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local"
-		MaxOpenConn     int           // 最大的并发打开连接数。例如: 这个值是5则表示==>连接池中最多有5个并发打开的连接，如果5个连接都已经打开被使用，并且应用程序需要另一个连接的话，那么应用程序将被迫等待，直到5个打开的连接其中的一个被释放并变为空闲。
-		MaxIdleConn     int           // 最大的空闲连接数。注意: MaxIdleConn 应该始终小于或等于 MaxOpenConn，设置比 MaxOpenConn 更多的空闲连接数是没有意义的，因为你最多也就能拿到所有打开的连接，剩余的空闲连接依然保持的空闲。
-		ConnMaxLifetime time.Duration // 连接的最大生命周期(默认值:0)。设置为0的话意味着没有最大生命周期，连接总是可重用。注意: ConnMaxLifetime 越短，从零开始创建连接的频率就越高!
-		ConnMaxIdleTime time.Duration
-		PrintSql        bool // 设置是否打印SQL语句
-		PrintXml        bool // 是否打印 xml文件信息
-		PrintWarn       bool // 是否打印警告
-		TxEnable        bool // 是否启用嵌套事务(如果使用嵌套事务,则必须设置 TxEnable == true)
+	Database struct {
+		Pkg             string        `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
+		DriverName      string        `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
+		DSN             string        `yaml:"dsn" toml:"dsn"`                               // 数据库连接信息。例如: "root:root@(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local"
+		MaxOpenConn     int           `yaml:"max_open_conn" toml:"max_open_conn"`           // 最大的并发打开连接数。例如: 这个值是5则表示==>连接池中最多有5个并发打开的连接，如果5个连接都已经打开被使用，并且应用程序需要另一个连接的话，那么应用程序将被迫等待，直到5个打开的连接其中的一个被释放并变为空闲。
+		MaxIdleConn     int           `yaml:"max_idle_conn" toml:"max_idle_conn"`           // 最大的空闲连接数。注意: MaxIdleConn 应该始终小于或等于 MaxOpenConn，设置比 MaxOpenConn 更多的空闲连接数是没有意义的，因为你最多也就能拿到所有打开的连接，剩余的空闲连接依然保持的空闲。
+		ConnMaxLifetime time.Duration `yaml:"conn_max_life_time" toml:"conn_max_life_time"` // 连接的最大生命周期(默认值:0)。设置为0的话意味着没有最大生命周期，连接总是可重用。注意: ConnMaxLifetime 越短，从零开始创建连接的频率就越高!
+		ConnMaxIdleTime time.Duration `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"`
+		PrintSql        bool          `yaml:"print_sql" toml:"print_sql"`   // 设置是否打印SQL语句
+		PrintXml        bool          `yaml:"print_xml" toml:"print_xml"`   // 是否打印 xml文件信息
+		PrintWarn       bool          `yaml:"print_warn" toml:"print_warn"` // 是否打印警告
+		TxEnable        bool          `yaml:"tx_enable" toml:"tx_enable"`   // 是否启用嵌套事务(如果使用嵌套事务,则必须设置 TxEnable == true)
 	}
 	H map[interface{}]interface{}
 )
@@ -46,7 +46,7 @@ type Engine struct {
 	flag        bool
 	data        map[interface{}]string
 }
-func New(cfg *Config)(*Engine,*sql.DB,error){
+func New(cfg *Database)(*Engine,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
 	if err != nil{
 		return nil,nil,err
