@@ -20,16 +20,16 @@ import (
 type (
 	Tx func()Session
 	Database struct {
-		Pkg             string        `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
-		DriverName      string        `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
-		DSN             string        `yaml:"dsn" toml:"dsn"`                               // 数据库连接信息。例如: "root:root@(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local"
-		MaxOpenConn     int           `yaml:"max_open_conn" toml:"max_open_conn"`           // 最大的并发打开连接数。例如: 这个值是5则表示==>连接池中最多有5个并发打开的连接，如果5个连接都已经打开被使用，并且应用程序需要另一个连接的话，那么应用程序将被迫等待，直到5个打开的连接其中的一个被释放并变为空闲。
-		MaxIdleConn     int           `yaml:"max_idle_conn" toml:"max_idle_conn"`           // 最大的空闲连接数。注意: MaxIdleConn 应该始终小于或等于 MaxOpenConn，设置比 MaxOpenConn 更多的空闲连接数是没有意义的，因为你最多也就能拿到所有打开的连接，剩余的空闲连接依然保持的空闲。
-		ConnMaxLifetime time.Duration `yaml:"conn_max_life_time" toml:"conn_max_life_time"` // 连接的最大生命周期(默认值:0)。设置为0的话意味着没有最大生命周期，连接总是可重用。注意: ConnMaxLifetime 越短，从零开始创建连接的频率就越高!
-		ConnMaxIdleTime time.Duration `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"`
-		PrintSql        bool          `yaml:"print_sql" toml:"print_sql"`   // 设置是否打印SQL语句
-		PrintXml        bool          `yaml:"print_xml" toml:"print_xml"`   // 是否打印 xml文件信息
-		LogFile         string        `yaml:"log_file" toml:"log_file"`     // 日志输出路径
+		Pkg             string `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
+		DriverName      string `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
+		DSN             string `yaml:"dsn" toml:"dsn"`                               // 数据库连接信息。例如: "root:root@(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local"
+		MaxOpenConn     int    `yaml:"max_open_conn" toml:"max_open_conn"`           // 最大的并发打开连接数。例如: 这个值是5则表示==>连接池中最多有5个并发打开的连接，如果5个连接都已经打开被使用，并且应用程序需要另一个连接的话，那么应用程序将被迫等待，直到5个打开的连接其中的一个被释放并变为空闲。
+		MaxIdleConn     int    `yaml:"max_idle_conn" toml:"max_idle_conn"`           // 最大的空闲连接数。注意: MaxIdleConn 应该始终小于或等于 MaxOpenConn，设置比 MaxOpenConn 更多的空闲连接数是没有意义的，因为你最多也就能拿到所有打开的连接，剩余的空闲连接依然保持的空闲。
+		ConnMaxLifetime int    `yaml:"conn_max_life_time" toml:"conn_max_life_time"` // 单位 time.Minute 连接的最大生命周期(默认值:0)。设置为0的话意味着没有最大生命周期，连接总是可重用。注意: ConnMaxLifetime 越短，从零开始创建连接的频率就越高!
+		ConnMaxIdleTime int    `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"` // 单位 time.Minute
+		PrintSql        bool   `yaml:"print_sql" toml:"print_sql"` // 设置是否打印SQL语句
+		PrintXml        bool   `yaml:"print_xml" toml:"print_xml"` // 是否打印 xml文件信息
+		LogFile         string `yaml:"log_file" toml:"log_file"`   // 日志输出路径
 	}
 	H map[interface{}]interface{}
 )
@@ -61,8 +61,8 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	it.data = make(map[interface{}]string,0)
 	it.printXml = cfg.PrintXml
 	it.printSql = cfg.PrintSql
-	db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
-	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	db.SetConnMaxIdleTime(time.Duration(cfg.ConnMaxIdleTime) * time.Minute)
+	db.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Minute)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
 	it.s =Session(&session{
