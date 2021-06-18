@@ -1240,9 +1240,8 @@ var xmlData = `<?xml version="1.0" encoding="UTF-8"?>
     </resultMap>
 	<insertTemplate/>
 	<updateTemplate/>
-	<deleteTemplate where="id?id=#{id}"/>
-	<selectTemplate where="id?id=#{id}"/>
-	<select id="list"></select>
+	<deleteTemplate/>
+	<selectTemplate/>
 	<!--<for list="" index="index" item="item"  open="(" close=")" separator=","></for>-->
 </mapper>
 `
