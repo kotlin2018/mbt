@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 )
-
 type (
 	Tx func()Session
 	Database struct {
@@ -30,23 +29,18 @@ type (
 		ConnMaxIdleTime time.Duration `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"`
 		PrintSql        bool          `yaml:"print_sql" toml:"print_sql"`   // 设置是否打印SQL语句
 		PrintXml        bool          `yaml:"print_xml" toml:"print_xml"`   // 是否打印 xml文件信息
-		TxEnable        bool          `yaml:"tx_enable" toml:"tx_enable"`   // 是否启用嵌套事务(如果使用嵌套事务,则必须设置 TxEnable == true)
 		LogFile         string        `yaml:"log_file" toml:"log_file"`     // 日志输出路径
 	}
 	H map[interface{}]interface{}
 )
 type Engine struct {
-	db          *sql.DB
-	m           sync.Map //用来缓存*Session
-	log         *log.Logger
-	driver      string
-	dsn         string
-	pkg         string
-	printXml    bool
-	printSql    bool
-	isGoroutine bool
-	flag        bool
-	data        map[interface{}]string
+	s        Session
+	m        sync.Map //用来缓存*Session
+	log      *log.Logger
+	pkg      string
+	printXml bool
+	printSql bool
+	data     map[interface{}]string
 }
 func New(cfg *Database)(*Engine,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
@@ -63,19 +57,23 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	if cfg.Pkg == "" {
 		it.log.Fatalln(`*mbt.Database.Pkg 这个参数不能为空!!请配置它,例如: "./test", "./app/dao"`)
 	}
+	it.pkg = cfg.Pkg
+	it.data = make(map[interface{}]string,0)
+	it.printXml = cfg.PrintXml
+	it.printSql = cfg.PrintSql
 	db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
-	it.pkg = cfg.Pkg
-	it.data = make(map[interface{}]string,0)
-	it.flag = false
-	it.db=db
-	it.driver=cfg.DriverName
-	it.dsn=cfg.DSN
-	it.printXml = cfg.PrintXml
-	it.printSql = cfg.PrintSql
-	it.isGoroutine = cfg.TxEnable
+	it.s =Session(&session{
+		SessionId:  newUUID().String(),
+		db:         db,
+		txStack:    newTxStack(),
+		driverType: cfg.DriverName,
+		dsn:        cfg.DSN,
+		printLog:   it.printSql,
+		log:        it.log,
+	})
 	return it,db,nil
 }
 func (it *Engine) One(mapperPtr interface{})*Engine{
@@ -92,19 +90,12 @@ func (it *Engine)register(mapperPtr,modelPtr interface{}){
 	it.data[mapperPtr]=abs
 }
 func (it *Engine) Register(h H)*Engine{
-	if it.flag {
-		it.log.Fatalln(" 一个 Engine 实例全局只能调用一次 Register()!")
-	}
 	if len(it.data) != len(h){
 		for i, v:= range h {
 			it.register(i,v)
 		}
-		it.flag = true
 	}
 	return it
-}
-func (it *Engine)Clear(){
-	it.data = nil
 }
 func (it *Engine) Run(){
 	for i,v := range it.data{
@@ -162,9 +153,6 @@ func (it *Engine)Driver(driverType string)string{
 	default:
 		return "github.com/go-sql-driver/mysql"
 	}
-}
-func (it *Engine) session()Session{
-	return newSession(it.driver, it.dsn, it.db,it.log,it.printSql)
 }
 type elementType = string
 const (

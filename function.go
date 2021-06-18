@@ -46,8 +46,7 @@ func (it *Engine)start(ptr interface{}, name string) {
 					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
 				}
 				res = &returnV
-				s := it.session()
-				res.Elem().Set(reflect.ValueOf(s).Elem().Addr().Convert(*ret.Value))
+				res.Elem().Set(reflect.ValueOf(it.s).Elem().Addr().Convert(*ret.Value))
 				return buildReturnValue(ret, res)
 			}
 			return proxyFunc
@@ -837,15 +836,9 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 	var s Session
 	 s = findArgSession(proxyArg)
 	 if s == nil {
-		 if it.isGoroutine {
-			 s = it.get(goroutineID())
-			 if s == nil {
-				 s = it.session()
-				 defer s.Close(name)
-			 }
-		 }else {
-			 s = it.session()
-			 defer s.Close(name)
+		 s = it.get(goroutineID())
+		 if s == nil {
+			 s = it.s
 		 }
 	 }
 	convert := s.stmtConvert()
@@ -854,11 +847,11 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 	if elementType == elementSelect {
 		res, err := s.queryPrepare(sql, array...)
 		if err != nil {
-			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.Id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.id(),err.Error()))
 		}
 		if it.printSql {
-			it.log.Println(name+"[",s.Id(),"] Query ==> "+sql)
-			it.log.Println(name+"[",s.Id(),"] Args  ==> "+printArray(array))
+			it.log.Println(name+"[",s.id(),"] Query ==> "+sql)
+			it.log.Println(name+"[",s.id(),"] Args  ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -866,18 +859,18 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 				if res != nil {
 					RowsAffected = strconv.Itoa(len(res))
 				}
-				it.log.Println(name+"[", s.Id(), "] ReturnRows <== "+RowsAffected)
+				it.log.Println(name+"[", s.id(), "] ReturnRows <== "+RowsAffected)
 			}
 		}()
 		it.decodeSqlResult(resultMap, res, returnValue.Interface(),name)
 	} else {
 		res, err := s.execPrepare(sql, array...)
 		if err != nil {
-			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.Id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.id(),err.Error()))
 		}
 		if it.printSql {
-			it.log.Println(name+"[", s.Id(), "] Exec ==> "+sql)
-			it.log.Println(name+"[", s.Id(), "] Args ==> "+printArray(array))
+			it.log.Println(name+"[", s.id(), "] Exec ==> "+sql)
+			it.log.Println(name+"[", s.id(), "] Args ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -885,7 +878,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 				if res != nil {
 					RowsAffected = strconv.FormatInt(res.RowsAffected, 10)
 				}
-				it.log.Println(name+"[", s.Id(), "] RowsAffected <== "+RowsAffected)
+				it.log.Println(name+"[", s.id(), "] RowsAffected <== "+RowsAffected)
 			}
 		}()
 		returnValue.Elem().SetInt(res.RowsAffected)
@@ -1466,54 +1459,43 @@ func (it sqlArgTypeConvert) toString(argValue interface{}) string {
 func (it *Engine)Tx(mapperPtr interface{}) {
 	service := reflect.ValueOf(mapperPtr)
 	if service.Kind() != reflect.Ptr {
-		it.log.Fatalln(service.Type().String()+"{} 必须是指针类型")
+		it.log.Fatalln(service.Type().String()+"{} 必须是指针类型!!!")
 	}
 	it.txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		pro := Never
 		nativeImplFunc := reflect.ValueOf(field.Interface())
 		txTag, ok  := funcField.Tag.Lookup("tx")
 		rollbackTag := funcField.Tag.Get("rollback")
-		name := service.String()+"."
+		name := service.Type().Elem().String()+"."
 		funcName := funcField.Name
 		if ok {
 			pro = newPro(txTag)
 		}
 		fn := func(arg proxyArg) []reflect.Value {
-			var s Session
-			if it.isGoroutine {
-				goroutine := goroutineID()//协程id
-				s = it.session()
-				defer func() {
-					if s != nil {
-						s.Close(name+"."+funcName+"() ")
-					}
-					it.delete(goroutine)
-				}()
-				it.put(goroutine,s)
-			}else {
-				s = it.session()
-			}
-			if !ok { //如果字段上没有定义 tx 这个tag
-				err := s.Begin(s.LastPropagation())
+			goroutine := goroutineID()//协程id
+			s := it.s
+			it.put(goroutine,s)
+			if !ok {
+				err := s.Begin(s.last())
 				if err !=nil {
-					panic(err)
+					it.log.Fatalln(name+funcName+"() "+"Begin() err = "+err.Error())
 				}
 			}else{
 				err := s.Begin(&pro)
 				if err != nil {
-					panic(err)
+					it.log.Fatalln(name+funcName+"() "+"Begin() err = " +err.Error())
 				}
 			}
 			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, s)
 			if !haveRollBackType(nativeImplResult, rollbackTag) {
-				err := s.Commit(name+"."+funcName+"() ")
+				err := s.Commit()
 				if err != nil {
-					panic(err)
+					it.log.Fatalln(name+funcName+"() "+"Commit() err = "+ err.Error())
 				}
 			} else {
-				err := s.Rollback(name+"."+funcName+"() ")
+				err := s.Rollback()
 				if err != nil {
-					panic(err)
+					it.log.Fatalln(name+funcName+"() "+"Rollback() err = "+ err.Error())
 				}
 			}
 			return nativeImplResult
@@ -1521,10 +1503,9 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 		return fn
 	})
 }
-// 输入参数<v>一定是 reflect.Ptr
 func (it *Engine)txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
-	v = v.Elem()//这句代码执行完后,v.Kind()== reflect.Struct
-	t := v.Type()//这句代码执行完后,t.Kind()== reflect.Struct
+	v = v.Elem()
+	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		ft := f.Type()
@@ -1533,27 +1514,37 @@ func (it *Engine)txStruct(v reflect.Value, buildFunc func(funcField reflect.Stru
 		if ftk == reflect.Ptr{
 			ft = ft.Elem()
 		}
-		if f.CanSet() {//如果该字段是可导出字段
+		if f.CanSet() {
 			switch ftk {
 			case reflect.Struct:
 				it.txStruct(f, buildFunc)
 			case reflect.Func:
-				it.buildRemoteMethod(v.Type().String(),f, ft, sf, buildFunc(sf, f))
+				it.txMethod(f, ft, buildFunc(sf, f))
 			}
 		}
 	}
 	v.Set(v)
 }
-
+func (it *Engine)txMethod(f reflect.Value, ft reflect.Type, proxyFunc func(arg proxyArg) []reflect.Value) {
+	tagArgs := make([]tagArg, 0)
+	fn := func(args []reflect.Value) (results []reflect.Value) {
+		proxyResults := proxyFunc(newArg(tagArgs, args))
+		for _, returnV := range proxyResults {
+			results = append(results, returnV)
+		}
+		return results
+	}
+	f.Set(reflect.MakeFunc(ft, fn))
+}
 func (it *Engine)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplFunc reflect.Value, s Session) []reflect.Value {
 	defer func() {
 		err := recover()
 		if err != nil {
-			rollbackErr := s.Rollback(name+funcName+"() ")
+			rollbackErr := s.Rollback()
 			if rollbackErr != nil {
 				it.log.Fatalln(fmt.Sprint(err) + rollbackErr.Error())
 			}
-			it.log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + funcName + "()"))
+			it.log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + name+funcName+"()"))
 		}
 	}()
 	return nativeImplFunc.Call(arg.Args)

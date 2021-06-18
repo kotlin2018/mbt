@@ -217,13 +217,12 @@ type Session interface {
 	exec(sqlOrArgs string) (*result, error)
 	queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error)
 	execPrepare(sqlPrepare string, args ...interface{}) (*result, error)
-	Begin(p *Propagation) error
-	Commit(name string) error
-	Rollback(name string) error
-	Id() string
-	Close(name string)
-	LastPropagation() *Propagation
+	id() string
+	last() *Propagation
 	stmtConvert() iConvert
+	Begin(p *Propagation) error
+	Commit() error
+	Rollback() error
 }
 type session struct {
 	db         *sql.DB
@@ -249,16 +248,12 @@ func newSession(driverType string, dsn string, db *sql.DB,log *log.Logger ,print
 		log:        log,
 	}
 }
-func (it *session) Id() string {
+func (it *session) id() string {
 	return it.SessionId
 }
-func (it *session) Rollback(name string) error {
-	if it.isClosed == true {
-		return errors.New(" LocalSession can not Rollback() a Closed Session!")
-	}
+func (it *session) Rollback() error {
 	if it.child != nil {
-		err := it.child.Rollback(name)
-		it.child.Close(name)
+		err := it.child.Rollback()
 		it.child = nil
 		if err != nil {
 			return err
@@ -274,10 +269,9 @@ func (it *session) Rollback(name string) error {
 			point := it.savePoint.Pop()
 			if point != nil {
 				if it.printLog {
-					it.log.Println(" [" + it.Id() + "] exec ====================" + "rollback to " + *point)
+					it.log.Println(" [" + it.id() + "] exec ====================" + "rollback to " + *point)
 				}
 				_, e := t.Exec("rollback to " + *point)
-				e = it.dbErrorPack(e)
 				if e != nil {
 					return e
 				}
@@ -285,7 +279,7 @@ func (it *session) Rollback(name string) error {
 		}
 		if it.txStack.Len() == 0 {
 			if it.printLog {
-				it.log.Println(" [" + it.Id() + "] Rollback Session")
+				it.log.Println(" [" + it.id() + "] Rollback Session")
 			}
 			err := t.Rollback()
 			if err != nil {
@@ -295,13 +289,9 @@ func (it *session) Rollback(name string) error {
 	}
 	return nil
 }
-func (it *session) Commit(name string) error {
-	if it.isClosed == true {
-		return errors.New(" LocalSession can not Commit() a Closed Session!")
-	}
+func (it *session) Commit() error {
 	if it.child != nil {
-		e := it.child.Commit(name)
-		it.child.Close(name)
+		e := it.child.Commit()
 		it.child = nil
 		if e != nil {
 			return e
@@ -316,17 +306,16 @@ func (it *session) Commit(name string) error {
 			pId := "p" + strconv.Itoa(it.txStack.Len()+1)
 			it.savePoint.Push(pId)
 			if it.printLog {
-				it.log.Println(" [" + it.Id() + "] exec " + "savepoint" + pId)
+				it.log.Println("[" ,it.id(),"] exec " + "savepoint" + pId)
 			}
 			_, e := t.Exec("savepoint" + pId)
-			e = it.dbErrorPack(e)
 			if e != nil {
 				return e
 			}
 		}
 		if it.txStack.Len() == 0 {
 			if it.printLog {
-				it.log.Println(" [" + it.Id() + "] Commit tx session:" + it.Id())
+				it.log.Println("[",it.id(),"] Commit tx session:" + it.id())
 			}
 			err := t.Commit()
 			if err != nil {
@@ -337,23 +326,11 @@ func (it *session) Commit(name string) error {
 	return nil
 }
 func (it *session) Begin(p *Propagation) error {
-	if it.isClosed == true {
-		return errors.New(" LocalSession can not Begin() a Closed Session!")
-	}
-	if p == nil {
-		begin, err := it.db.Begin()
-		if err != nil {
-			return errors.New("开启本地事务错误:"+err.Error())
-		}
-		it.txStack.Push(begin,nil)
-		if it.printLog {
-			it.log.Println(" [" + it.Id() + "] 开启本地事务成功,该事务自动提交,不用手动调用 Session.Commit()!!!")
-		}
-	}else {
+	if p != nil {
 		pro := toString(*p)
 		note := printStr(pro)
 		if it.printLog {
-			it.log.Println(" [" + it.Id() + "] Begin session(Propagation:" + pro + ")"+": "+note)
+			it.log.Println(" [" + it.id() + "] Begin session(Propagation:" + pro + ")"+": "+note)
 		}
 		switch *p {
 		case Required:
@@ -361,34 +338,25 @@ func (it *session) Begin(p *Propagation) error {
 				it.txStack.Push(it.txStack.Last())
 				return nil
 			} else {
-				t, err := it.db.Begin()
-				err = it.dbErrorPack(err)
-				if err == nil {
-					it.txStack.Push(t, p)
-				}
-				return err
+				t, _ := it.db.Begin()
+				it.txStack.Push(t, p)
+				return nil
 			}
 			break
 		case Support:
 			if it.txStack.Len() > 0 {
-				t, err := it.db.Begin()
-				err = it.dbErrorPack(err)
-				if err == nil {
-					it.txStack.Push(t, p)
-				}
-				return err
+				t, _ := it.db.Begin()
+				it.txStack.Push(t, p)
+				return nil
 			} else {
 				return nil
 			}
 			break
 		case Mandatory:
 			if it.txStack.Len() > 0 {
-				t, err := it.db.Begin()
-				err = it.dbErrorPack(err)
-				if err == nil {
-					it.txStack.Push(t, p)
-				}
-				return err
+				t, _ := it.db.Begin()
+				it.txStack.Push(t, p)
+				return nil
 			} else {
 				return errors.New(" [Error] PropagationMandatory 当前没有事务,请定义一个事务!")
 			}
@@ -431,40 +399,14 @@ func (it *session) Begin(p *Propagation) error {
 	}
 	return nil
 }
-func (it *session) LastPropagation() *Propagation {
+func (it *session) last() *Propagation {
 	if it.txStack.Len() != 0 {
 		_, pr := it.txStack.Last()
 		return pr
 	}
 	return nil
 }
-func (it *session) Close(name string) {
-	if it.printLog {
-		it.log.Println(name+"[", it.Id(),"] Close session")
-	}
-	if it.child != nil {
-		it.child.Close(name)
-		it.child = nil
-	}
-	if it.db != nil {
-		if it.stmt != nil {
-			it.stmt.Close()
-		}
-		for i := 0; i < it.txStack.Len(); i++ {
-			tx, _ := it.txStack.Pop()
-			if tx != nil {
-				tx.Rollback()
-			}
-		}
-		it.db = nil
-		it.stmt = nil
-		it.isClosed = true
-	}
-}
 func (it *session) query(args string) ([]map[string][]byte, error) {
-	if it.isClosed == true {
-		return nil,errors.New(" LocalSession can not Query() a Closed Session!")
-	}
 	if it.child != nil {
 		return it.child.query(args)
 	}
@@ -489,9 +431,6 @@ func (it *session) query(args string) ([]map[string][]byte, error) {
 	return nil, nil
 }
 func (it *session) exec(args string) (*result, error) {
-	if it.isClosed == true {
-		return nil,errors.New(" LocalSession can not Exec() a Closed Session!")
-	}
 	if it.child != nil {
 		return it.child.exec(args)
 	}
@@ -502,11 +441,6 @@ func (it *session) exec(args string) (*result, error) {
 	)
 	if t != nil {
 		res, err = t.Exec(args)
-		if err == nil {
-			t.Commit()
-		}else {
-			t.Rollback()
-		}
 	} else {
 		res, err = it.db.Exec(args)
 	}
@@ -522,9 +456,6 @@ func (it *session) exec(args string) (*result, error) {
 	}
 }
 func (it *session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error) {
-	if it.isClosed == true {
-		return nil,errors.New(" LocalSession can not Query() a Closed Session!")
-	}
 	if it.child != nil {
 		return it.child.query(sqlPrepare)
 	}
@@ -567,9 +498,6 @@ func (it *session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[s
 	return nil, nil
 }
 func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result, error) {
-	if it.isClosed == true {
-		return nil,errors.New(" LocalSession can not Exec() a Closed Session!")
-	}
 	if it.child != nil {
 		return it.child.exec(sqlPrepare)
 	}
@@ -580,16 +508,12 @@ func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 		t, _ = it.txStack.Last()
 	)
 	if t != nil {
-		it.txStack.Push(t,nil)
 		stmt, err = t.Prepare(sqlPrepare)
 		if err != nil {
 			return nil, err
 		}
 		res, err = stmt.Exec(args...)
-		if err == nil {
-			t.Commit()
-		}else {
-			t.Rollback()
+		if err != nil {
 			return nil, err
 		}
 	} else {
@@ -622,12 +546,6 @@ func (it *session) stmtConvert() iConvert {
 		it.log.Fatalln(err)
 	}
 	return res
-}
-func (it *session) dbErrorPack(e error) error {
-	if e != nil {
-		return errors.New("[Error][LocalSession]" + e.Error())
-	}
-	return nil
 }
 func rows2maps(rows *sql.Rows) (resultsSlice []map[string][]byte, err error) {
 	fields, err := rows.Columns()
