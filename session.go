@@ -543,7 +543,8 @@ func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 func (it *session) stmtConvert() iConvert {
 	res,err := buildStmtConvert(it.driverType)
 	if err != nil {
-		it.log.Fatalln(err)
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(it.driverType+"error"+err.Error())
 	}
 	return res
 }

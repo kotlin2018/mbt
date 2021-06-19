@@ -90,17 +90,20 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type) (returnMap map[string]*ret
 		for j := 0; j < argsLen; j++ {
 			inType := funcType.In(j)
 			if inType.String() == mSessionPtr {
-				it.log.Fatalln(name+"."+funcName+"()"+" 的输入参数不能是:"+mSessionPtr+",只能是:"+mSession)
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(name+"."+funcName+"()"+" 的输入参数不能是 "+mSessionPtr+",只能是 "+mSession)
 			}
 			if isCustomStruct(inType) {
 				customLen++
 			}
 		}
 		if argsLen > 1 && customLen > 1 {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
 		}
 		numOut := funcType.NumOut()
 		if numOut > 2 || numOut == 0 {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name + "." + funcName + "()' return num out must = 1 or = 2!")
 		}
 		for k := 0; k < numOut; k++ {
@@ -109,6 +112,7 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type) (returnMap map[string]*ret
 			outTypeS := outType.String()
 			if funcName != sessionFunc {
 				if outTypeK == reflect.Ptr || (outTypeK == reflect.Interface && outTypeS != "error") {
+					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name + "." + funcName + "()' return '" + outTypeS + "' can not be a 'ptr' or 'interface'!")
 				}
 			}
@@ -127,6 +131,7 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type) (returnMap map[string]*ret
 			}
 		}
 		if returnMap[funcName].Error == nil && funcName != sessionFunc{
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name + "." + funcName + "()' must return an 'error'!")
 		}
 	}
@@ -162,6 +167,7 @@ func (it *Engine)findMapperXml(mapperTree map[string]*element, beanName,methodNa
 			return mapperXml
 		}
 	}
+	it.log.SetPrefix("[Fatal] ")
 	it.log.Fatalln("在 "+ xmlName +" 文件中没有找到 "+ beanName + "." + methodName +"() 对应的 id 值 "+ methodName)
 	return nil
 }
@@ -187,6 +193,7 @@ func (it *Engine)parseXml(xmlName string,bytes []byte) (items map[string]*elemen
 	expressSymbol(&bytes)
 	doc := newDocument()
 	if err := doc.ReadFromBytes(bytes); err != nil {
+		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("解析 "+xmlName+" 文件错误,err=",err)
 	}
 	items = make(map[string]*element)
@@ -209,6 +216,7 @@ func (it *Engine)parseXml(xmlName string,bytes []byte) (items map[string]*elemen
 			if idValue != "" {
 				oldItem := items[idValue]
 				if oldItem != nil {
+					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(xmlName+` 文件内的同一类 <` + s.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
 				}
 			}
@@ -226,10 +234,12 @@ func (it *Engine)includeElementReplace(xml *element, xmlMap *map[string]*element
 	if xml.Tag == elementInclude {
 		ref := xml.SelectAttr("refid").Value
 		if ref == "" {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+` 文件中标签 <include refid=""> 'refid' 不能为 ""`)
 		}
 		mapperXml := (*xmlMap)[ref]
 		if mapperXml == nil {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+` 文件中标签 <includ refid="` + ref + `"> element can not find !`)
 		}
 		if xml != nil {
@@ -330,6 +340,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
@@ -366,6 +377,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
@@ -512,6 +524,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
@@ -566,6 +579,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
@@ -604,6 +618,7 @@ func (it *Engine)checkTablesValue(mapper *element, tables *string, resultMapData
 	if *tables == "" {
 		*tables = resultMapData.SelectAttrValue("table", "")
 		if *tables == "" {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+"[TemplateDecoder] 属性 'table' 不能为空! 需要定义在 <resultMap> 或者 <" + mapper.Tag + "Template>中,mapper id=" + mapper.SelectAttrValue("id", ""))
 		}
 	}
@@ -739,12 +754,15 @@ func (it *Engine)decodeLogicDelete(xml *element,xmlName string) logicDeleteData 
 			logicData.Property = v.SelectAttrValue("column", "")
 			logicData.LangType = v.SelectAttrValue("langType", "")
 			if logicData.DeletedValue == "" {
+				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(xmlName+"TemplateDecoder", `<resultMap> logic_deleted="" can't be empty !`)
 			}
 			if logicData.UndeleteValue == "" {
+				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(xmlName+"TemplateDecoder", `<resultMap> logic_undelete="" can't be empty !`)
 			}
 			if logicData.UndeleteValue == logicData.DeletedValue {
+				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(xmlName+"TemplateDecoder", `<resultMap> logic_deleted value can't be logic_undelete value!`)
 			}
 			break
@@ -763,6 +781,7 @@ func (it *Engine)decodeVersionData(xml *element,xmlName string) *versionData {
 			version.Property = v.SelectAttrValue("column", "")
 			version.LangType = v.SelectAttrValue("langType", "")
 			if !(strings.Contains(version.LangType, "int") || strings.Contains(version.LangType, "time.Time")) {
+				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(xmlName+"TemplateDecoder", `version_enable only support int...,time.Time... number type!`)
 			}
 			return &version
@@ -847,6 +866,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 	if elementType == elementSelect {
 		res, err := s.queryPrepare(sql, array...)
 		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.id(),err.Error()))
 		}
 		if it.printSql {
@@ -866,6 +886,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 	} else {
 		res, err := s.execPrepare(sql, array...)
 		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.id(),err.Error()))
 		}
 		if it.printSql {
@@ -953,6 +974,7 @@ func (it *Engine)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{
 func (it *Engine)sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert iConvert,name string)string{
 	sql, err := doChildNodes(node, args, array, stmtConvert)
 	if err != nil {
+		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+err.Error())
 	}
 	return string(sql)
@@ -968,6 +990,7 @@ func (it *Engine)scanStructArgFields(v reflect.Value, tag *tagArg,name string) m
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {
+		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name +`the scanParameterBean() arg is not a struct type!,type =` + t.String())
 	}
 	structArg := make(map[string]interface{})
@@ -1031,6 +1054,7 @@ func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type,
 			if fti.String() == mSession || ftk == reflect.Struct || ftk == reflect.Slice && fti.Elem().Kind() == reflect.Struct{
 				continue
 			}else {
+				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(name+"."+sf.Name+"()"+` 上的 tag "arg:" 的值的个数 != `+name+"."+sf.Name+"()"+` 的输入参数的个数!!`)
 			}
 		}
@@ -1048,6 +1072,7 @@ func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type,
 		}
 		tagArgsLen := len(tagArgs)
 		if tagArgsLen > 0 && num != tagArgsLen{
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+"."+sf.Name+"()"+` 上的 tag "arg:" 的值的个数 != `+name+"."+sf.Name+"()"+` 的输入参数的个数!!`)
 		}
 	}
@@ -1073,6 +1098,7 @@ func (it *Engine)decodeSqlResult(resultMap map[string]*resultProperty, sqlResult
 	}
 	if !isArray(resultV.Kind()) {
 		if sqlResultLen > 1 {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+"SqlResultDecoder Decode one result,but find database result size find > 1 !")
 		}
 		if isBasicType(resultV.Type()) {
@@ -1094,6 +1120,7 @@ func (it *Engine)decodeSqlResult(resultMap map[string]*resultProperty, sqlResult
 		}
 	} else {
 		if resultV.Type().Kind() != reflect.Array && resultV.Type().Kind() != reflect.Slice {
+			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+"SqlResultDecoder decode type not an struct array or slice!")
 		}
 		resultVItemType := resultV.Type().Elem()
@@ -1114,6 +1141,7 @@ func (it *Engine)decodeSqlResult(resultMap map[string]*resultProperty, sqlResult
 	}
 	err := json.Unmarshal(value, result)
 	if err != nil {
+		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+err.Error())
 	}
 }
@@ -1285,13 +1313,15 @@ func (it *Engine)createFile(abs string) (*os.File,string){
 		if os.IsNotExist(err) {
 			err1 := os.MkdirAll(it.pkg, os.ModePerm)
 			if err1 != nil {
-				it.log.Fatalln(err1)
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("create file "+abs +"error:"+ err1.Error())
 			}
 		}
 	}
 	file, err2 := os.Create(abs)
 	if err2 != nil {
-		it.log.Fatalln(err2)
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("create file"+abs +"error:"+ err2.Error())
 	}
 	return file,abs
 }
@@ -1301,7 +1331,8 @@ func (it *Engine)genXml(abs,fileName,tableName string,bean reflect.Type) string 
 	defer f.Close()
 	_, err := f.Write(body)
 	if err != nil {
-		it.log.Fatalln("写入文件失败：" + err.Error())
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("写入文件失败：" + fileName+"error:"+ err.Error())
 	} else {
 		it.log.Println("写入文件成功：" + fileName)
 	}
@@ -1312,6 +1343,7 @@ func (it *Engine)genXml(abs,fileName,tableName string,bean reflect.Type) string 
 func (it *Engine)xmlPath(pointer interface{}) (string,string,string,reflect.Type){
 	t := reflect.TypeOf(pointer)
 	if t.Kind() != reflect.Ptr {
+		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
 	}
 	t = t.Elem()
@@ -1458,6 +1490,7 @@ func (it sqlArgTypeConvert) toString(argValue interface{}) string {
 func (it *Engine)Tx(mapperPtr interface{}) {
 	service := reflect.ValueOf(mapperPtr)
 	if service.Kind() != reflect.Ptr {
+		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(service.Type().String()+"{} 必须是指针类型!!!")
 	}
 	it.txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
@@ -1477,11 +1510,13 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 			if !ok {
 				err := s.Begin(s.last())
 				if err !=nil {
+					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Begin() err = "+err.Error())
 				}
 			}else{
 				err := s.Begin(&pro)
 				if err != nil {
+					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Begin() err = " +err.Error())
 				}
 			}
@@ -1489,11 +1524,13 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 			if !haveRollBackType(nativeImplResult, rollbackTag) {
 				err := s.Commit()
 				if err != nil {
+					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Commit() err = "+ err.Error())
 				}
 			} else {
 				err := s.Rollback()
 				if err != nil {
+					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Rollback() err = "+ err.Error())
 				}
 			}
@@ -1541,6 +1578,7 @@ func (it *Engine)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplF
 		if err != nil {
 			rollbackErr := s.Rollback()
 			if rollbackErr != nil {
+				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(fmt.Sprint(err) + rollbackErr.Error())
 			}
 			it.log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + name+funcName+"()"))
