@@ -1270,7 +1270,6 @@ var xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 	<updateTemplate/>
 	<deleteTemplate/>
 	<selectTemplate/>
-	<!--<for list="" index="index" item="item"  open="(" close=")" separator=","></for>-->
 </mapper>
 `
 var (
