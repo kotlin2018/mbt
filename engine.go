@@ -47,7 +47,7 @@ type Engine struct {
 	pkg      string
 	printXml bool
 	printSql bool
-	data     map[interface{}]string
+	data     map[reflect.Value]string
 }
 func New(cfg *Database)(*Engine,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
@@ -58,12 +58,7 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	it.log = log.New(os.Stdout,"[INFO] ",log.LstdFlags)
 	it.printXml = cfg.Logger.PrintXml
 	it.printSql = cfg.Logger.PrintSql
-	if cfg.Pkg == "" {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(`*mbt.Database.Pkg 这个参数不能为空!!请配置它,例如: "./test", "./app/dao"`)
-	}
 	it.pkg = cfg.Pkg
-	it.data = make(map[interface{}]string,0)
 	db.SetConnMaxIdleTime(time.Duration(cfg.ConnMaxIdleTime) * time.Minute)
 	db.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Minute)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
@@ -79,28 +74,20 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	})
 	return it,db,nil
 }
-func (it *Engine) One(mapperPtr interface{})*Engine{
-	if v,ok := it.data[mapperPtr];ok{
-		it.start(mapperPtr, v)
-	}
-	return it
-}
 func (it *Engine)SetOutPut(w io.Writer)*Engine{
 	it.log.SetOutput(w)
 	return it
 }
 func (it *Engine)register(mapperPtr,modelPtr interface{}){
-	abs,name,table,bean:= it.xmlPath(modelPtr)
-	if isNotExist(abs){
-		it.genXml(abs,name,table,bean)
+	obj := reflect.ValueOf(mapperPtr)
+	if obj.Type().Elem().NumField() != 0 {
+		it.data[obj]= it.xmlPath(modelPtr)
 	}
-	it.data[mapperPtr]=abs
 }
 func (it *Engine) Register(h H)*Engine{
-	if len(it.data) != len(h){
-		for i, v:= range h {
-			it.register(i,v)
-		}
+	it.data = make(map[reflect.Value]string,len(h))
+	for i, v:= range h {
+		it.register(i,v)
 	}
 	return it
 }

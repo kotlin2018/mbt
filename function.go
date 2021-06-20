@@ -13,9 +13,8 @@ import (
 	"time"
 )
 
-func (it *Engine)start(ptr interface{}, name string) {
+func (it *Engine)start(bean reflect.Value, name string) {
 	xml, _ := ioutil.ReadFile(name)
-	bean := reflect.ValueOf(ptr)
 	// 代码能够执行到这里 bean.Kind() 一定是 reflect.Ptr类型
 	bt := bean.Type().Elem()
 	be := bean.Elem()
@@ -1306,40 +1305,8 @@ func createXml(tableName string, tv reflect.Type) []byte {
 	res = strings.Replace(res, "#{table}", tableName, -1)
 	return []byte(res)
 }
-func (it *Engine)createFile(abs string) (*os.File,string){
-	_, err := os.Stat(it.pkg)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err1 := os.MkdirAll(it.pkg, os.ModePerm)
-			if err1 != nil {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln("create file "+abs +"error:"+ err1.Error())
-			}
-		}
-	}
-	file, err2 := os.Create(abs)
-	if err2 != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("create file"+abs +"error:"+ err2.Error())
-	}
-	return file,abs
-}
-func (it *Engine)genXml(abs,fileName,tableName string,bean reflect.Type) string {
-	body := createXml(tableName,bean)
-	f,s := it.createFile(abs)
-	defer f.Close()
-	_, err := f.Write(body)
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("写入文件失败：" + fileName+"error:"+ err.Error())
-	} else {
-		it.log.Println("写入文件成功：" + fileName)
-	}
-	return s
-}
 // 参数 <pointer>是数据库表的实体的指针,这里不能传结构体对象的原因是(即使传的结构体对象,最终该对象也会逃逸到堆内存上去)
-// https://mp.weixin.qq.com/s/ashgWyb-w4fT47xX60yNFA
-func (it *Engine)xmlPath(pointer interface{}) (string,string,string,reflect.Type){
+func (it *Engine)xmlPath(pointer interface{})string{
 	t := reflect.TypeOf(pointer)
 	if t.Kind() != reflect.Ptr {
 		it.log.SetPrefix("[Fatal] ")
@@ -1348,22 +1315,52 @@ func (it *Engine)xmlPath(pointer interface{}) (string,string,string,reflect.Type
 	t = t.Elem()
 	table := snake(t.Name())
 	fileName := table+".xml"
-	var w strings.Builder
-	w.WriteString(it.pkg)
-	w.WriteString("/")
-	w.WriteString(fileName)
-	s := w.String()
-	return s,fileName,table,t
-}
-func isNotExist(abs string) bool {
-	_, err := os.Stat(abs)
+	var (
+		w strings.Builder
+		f *os.File
+		err error
+		s string
+		flag bool
+	)
+	if it.pkg == "" || it.pkg == "./" {
+		w.WriteString("./")
+		w.WriteString(fileName)
+		s = w.String()
+		flag = true
+	}else {
+		w.WriteString(it.pkg)
+		w.WriteString("/")
+		w.WriteString(fileName)
+		s = w.String()
+	}
+	_,err = os.Stat(s)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return true
+			body := createXml(table,t)
+			if !flag {
+				err = os.MkdirAll(it.pkg, os.ModePerm)
+				if err != nil {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln("create file "+s +" error:"+ err.Error())
+				}
+			}
+			f, err = os.Create(s)
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("create file"+s +" error:"+ err.Error())
+			}
+			defer f.Close()
+			_, err = f.Write(body)
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("写入文件失败：" + fileName+"error:"+ err.Error())
+			} else {
+				it.log.Println("写入文件成功：" + fileName)
+				return s
+			}
 		}
-		return false
 	}
-	return false
+	return s
 }
 func snake(s string) string {
 	data := make([]byte, 0, len(s)*2)
