@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"time"
 )
-
 type uuid [16]byte
 var ra = rand.Reader
 func (u uuid) String() string {

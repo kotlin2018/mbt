@@ -20,6 +20,7 @@ import (
 type (
 	Tx func()Session
 	Database struct {
+		Pkg             string  `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
 		DriverName      string  `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
 		DSN             string  `yaml:"dsn" toml:"dsn"`                               // 数据库连接信息。例如: "root:root@(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local"
 		MaxOpenConn     int     `yaml:"max_open_conn" toml:"max_open_conn"`           // 最大的并发打开连接数。例如: 这个值是5则表示==>连接池中最多有5个并发打开的连接，如果5个连接都已经打开被使用，并且应用程序需要另一个连接的话，那么应用程序将被迫等待，直到5个打开的连接其中的一个被释放并变为空闲。
@@ -27,9 +28,6 @@ type (
 		ConnMaxLifetime int     `yaml:"conn_max_life_time" toml:"conn_max_life_time"` // 单位 time.Minute 连接的最大生命周期(默认值:0)。设置为0的话意味着没有最大生命周期，连接总是可重用。注意: ConnMaxLifetime 越短，从零开始创建连接的频率就越高!
 		ConnMaxIdleTime int     `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"` // 单位 time.Minute
 		Logger          *logger `yaml:"logger" toml:"logger"`                         // logger日志记录器
-		Pkg             string  `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
-		Table           string  `yaml:"table" toml:"table"`
-		TagKey          string  `yaml:"tag_key" toml:"tag_key"`
 	}
 	logger struct {
 		PrintSql bool   `yaml:"print_sql" toml:"print_sql"` // 设置是否打印SQL语句
