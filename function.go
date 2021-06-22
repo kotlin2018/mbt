@@ -623,35 +623,35 @@ func (it *Engine)checkTablesValue(mapper *element, tables *string, resultMapData
 	}
 }
 func decodeWheres(arg string, mapper *element, logic logicDeleteData, version *versionData) {
-	var whereRoot = &element{
+	whereRoot := &element{
 		Tag:   elementWhere,
 		Attr:  []attr{},
 		Child: []token{},
 	}
 	if logic.Enable == true {
-		var appendAdd = ""
-		var item = &charData{
+			appendAdd := ""
+			item := &charData{
 			Data: appendAdd + logic.Column + " = " + logic.UndeleteValue,
 		}
 		whereRoot.Child = append(whereRoot.Child, item)
 	}
 	if version != nil {
-		var appendAdd = ""
+		appendAdd := ""
 		if len(whereRoot.Child) >= 1 {
 			appendAdd = " and "
 		}
-		var item = &charData{
+			item := &charData{
 			Data: appendAdd + version.Column + " = #{" + version.Property + "}",
 		}
 		whereRoot.Child = append(whereRoot.Child, item)
 	}
-	var wheres = strings.Split(arg, ",")
+	wheres := strings.Split(arg, ",")
 	for index, v := range wheres {
 		if v == "" || strings.Trim(v, " ") == "" {
 			continue
 		}
-		var expressions = strings.Split(v, "?")
-		var appendAdd = ""
+		expressions := strings.Split(v, "?")
+		appendAdd := ""
 		if index >= 1 || len(whereRoot.Child) > 0 {
 			appendAdd = " and "
 		}
@@ -677,19 +677,19 @@ func decodeWheres(arg string, mapper *element, logic logicDeleteData, version *v
 	mapper.Child = append(mapper.Child, whereRoot)
 }
 func decodeSets(arg string, mapper *element, logic logicDeleteData, version *versionData) {
-	var sets = strings.Split(arg, ",")
+	sets := strings.Split(arg, ",")
 	for index, v := range sets {
 		if v == "" {
 			continue
 		}
-		var expressions = strings.Split(v, "?")
+		expressions := strings.Split(v, "?")
 		if len(expressions) > 1 {
 			var newWheres bytes.Buffer
 			if index > 0 {
 				newWheres.WriteString(",")
 			}
 			newWheres.WriteString(expressions[1])
-			var item = &element{
+				item := &element{
 				Tag:  elementIf,
 				Attr: []attr{{Key: "test", Value: makeIfNotNull(expressions[0])}},
 			}
@@ -701,28 +701,28 @@ func decodeSets(arg string, mapper *element, logic logicDeleteData, version *ver
 				newWheres.WriteString(",")
 			}
 			newWheres.WriteString(v)
-			var item = &charData{
+				item := &charData{
 				Data: newWheres.String(),
 			}
 			mapper.Child = append(mapper.Child, item)
 		}
 	}
 	if logic.Enable == true {
-		var appendAdd = ""
+		appendAdd := ""
 		if len(sets) >= 1 && arg != "" {
 			appendAdd = ","
 		}
-		var item = &charData{
+		item := &charData{
 			Data: appendAdd + logic.Column + " = " + logic.DeletedValue,
 		}
 		mapper.Child = append(mapper.Child, item)
 	}
 	if version != nil {
-		var appendAdd = ""
+		appendAdd := ""
 		if len(sets) >= 1 && arg != "" {
 			appendAdd = ","
 		}
-		var item = &charData{
+		item := &charData{
 			Data: appendAdd + version.Column + " = #{" + version.Property + "+1}",
 		}
 		mapper.Child = append(mapper.Child, item)
@@ -791,7 +791,7 @@ func (it *Engine)decodeVersionData(xml *element,xmlName string) *versionData {
 func decodeCollectionName(method *reflect.StructField) string {
 	var collection string
 	if method != nil {
-		var numIn = method.Type.NumIn()
+		numIn := method.Type.NumIn()
 		for i := 0; i < numIn; i++ {
 			var itemType = method.Type.In(i)
 			if itemType.Kind() == reflect.Slice || itemType.Kind() == reflect.Array {
@@ -866,7 +866,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 		res, err := s.queryPrepare(sql, array...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+" [%s] error == %s",s.id(),err.Error()))
 		}
 		if it.printSql {
 			it.log.Println(name+"[",s.id(),"] Query ==> "+sql)
@@ -886,7 +886,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 		res, err := s.execPrepare(sql, array...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(fmt.Sprintf(name+"[Error] [%s] error == %s",s.id(),err.Error()))
+			it.log.Fatalln(fmt.Sprintf(name+" [%s] error == %s",s.id(),err.Error()))
 		}
 		if it.printSql {
 			it.log.Println(name+"[", s.id(), "] Exec ==> "+sql)
@@ -894,7 +894,7 @@ func (it *Engine)exeMethodByXml(elementType elementType, proxyArg proxyArg, node
 		}
 		defer func() {
 			if it.printSql {
-				var RowsAffected = "0"
+				RowsAffected := "0"
 				if res != nil {
 					RowsAffected = strconv.FormatInt(res.RowsAffected, 10)
 				}
@@ -925,13 +925,11 @@ func lowerFirst(fieldStr string) string {
 	return fieldStr
 }
 func (it *Engine)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert iConvert,name string) string{
-	var (
-		paramMap = make(map[string]interface{})
-		tagArgsLen = proxyArg.TagArgsLen
-		argsLen = proxyArg.ArgsLen
-		customLen = 0
-		customIndex = -1
-	)
+	paramMap := make(map[string]interface{})
+	tagArgsLen := proxyArg.TagArgsLen
+	argsLen := proxyArg.ArgsLen
+	customLen := 0
+	customIndex := -1
 	for argIndex, arg := range proxyArg.Args {
 		argInterface := arg.Interface()
 		argK := arg.Kind()
@@ -1148,26 +1146,26 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	if itemType.Kind() != reflect.Struct {
 		return nil
 	}
-	var structMap = map[string]*reflect.Type{}
+	structMap := map[string]*reflect.Type{}
 	for i := 0; i < itemType.NumField(); i++ {
-		var item = itemType.Field(i)
+		item := itemType.Field(i)
 		structMap[strings.ToLower(item.Tag.Get("json"))] = &item.Type
 	}
 	return structMap
 }
 func makeJsonObjBytes(resultMap map[string]*resultProperty, sqlData map[string][]byte, structMap map[string]*reflect.Type) []byte {
-	var jsonData = strings.Builder{}
+	jsonData := strings.Builder{}
 	jsonData.WriteString("{")
-	var done = len(sqlData) - 1
-	var index = 0
+	done := len(sqlData) - 1
+	index := 0
 	for k, sqlV := range sqlData {
 		jsonData.WriteString("\"")
 		jsonData.WriteString(k)
 		jsonData.WriteString("\":")
-		var isStringType = false
-		var fetched = true
+		isStringType := false
+		fetched := true
 		if resultMap != nil {
-			var resultMapItem = resultMap[k]
+			resultMapItem := resultMap[k]
 			if resultMapItem != nil && (resultMapItem.LangType == "string" || resultMapItem.LangType == "time.Time") {
 				isStringType = true
 			}
@@ -1175,7 +1173,7 @@ func makeJsonObjBytes(resultMap map[string]*resultProperty, sqlData map[string][
 				fetched = false
 			}
 		} else if structMap != nil {
-			var v = structMap[strings.ToLower(k)]
+			v := structMap[strings.ToLower(k)]
 			if v != nil {
 				if (*v).Kind() == reflect.String || (*v).String() == "time.Time" {
 					isStringType = true
@@ -1217,8 +1215,8 @@ func encodeStringValue(v []byte) string {
 	if len(v) == 0 {
 		return ""
 	}
-	var s = string(v)
-	var b, e = json.Marshal(s)
+	s := string(v)
+	b, e := json.Marshal(s)
 	if e != nil || len(b) == 0 {
 		return "null"
 	}
@@ -1341,21 +1339,21 @@ func (it *Engine)xmlPath(pointer interface{})string{
 				err = os.MkdirAll(it.pkg, os.ModePerm)
 				if err != nil {
 					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln("create file "+s +" error:"+ err.Error())
+					it.log.Fatalln("create package "+it.pkg+" error:"+ err.Error())
 				}
 			}
 			f, err = os.Create(s)
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln("create file"+s +" error:"+ err.Error())
+				it.log.Fatalln("create file"+s+" error:"+ err.Error())
 			}
 			defer f.Close()
 			_, err = f.Write(body)
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln("写入文件失败：" + fileName+"error:"+ err.Error())
+				it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
 			} else {
-				it.log.Println("写入文件成功：" + fileName)
+				it.log.Println("写入文件成功："+s)
 				return s
 			}
 		}
@@ -1500,9 +1498,12 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 			pro = newPro(txTag)
 		}
 		fn := func(arg proxyArg) []reflect.Value {
-			goroutine := goroutineID()//协程id
-			s := it.s
-			it.put(goroutine,s)
+			var s Session
+			s = findArgSession(arg)
+			if s == nil {
+				s = it.s
+			}
+			it.put(goroutineID(),s)
 			if !ok {
 				err := s.Begin(s.last())
 				if err !=nil {
