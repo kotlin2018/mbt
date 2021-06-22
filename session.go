@@ -278,7 +278,7 @@ func (it *session) Rollback() error {
 		}
 		if it.txStack.Len() == 0 {
 			if it.printLog {
-				it.log.Println(" [" + it.id() + "] Rollback Session")
+				it.log.Println(" Rollback() Session : "+"[",it.id(),"]")
 			}
 			err := t.Rollback()
 			if err != nil {
@@ -305,16 +305,16 @@ func (it *session) Commit() error {
 			pId := "p" + strconv.Itoa(it.txStack.Len()+1)
 			it.savePoint.Push(pId)
 			if it.printLog {
-				it.log.Println("[" ,it.id(),"] exec " + "savepoint" + pId)
+				it.log.Println("[" ,it.id(),"] exec "+"savepoint"+pId)
 			}
-			_, e := t.Exec("savepoint" + pId)
+			_, e := t.Exec("savepoint"+pId)
 			if e != nil {
 				return e
 			}
 		}
 		if it.txStack.Len() == 0 {
 			if it.printLog {
-				it.log.Println("[",it.id(),"] Commit tx session:" + it.id())
+				it.log.Println(" Commit() tx Session : "+"[",it.id(),"]")
 			}
 			err := t.Commit()
 			if err != nil {
@@ -329,7 +329,7 @@ func (it *session) Begin(p *Propagation) error {
 		pro := toString(*p)
 		note := printStr(pro)
 		if it.printLog {
-			it.log.Println(" [" + it.id() + "] Begin session(Propagation:" + pro + ")"+": "+note)
+			it.log.Println(" [" + it.id() + "] Begin Session (Propagation : " + pro + ")"+" : "+note)
 		}
 		switch *p {
 		case Required:

@@ -1498,11 +1498,7 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 			pro = newPro(txTag)
 		}
 		fn := func(arg proxyArg) []reflect.Value {
-			var s Session
-			s = findArgSession(arg)
-			if s == nil {
-				s = it.s
-			}
+			s := it.s
 			it.put(goroutineID(),s)
 			if !ok {
 				err := s.Begin(s.last())
