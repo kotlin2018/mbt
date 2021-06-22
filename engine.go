@@ -64,13 +64,15 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
 	it.s =Session(&session{
-		SessionId:  newUUID().String(),
-		db:         db,
-		txStack:    newTxStack(),
-		driverType: cfg.DriverName,
-		dsn:        cfg.DSN,
-		printLog:   it.printSql,
-		log:        it.log,
+		SessionId:   newUUID().String(),
+		db:          db,
+		tx:          make([]*sql.Tx, 0),
+		propagation: make([]string, 0),
+		i:           0,
+		driverType:  cfg.DriverName,
+		dsn:         cfg.DSN,
+		printLog:    it.printSql,
+		log:         it.log,
 	})
 	return it,db,nil
 }

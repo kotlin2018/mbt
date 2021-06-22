@@ -1488,40 +1488,32 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 		it.log.Fatalln(service.Type().String()+"{} 必须是指针类型!!!")
 	}
 	it.txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
-		pro := Never
 		nativeImplFunc := reflect.ValueOf(field.Interface())
 		txTag, ok  := funcField.Tag.Lookup("tx")
-		rollbackTag := funcField.Tag.Get("rollback")
 		name := service.Type().Elem().String()+"."
 		funcName := funcField.Name
-		if ok {
-			pro = newPro(txTag)
-		}
 		fn := func(arg proxyArg) []reflect.Value {
 			s := it.s
+			var err error
 			it.put(goroutineID(),s)
-			if !ok {
-				err := s.Begin(s.last())
-				if err !=nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(name+funcName+"() "+"Begin() err = "+err.Error())
-				}
-			}else{
-				err := s.Begin(&pro)
-				if err != nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(name+funcName+"() "+"Begin() err = " +err.Error())
-				}
+			if !ok{
+				err = s.begin("")
+			}else {
+				err = s.begin(txTag)
+			}
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(name+funcName+"() "+"Begin() err = " +err.Error())
 			}
 			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, s)
-			if !haveRollBackType(nativeImplResult, rollbackTag) {
-				err := s.Commit()
+			if !haveRollBackType(nativeImplResult) {
+				err = s.Commit()
 				if err != nil {
 					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Commit() err = "+ err.Error())
 				}
 			} else {
-				err := s.Rollback()
+				err = s.Rollback()
 				if err != nil {
 					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Rollback() err = "+ err.Error())
@@ -1579,13 +1571,13 @@ func (it *Engine)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplF
 	}()
 	return nativeImplFunc.Call(arg.Args)
 }
-func haveRollBackType(v []reflect.Value, typeString string) bool {
-	if v == nil || len(v) == 0 || typeString == "" {
+func haveRollBackType(v []reflect.Value) bool {
+	if v == nil || len(v) == 0 {
 		return false
 	}
 	for _, item := range v {
 		if item.Kind() == reflect.Interface {
-			if strings.Contains(item.String(), typeString) {
+			if strings.Contains(item.String(), "error") {
 				if !item.IsNil() {
 					return true
 				}

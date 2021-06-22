@@ -37,432 +37,187 @@ func encodeHex(dst []byte, u uuid) {
 	dst[23] = '-'
 	hex.Encode(dst[24:], u[10:])
 }
-type Propagation int
-const (
-	Required    Propagation = iota //(默认)如果当前有事务，就用当前事务。如果当前没有事务，就新建一个事务 。have tx ? join : new tx()
-	Support                        //支持当前事务，如果当前没有事务，就以非事务方式执行。  have tx ? join(): session.exec()
-	Mandatory                      //支持当前事务，如果当前没有事务，则返回事务嵌套错误。  have tx ? join() : return error
-	News                           //新建一个全新Session开启一个全新事务，如果当前存在事务，则把当前事务挂起。 have tx ? stop old。  -> new session().new tx()
-	NotSupport                     //以非事务方式执行操作，如果当前存在事务，则新建一个Session以非事务方式执行操作，并把当前事务挂起。  have tx ? stop old。 -> new session().exec()
-	Never                          //以非事务方式执行操作，如果当前存在事务，则返回事务嵌套错误。    have tx ? return error: session.exec()
-	Nested                         //如果当前事务存在，则在嵌套事务内执行，如嵌套事务回滚，则只会在嵌套事务内回滚，不会影响当前事务。如果当前没有事务，则进行与Required类似的操作。
-)
-func toString(propagation Propagation) string {
-	switch propagation {
-	case Required:
-		return "required"
-		break
-	case Support:
-		return "support"
-		break
-	case Mandatory:
-		return "mandatory"
-		break
-	case News:
-		return "new"
-		break
-	case NotSupport:
-		return "!support"
-		break
-	case Never:
-		return "never"
-		break
-	case Nested:
-		return "nested"
-		break
+func (it *session) len() int {
+	return it.i
+}
+func (it *session) last() (*sql.Tx,string) {
+	if it.i == 0 {
+		return nil,"0"
 	}
-	return ""
+	ret := it.tx[it.i-1]
+	p := it.propagation[it.i-1]
+	return ret,p
 }
-func newPro(arg string) Propagation {
-	switch arg {
-	case "":
-		return Required
-		break
-	case "required":
-		return Required
-		break
-	case "support":
-		return Support
-		break
-	case "mandatory":
-		return Mandatory
-		break
-	case "new":
-		return News
-		break
-	case "!support":
-		return NotSupport
-		break
-	case "never":
-		return Never
-		break
-	case "nested":
-		return Nested
-		break
-	default:
-		return Required
+func (it *session) pop() (*sql.Tx,string) {
+	if it.i == 0 {
+		return nil,"0"
 	}
-	return Required
+	it.i--
+	ret := it.tx[it.i]
+	it.tx = it.tx[0:it.i]
+	p := it.propagation[it.i]
+	it.propagation = it.propagation[0:it.i]
+	return ret,p
 }
-func printStr(str string)string{
-	switch str {
-	case "":
-		return "当前有事务，就用当前事务。当前没有事务，就新建一个事务。"
-		break
-	case "required":
-		return "当前有事务，就用当前事务。当前没有事务，就新建一个事务。"
-		break
-	case "support":
-		return "支持当前事务，如果当前没有事务，就以非事务方式执行。"
-		break
-	case "mandatory":
-		return "支持当前事务，如果当前没有事务，则返回事务嵌套错误。"
-		break
-	case "new":
-		return "新建一个全新Session开启一个全新事务，如果当前存在事务，则把当前事务挂起。"
-		break
-	case "!support":
-		return "以非事务方式执行操作，如果当前存在事务，则新建一个Session以非事务方式执行操作，并把当前事务挂起。"
-		break
-	case "never":
-		return "以非事务方式执行操作，如果当前存在事务，则返回事务嵌套错误。"
-		break
-	case "nested":
-		return "(定义嵌套事务)如果当前事务存在,则在嵌套事务内执行,如嵌套事务回滚,则只会在嵌套事务内回滚,不会影响当前事务.如果当前没有事务,则进行与Required类似的操作"
-		break
-	default:
-		return "如果当前事务存在,则支持当前事务.否则,会启动一个新的事务"
-	}
-	return "当前有事务，就用当前事务。当前没有事务，就新建一个事务。"
+func (it *session) push(k *sql.Tx,p string) {
+	it.tx = append(it.tx, k)
+	it.propagation = append(it.propagation,p)
+	it.i++
 }
-type savePoint struct {
-	i    int
-	data []string
+func (it *session) sPush(k string) {
+	it.data = append(it.data, k)
+	it.si++
 }
-func newSavePoint()*savePoint{
-	return &savePoint{
-		data: []string{},
-		i:    0,
-	}
-}
-func (s *savePoint) Push(k string) {
-	s.data = append(s.data, k)
-	s.i++
-}
-func (s *savePoint) Pop() *string {
-	if s.i == 0 {
+func (it *session) sPop() *string {
+	if it.si == 0 {
 		return nil
 	}
-	s.i--
-	ret := s.data[s.i]
-	s.data = s.data[0:s.i]
+	it.si--
+	ret := it.data[it.si]
+	it.data = it.data[0:it.si]
 	return &ret
 }
-func (s *savePoint) Len() int {
-	return s.i
-}
-type txStack struct {
-	i            int
-	data         []*sql.Tx
-	propagations []*Propagation
-}
-func newTxStack() *txStack {
-	return &txStack{
-		data:         []*sql.Tx{},
-		propagations: []*Propagation{},
-		i:            0,
-	}
-}
-func (s *txStack) Push(k *sql.Tx, p *Propagation) {
-	s.data = append(s.data, k)
-	s.propagations = append(s.propagations, p)
-	s.i++
-}
-func (s *txStack) Pop() (*sql.Tx, *Propagation) {
-	if s.i == 0 {
-		return nil, nil
-	}
-	s.i--
-	ret := s.data[s.i]
-	s.data = s.data[0:s.i]
-	p := s.propagations[s.i]
-	s.propagations = s.propagations[0:s.i]
-	return ret, p
-}
-func (s *txStack) First() (*sql.Tx, *Propagation) {
-	if s.i == 0 {
-		return nil, nil
-	}
-	ret := s.data[0]
-	p := s.propagations[0]
-	return ret, p
-}
-func (s *txStack) Last() (*sql.Tx, *Propagation) {
-	if s.i == 0 {
-		return nil, nil
-	}
-	ret := s.data[s.i-1]
-	p := s.propagations[s.i-1]
-	return ret, p
-}
-func (s *txStack) Len() int {
-	return s.i
-}
-func (s *txStack) HaveTx() bool {
-	return s.Len() > 0
-}
 type Session interface {
-	query(sqlOrArgs string) ([]map[string][]byte, error)
-	exec(sqlOrArgs string) (*result, error)
 	queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error)
 	execPrepare(sqlPrepare string, args ...interface{}) (*result, error)
 	id() string
-	last() *Propagation
+	begin(str string) error
 	stmtConvert() iConvert
-	Begin(p *Propagation) error
+	Begin() error
 	Commit() error
 	Rollback() error
 }
 type session struct {
-	db         *sql.DB
-	stmt       *sql.Stmt
-	txStack    *txStack
-	savePoint  *savePoint
-	child      *session
-	log        *log.Logger
-	SessionId  string
-	driverType string
-	dsn        string
-	isClosed   bool
-	printLog   bool
-}
-func newSession(driverType string, dsn string, db *sql.DB,log *log.Logger ,print bool)*session{
-	return &session{
-		SessionId:  newUUID().String(),
-		db:         db,
-		txStack:    newTxStack(),
-		driverType: driverType,
-		dsn:        dsn,
-		printLog:   print,
-		log:        log,
-	}
+	db          *sql.DB
+	tx          []*sql.Tx
+	stmt        *sql.Stmt
+	log         *log.Logger
+	i           int
+	si          int
+	data        []string
+	propagation []string
+	SessionId   string
+	driverType  string
+	dsn         string
+	isClosed    bool
+	printLog    bool
 }
 func (it *session) id() string {
 	return it.SessionId
 }
 func (it *session) Rollback() error {
-	if it.child != nil {
-		err := it.child.Rollback()
-		it.child = nil
-		if err != nil {
-			return err
-		}
-	}
-	t, p := it.txStack.Pop()
-	if t != nil && p != nil {
-		// 只有定义的是嵌套事务才一起回滚
-		if *p == Nested {
-			if it.savePoint == nil {
-				it.savePoint = newSavePoint()
-			}
-			point := it.savePoint.Pop()
+	t, p := it.pop()
+	if t != nil && p != "0" {
+		if p == "nested" {
+			point := it.sPop()
 			if point != nil {
-				if it.printLog {
-					it.log.Println(" [" + it.id() + "] exec ====================" + "rollback to " + *point)
-				}
 				_, e := t.Exec("rollback to " + *point)
 				if e != nil {
 					return e
 				}
+				if it.printLog {
+					it.log.Println(" [" + it.id() + "] exec ====================" + "rollback to " + *point)
+				}
 			}
 		}
-		if it.txStack.Len() == 0 {
-			if it.printLog {
-				it.log.Println(" Rollback() Session : "+"[",it.id(),"]")
-			}
+		if it.len() == 0 {
 			err := t.Rollback()
 			if err != nil {
 				return err
+			}
+			if it.printLog {
+				it.log.Println(" Rollback() tx SessionId == "+"[",it.id(),"]")
 			}
 		}
 	}
 	return nil
 }
 func (it *session) Commit() error {
-	if it.child != nil {
-		e := it.child.Commit()
-		it.child = nil
-		if e != nil {
-			return e
-		}
-	}
-	t, p := it.txStack.Pop()
-	if t != nil && p != nil {
-		if *p == Nested {
-			if it.savePoint == nil {
-				it.savePoint = newSavePoint()
-			}
-			pId := "p" + strconv.Itoa(it.txStack.Len()+1)
-			it.savePoint.Push(pId)
-			if it.printLog {
-				it.log.Println("[" ,it.id(),"] exec "+"savepoint"+pId)
-			}
-			_, e := t.Exec("savepoint"+pId)
+	t, p := it.pop()
+	if t != nil && p != "0" {
+		if p == "nested" {
+			pId := "p" + strconv.Itoa(it.len()+1)
+			it.sPush(pId)
+			_, e := t.Exec("savepoint "+pId)
 			if e != nil {
 				return e
 			}
-		}
-		if it.txStack.Len() == 0 {
 			if it.printLog {
-				it.log.Println(" Commit() tx Session : "+"[",it.id(),"]")
+				it.log.Println("[" ,it.id(),"] exec "+"savepoint "+pId)
 			}
+		}
+		if it.len() == 0 {
 			err := t.Commit()
 			if err != nil {
 				return err
 			}
+			if it.printLog {
+				it.log.Println(" Commit() tx SessionId == "+"[",it.id(),"]")
+			}
 		}
 	}
 	return nil
 }
-func (it *session) Begin(p *Propagation) error {
-	if p != nil {
-		pro := toString(*p)
-		note := printStr(pro)
-		if it.printLog {
-			it.log.Println(" [" + it.id() + "] Begin Session (Propagation : " + pro + ")"+" : "+note)
+func (it *session) Begin() error {
+	return it.begin("required")
+}
+func (it *session) begin(p string) error {
+	if it.printLog {
+		it.log.Println(" Begin tx "+"[",it.id(),"]")
+	}
+	switch p {
+	case "","required":
+		if it.len() > 0 {
+			it.push(it.last())
+			return nil
+		} else {
+			t, _ := it.db.Begin()
+			it.push(t,p)
+			return nil
 		}
-		switch *p {
-		case Required:
-			if it.txStack.Len() > 0 {
-				it.txStack.Push(it.txStack.Last())
-				return nil
-			} else {
-				t, _ := it.db.Begin()
-				it.txStack.Push(t, p)
-				return nil
-			}
-			break
-		case Support:
-			if it.txStack.Len() > 0 {
-				t, _ := it.db.Begin()
-				it.txStack.Push(t, p)
-				return nil
-			} else {
-				return nil
-			}
-			break
-		case Mandatory:
-			if it.txStack.Len() > 0 {
-				t, _ := it.db.Begin()
-				it.txStack.Push(t, p)
-				return nil
-			} else {
-				return errors.New(" [Error] PropagationMandatory 当前没有事务,请定义一个事务!")
-			}
-			break
-		case News:
-			db, e := sql.Open(it.driverType, it.dsn)
-			if e != nil {
-				return e
-			}
-			it.child = newSession(it.driverType,it.dsn,db,it.log,it.printLog)
-			break
-		case NotSupport:
-			db, e := sql.Open(it.driverType, it.dsn)
-			if e != nil {
-				return e
-			}
-			it.child = newSession(it.driverType,it.dsn,db,it.log,it.printLog)
-			break
-		case Never:
-			if it.txStack.Len() > 0 {
-				return errors.New(" [Error] 当前方法只能以非事务方式运行,不允许有任何事务!")
-			}
-			break
-		case Nested:
-			if it.savePoint == nil {
-				it.savePoint = newSavePoint()
-			}
-			if it.txStack.Len() > 0 {
-				it.txStack.Push(it.txStack.Last())
-				return nil
-			} else {
-				np := Required
-				return it.Begin(&np)
-			}
-			break
-		default:
-			panic("[Error] 请定义合适的事务类型!")
-			break
+		break
+	case "nested":
+		it.si = 0
+		it.data = make([]string,0)
+		if it.len() > 0 {
+			it.push(it.last())
+			return nil
+		}else {
+			return it.begin("required")
 		}
+		break
+	case "support":
+		if it.len() > 0 {
+			t, _ := it.db.Begin()
+			it.push(t, p)
+			return nil
+		} else {
+			return nil
+		}
+		break
+	case "never":
+		if it.len() > 0 {
+			return errors.New(" [Error] 当前方法只能以非事务方式运行,不允许有任何事务!")
+		}
+		break
+	case "mandatory":
+		if it.len() > 0 {
+			t, _ := it.db.Begin()
+			it.push(t, p)
+			return nil
+		} else {
+			return errors.New(" [Error] PropagationMandatory 当前没有事务,请定义一个事务!")
+		}
+		break
 	}
 	return nil
-}
-func (it *session) last() *Propagation {
-	if it.txStack.Len() != 0 {
-		_, pr := it.txStack.Last()
-		return pr
-	}
-	return nil
-}
-func (it *session) query(args string) ([]map[string][]byte, error) {
-	if it.child != nil {
-		return it.child.query(args)
-	}
-	var (
-		rows *sql.Rows
-		err error
-		t, _ = it.txStack.Last()
-	)
-	if t != nil {
-		rows, err = t.Query(args)
-	} else {
-		rows, err = it.db.Query(args)
-	}
-	if rows != nil {
-		defer rows.Close()
-	}
-	if err != nil {
-		return nil, err
-	} else {
-		return rows2maps(rows)
-	}
-	return nil, nil
-}
-func (it *session) exec(args string) (*result, error) {
-	if it.child != nil {
-		return it.child.exec(args)
-	}
-	var (
-		res sql.Result
-		err error
-		t, _ = it.txStack.Last()
-	)
-	if t != nil {
-		res, err = t.Exec(args)
-	} else {
-		res, err = it.db.Exec(args)
-	}
-	if err != nil {
-		return nil, err
-	} else {
-		LastInsertId, _ := res.LastInsertId()
-		RowsAffected, _ := res.RowsAffected()
-		return &result{
-			LastInsertId: LastInsertId,
-			RowsAffected: RowsAffected,
-		}, nil
-	}
 }
 func (it *session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error) {
-	if it.child != nil {
-		return it.child.query(sqlPrepare)
-	}
 	var (
 		rows *sql.Rows
 		stmt *sql.Stmt
 		err error
-		t, _ = it.txStack.Last()
+		t,_= it.last()
 	)
 	if t != nil {
 		stmt, err = t.Prepare(sqlPrepare)
@@ -497,14 +252,11 @@ func (it *session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[s
 	return nil, nil
 }
 func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result, error) {
-	if it.child != nil {
-		return it.child.exec(sqlPrepare)
-	}
 	var (
 		res sql.Result
 		stmt *sql.Stmt
 		err error
-		t, _ = it.txStack.Last()
+		t,_ = it.last()
 	)
 	if t != nil {
 		stmt, err = t.Prepare(sqlPrepare)
@@ -516,6 +268,7 @@ func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 			return nil, err
 		}
 	} else {
+		fmt.Println("DB====>")
 		stmt, err = it.db.Prepare(sqlPrepare)
 		if err != nil {
 			return nil, err
@@ -569,7 +322,7 @@ func row2map(rows *sql.Rows, fields []string) (resultsMap map[string][]byte, err
 		var obj interface{}
 		list[i] = &obj
 	}
-	if err := rows.Scan(list...); err != nil {
+	if err = rows.Scan(list...); err != nil {
 		return nil, err
 	}
 	for j, v := range fields {
