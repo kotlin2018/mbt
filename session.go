@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -37,51 +36,29 @@ func encodeHex(dst []byte, u uuid) {
 	dst[23] = '-'
 	hex.Encode(dst[24:], u[10:])
 }
-func (it *session) len() int {
-	return it.i
-}
-func (it *session) last() (*sql.Tx,string) {
+func (it *session) last() *sql.Tx {
 	if it.i == 0 {
-		return nil,"0"
+		return nil
 	}
-	ret := it.tx[it.i-1]
-	p := it.propagation[it.i-1]
-	return ret,p
+	return it.tx[it.i-1]
 }
-func (it *session) pop() (*sql.Tx,string) {
+func (it *session) pop() *sql.Tx {
 	if it.i == 0 {
-		return nil,"0"
+		return nil
 	}
 	it.i--
 	ret := it.tx[it.i]
 	it.tx = it.tx[0:it.i]
-	p := it.propagation[it.i]
-	it.propagation = it.propagation[0:it.i]
-	return ret,p
+	return ret
 }
-func (it *session) push(k *sql.Tx,p string) {
+func (it *session) push(k *sql.Tx) {
 	it.tx = append(it.tx, k)
-	it.propagation = append(it.propagation,p)
 	it.i++
-}
-func (it *session) sPush(k string) {
-	it.data = append(it.data, k)
-	it.si++
-}
-func (it *session) sPop() *string {
-	if it.si == 0 {
-		return nil
-	}
-	it.si--
-	ret := it.data[it.si]
-	it.data = it.data[0:it.si]
-	return &ret
 }
 type Session interface {
 	queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error)
 	execPrepare(sqlPrepare string, args ...interface{}) (*result, error)
 	id() string
-	begin(str string) error
 	stmtConvert() iConvert
 	Begin() error
 	Commit() error
@@ -93,9 +70,6 @@ type session struct {
 	stmt        *sql.Stmt
 	log         *log.Logger
 	i           int
-	si          int
-	data        []string
-	propagation []string
 	SessionId   string
 	driverType  string
 	dsn         string
@@ -106,109 +80,39 @@ func (it *session) id() string {
 	return it.SessionId
 }
 func (it *session) Rollback() error {
-	t, p := it.pop()
-	if t != nil && p != "0" {
-		if p == "nested" {
-			point := it.sPop()
-			if point != nil {
-				_, e := t.Exec("rollback to " + *point)
-				if e != nil {
-					return e
-				}
-				if it.printLog {
-					it.log.Println(" [" + it.id() + "] exec ====================" + "rollback to " + *point)
-				}
-			}
+	t := it.pop()
+	if t != nil{
+		err := t.Rollback()
+		if err != nil {
+			return err
 		}
-		if it.len() == 0 {
-			err := t.Rollback()
-			if err != nil {
-				return err
-			}
-			if it.printLog {
-				it.log.Println(" Rollback() tx SessionId == "+"[",it.id(),"]")
-			}
+		if it.printLog {
+			it.log.Println(" Rollback() tx SessionId == "+"[",it.id(),"]")
 		}
 	}
 	return nil
 }
 func (it *session) Commit() error {
-	t, p := it.pop()
-	if t != nil && p != "0" {
-		if p == "nested" {
-			pId := "p" + strconv.Itoa(it.len()+1)
-			it.sPush(pId)
-			_, e := t.Exec("savepoint "+pId)
-			if e != nil {
-				return e
-			}
-			if it.printLog {
-				it.log.Println("[" ,it.id(),"] exec "+"savepoint "+pId)
-			}
+	t := it.pop()
+	if t != nil {
+		err := t.Commit()
+		if err != nil {
+			return err
 		}
-		if it.len() == 0 {
-			err := t.Commit()
-			if err != nil {
-				return err
-			}
-			if it.printLog {
-				it.log.Println(" Commit() tx SessionId == "+"[",it.id(),"]")
-			}
+		if it.printLog {
+			it.log.Println(" Commit() tx SessionId == "+"[",it.id(),"]")
 		}
 	}
 	return nil
 }
 func (it *session) Begin() error {
-	return it.begin("required")
-}
-func (it *session) begin(p string) error {
-	if it.printLog {
-		it.log.Println(" Begin tx "+"[",it.id(),"]")
+	t, err := it.db.Begin()
+	if err != nil {
+		return err
 	}
-	switch p {
-	case "","required":
-		if it.len() > 0 {
-			it.push(it.last())
-			return nil
-		} else {
-			t, _ := it.db.Begin()
-			it.push(t,p)
-			return nil
-		}
-		break
-	case "nested":
-		it.si = 0
-		it.data = make([]string,0)
-		if it.len() > 0 {
-			it.push(it.last())
-			return nil
-		}else {
-			return it.begin("required")
-		}
-		break
-	case "support":
-		if it.len() > 0 {
-			t, _ := it.db.Begin()
-			it.push(t, p)
-			return nil
-		} else {
-			return nil
-		}
-		break
-	case "never":
-		if it.len() > 0 {
-			return errors.New(" [Error] 当前方法只能以非事务方式运行,不允许有任何事务!")
-		}
-		break
-	case "mandatory":
-		if it.len() > 0 {
-			t, _ := it.db.Begin()
-			it.push(t, p)
-			return nil
-		} else {
-			return errors.New(" [Error] PropagationMandatory 当前没有事务,请定义一个事务!")
-		}
-		break
+	it.push(t)
+	if it.printLog {
+		it.log.Println(" Begin() tx SessionId == "+"[",it.id(),"]")
 	}
 	return nil
 }
@@ -217,7 +121,7 @@ func (it *session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[s
 		rows *sql.Rows
 		stmt *sql.Stmt
 		err error
-		t,_= it.last()
+		t = it.last()
 	)
 	if t != nil {
 		stmt, err = t.Prepare(sqlPrepare)
@@ -256,7 +160,7 @@ func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 		res sql.Result
 		stmt *sql.Stmt
 		err error
-		t,_ = it.last()
+		t = it.last()
 	)
 	if t != nil {
 		stmt, err = t.Prepare(sqlPrepare)

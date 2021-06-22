@@ -1384,18 +1384,12 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 	}
 	it.txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		nativeImplFunc := reflect.ValueOf(field.Interface())
-		txTag, ok  := funcField.Tag.Lookup("tx")
 		name := service.Type().Elem().String()+"."
 		funcName := funcField.Name
 		fn := func(arg proxyArg) []reflect.Value {
 			s := it.s
-			var err error
 			it.put(goroutineID(),s)
-			if !ok{
-				err = s.begin("")
-			}else {
-				err = s.begin(txTag)
-			}
+			err := s.Begin()
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(name+funcName+"() "+"Begin() err = " +err.Error())

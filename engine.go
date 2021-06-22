@@ -67,7 +67,6 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 		SessionId:   newUUID().String(),
 		db:          db,
 		tx:          make([]*sql.Tx, 0),
-		propagation: make([]string, 0),
 		i:           0,
 		driverType:  cfg.DriverName,
 		dsn:         cfg.DSN,
