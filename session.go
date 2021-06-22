@@ -268,7 +268,6 @@ func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 			return nil, err
 		}
 	} else {
-		fmt.Println("DB====>")
 		stmt, err = it.db.Prepare(sqlPrepare)
 		if err != nil {
 			return nil, err

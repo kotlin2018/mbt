@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func (it *Engine)start(bean reflect.Value, name string) {
@@ -1375,110 +1374,6 @@ func snake(s string) string {
 		data = append(data, d)
 	}
 	return strings.ToLower(string(data[:]))
-}
-// 以下代码注释掉,并不影响程序的运行,还是先保留吧
-type sqlArgTypeConvert struct {}
-func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
-	if argValue == nil {
-		return "''"
-	}
-	switch argValue.(type) {
-	case string:
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(argValue.(string))
-		argStr.WriteString(`'`)
-		return argStr.String()
-	case *string:
-		var v = argValue.(*string)
-		if v == nil {
-			return "''"
-		}
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(*v)
-		argStr.WriteString(`'`)
-		return argStr.String()
-	case bool:
-		if argValue.(bool) {
-			return "true"
-		} else {
-			return "false"
-		}
-	case *bool:
-		var v = argValue.(*bool)
-		if v == nil {
-			return "''"
-		}
-		if *v {
-			return "true"
-		} else {
-			return "false"
-		}
-	case time.Time:
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(argValue.(time.Time).Format(adapterFormatDate))
-		argStr.WriteString(`'`)
-		return argStr.String()
-	case *time.Time:
-		var timePtr = argValue.(*time.Time)
-		if timePtr == nil {
-			return "''"
-		}
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(timePtr.Format(adapterFormatDate))
-		argStr.WriteString(`'`)
-		return argStr.String()
-
-	case int, int16, int32, int64, float32, float64:
-		return fmt.Sprint(argValue)
-	case *int:
-		var v = argValue.(*int)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *int16:
-		var v = argValue.(*int16)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *int32:
-		var v = argValue.(*int32)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *int64:
-		var v = argValue.(*int64)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *float32:
-		var v = argValue.(*float32)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *float64:
-		var v = argValue.(*float64)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	}
-
-	return it.toString(argValue)
-}
-func (it sqlArgTypeConvert) toString(argValue interface{}) string {
-	if argValue == nil {
-		return ""
-	}
-	return fmt.Sprint(argValue)
 }
 // ===================== 以下几个函数只给嵌套事务使用 =================================
 func (it *Engine)Tx(mapperPtr interface{}) {
