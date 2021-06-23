@@ -1275,16 +1275,6 @@ var (
 </mapper>
 `
 
-	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
-<mapper namespace="#{namespace}">
-	<insert id=""/>
-	<update id=""/>
-	<delete id=""/>
-	<select id=""/>
-</mapper>
-`
 	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" langType="#{langType}" #{version} #{logic}/>`
