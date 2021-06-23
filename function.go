@@ -1251,7 +1251,8 @@ func isBasicType(tItemTypeFieldType reflect.Type) bool {
 	return false
 }
 // =========================================== 根据表的model实体,生成该表的 xml 文件 =====================================================
-var xmlData = `<?xml version="1.0" encoding="UTF-8"?>
+var (
+	xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
@@ -1268,7 +1269,17 @@ var xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 	<selectTemplate/>
 </mapper>
 `
-var (
+
+	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+<mapper>
+	<insert id=""/>
+	<update id=""/>
+	<delete id=""/>
+	<select id=""/>
+</mapper>
+`
 	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" langType="#{langType}" #{version} #{logic}/>`
@@ -1304,21 +1315,30 @@ func createXml(tableName string, tv reflect.Type) []byte {
 }
 // 参数 <pointer>是数据库表的实体的指针,这里不能传结构体对象的原因是(即使传的结构体对象,最终该对象也会逃逸到堆内存上去)
 func (it *Engine)xmlPath(pointer interface{})string{
-	t := reflect.TypeOf(pointer)
-	if t.Kind() != reflect.Ptr {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
-	}
-	t = t.Elem()
-	table := snake(t.Name())
-	fileName := table+".xml"
 	var (
+		t reflect.Type
+		table string
 		w strings.Builder
 		f *os.File
 		err error
 		s string
 		flag bool
+		body []byte
 	)
+	if str,ok := pointer.(string);ok && str != ""{
+		table = str
+		body = []byte(xmlDataS)
+	}else {
+		t = reflect.TypeOf(pointer)
+		if t.Kind() != reflect.Ptr {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
+		}
+		t = t.Elem()
+		table = snake(t.Name())
+		body = createXml(table,t)
+	}
+	fileName := table+".xml"
 	if it.pkg == "" || it.pkg == "./" {
 		w.WriteString("./")
 		w.WriteString(fileName)
@@ -1333,7 +1353,6 @@ func (it *Engine)xmlPath(pointer interface{})string{
 	_,err = os.Stat(s)
 	if err != nil {
 		if os.IsNotExist(err) {
-			body := createXml(table,t)
 			if !flag {
 				err = os.MkdirAll(it.pkg, os.ModePerm)
 				if err != nil {
