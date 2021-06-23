@@ -28,6 +28,7 @@ type (
 		ConnMaxLifetime int     `yaml:"conn_max_life_time" toml:"conn_max_life_time"` // 单位 time.Minute 连接的最大生命周期(默认值:0)。设置为0的话意味着没有最大生命周期，连接总是可重用。注意: ConnMaxLifetime 越短，从零开始创建连接的频率就越高!
 		ConnMaxIdleTime int     `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"` // 单位 time.Minute
 		Logger          *logger `yaml:"logger" toml:"logger"`                         // logger日志记录器
+		Namespace       string  `yaml:"namespace" toml:"namespace"`                   // dao 结构体的具体相对路径
 	}
 	logger struct {
 		PrintSql bool   `yaml:"print_sql" toml:"print_sql"` // 设置是否打印SQL语句
@@ -41,13 +42,14 @@ type (
 	H map[interface{}]interface{}
 )
 type Engine struct {
-	s        Session
-	m        sync.Map //用来缓存*Session
-	log      *log.Logger
-	pkg      string
-	printXml bool
-	printSql bool
-	data     map[reflect.Value]string
+	s         Session
+	m         sync.Map //用来缓存*Session
+	log       *log.Logger
+	pkg       string
+	printXml  bool
+	printSql  bool
+	namespace string
+	data      map[reflect.Value]string
 }
 func New(cfg *Database)(*Engine,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
@@ -59,6 +61,7 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	it.printXml = cfg.Logger.PrintXml
 	it.printSql = cfg.Logger.PrintSql
 	it.pkg = cfg.Pkg
+	it.namespace = cfg.Namespace
 	db.SetConnMaxIdleTime(time.Duration(cfg.ConnMaxIdleTime) * time.Minute)
 	db.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Minute)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
@@ -82,20 +85,19 @@ func (it *Engine)SetOutPut(w io.Writer)*Engine{
 func (it *Engine)register(mapperPtr,modelPtr interface{}){
 	obj := reflect.ValueOf(mapperPtr)
 	if obj.Type().Elem().NumField() != 0 {
-		it.data[obj]= it.xmlPath(modelPtr)
+		t := reflect.TypeOf(modelPtr)
+		if t.Kind() != reflect.Ptr {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
+		}
+		it.xmlPath(t.Elem(),obj)
 	}
 }
 func (it *Engine) Register(h H)*Engine{
-	it.data = make(map[reflect.Value]string,len(h))
 	for i, v:= range h {
 		it.register(i,v)
 	}
 	return it
-}
-func (it *Engine) Run(){
-	for i,v := range it.data{
-		it.start(i, v)
-	}
 }
 // 生成雪花算法的ID
 func (it *Engine) ID(node int64) Id {
@@ -184,7 +186,6 @@ const (
 	mTimePtr = `*time.Time`
 	defaultOneArg = `arg`
 	adapterFormatDate = `2006-01-02 15:04:05`
-	iD = `id`
 )
 var (
 	timeDefault       time.Time
@@ -196,9 +197,10 @@ type (
 		RowsAffected int64
 	}
 	resultProperty struct {
-		XMLName  string
-		Column   string
-		LangType string
+		XMLName   string
+		Column    string
+		LangType  string
+		Property  string
 	}
 	proxyArg struct {
 		TagArgs    []tagArg
@@ -219,6 +221,7 @@ type (
 	mapper struct {
 		xml   *element
 		nodes []iiNode
+		Namespace string
 	}
 )
 func newArg(tagArgs []tagArg,args []reflect.Value)proxyArg{

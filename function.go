@@ -12,13 +12,16 @@ import (
 	"strings"
 )
 
-func (it *Engine)start(bean reflect.Value, name string) {
-	xml, _ := ioutil.ReadFile(name)
-	// 代码能够执行到这里 bean.Kind() 一定是 reflect.Ptr类型
+func (it *Engine)Run(){
+	for k,v := range it.data {
+		it.start(k,v)
+	}
+}
+func (it *Engine)start(bean reflect.Value,name string) {
+	mapperTree := it.parseXml(name)
 	bt := bean.Type().Elem()
 	be := bean.Elem()
 	outPut := it.makeReturnTypeMap(be.Type())
-	mapperTree := it.parseXml(name,xml)
 	resultMaps := makeResultMaps(mapperTree)
 	it.decodeTree(mapperTree, bt,name)
 	methodXmlMap := it.makeMethodXmlMap(bt, mapperTree,name)
@@ -153,6 +156,7 @@ func(it *Engine) makeMethodXmlMap(beanType reflect.Type, mapperTree map[string]*
 			methodXmlMap[fieldItem.Name] = &mapper{
 				xml:   mapperXml,
 				nodes: newNodeParser().Parser(mapperXml.Child),
+				Namespace: "",
 			}
 		}
 	}
@@ -187,7 +191,8 @@ func expressSymbol(bytes *[]byte) {
 	}
 	*bytes = []byte(byteStr)
 }
-func (it *Engine)parseXml(xmlName string,bytes []byte) (items map[string]*element) {
+func (it *Engine)parseXml(xmlName string) (items map[string]*element) {
+	bytes, _ := ioutil.ReadFile(xmlName)
 	expressSymbol(&bytes)
 	doc := newDocument()
 	if err := doc.ReadFromBytes(bytes); err != nil {
@@ -207,7 +212,7 @@ func (it *Engine)parseXml(xmlName string,bytes []byte) (items map[string]*elemen
 			s.Tag == elementDeleteTemplate ||
 			s.Tag == elementUpdateTemplate ||
 			s.Tag == elementSelectTemplate {
-			idValue := s.SelectAttrValue(iD, "")
+			idValue := s.SelectAttrValue("id", "")
 			if idValue == "" {
 				idValue = s.Tag
 			}
@@ -1255,7 +1260,7 @@ var (
 	xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
-<mapper>
+<mapper namespace="#{namespace}">
     <!--logic_enable 逻辑删除字段-->
     <!--logic_deleted 逻辑删除已删除字段-->
     <!--logic_undelete 逻辑删除 未删除字段-->
@@ -1273,7 +1278,7 @@ var (
 	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
-<mapper>
+<mapper namespace="#{namespace}">
 	<insert id=""/>
 	<update id=""/>
 	<delete id=""/>
@@ -1284,7 +1289,7 @@ var (
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" langType="#{langType}" #{version} #{logic}/>`
 )
-func createXml(tableName string, tv reflect.Type) []byte {
+func (it *Engine)createXml(obj reflect.Value,tv reflect.Type) ([]byte,string) {
 	content := ""
 	for i := 0; i < tv.NumField(); i++ {
 		item := tv.Field(i)
@@ -1309,36 +1314,22 @@ func createXml(tableName string, tv reflect.Type) []byte {
 			content += "\n"
 		}
 	}
+	dao := obj.Type().Elem().Name()
+	fileName := dao+".xml"
 	res := strings.Replace(xmlData, "#{resultMapBody}", content, -1)
-	res = strings.Replace(res, "#{table}", tableName, -1)
-	return []byte(res)
+	res = strings.Replace(res, "#{table}", snake(tv.Name()), -1)
+	res = strings.Replace(res, "#{namespace}", it.namespace+"."+dao, -1)
+	return []byte(res),fileName
 }
-// 参数 <pointer>是数据库表的实体的指针,这里不能传结构体对象的原因是(即使传的结构体对象,最终该对象也会逃逸到堆内存上去)
-func (it *Engine)xmlPath(pointer interface{})string{
+func (it *Engine)xmlPath(t reflect.Type,obj reflect.Value){
 	var (
-		t reflect.Type
-		table string
 		w strings.Builder
 		f *os.File
 		err error
 		s string
 		flag bool
-		body []byte
 	)
-	if str,ok := pointer.(string);ok && str != ""{
-		table = str
-		body = []byte(xmlDataS)
-	}else {
-		t = reflect.TypeOf(pointer)
-		if t.Kind() != reflect.Ptr {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
-		}
-		t = t.Elem()
-		table = snake(t.Name())
-		body = createXml(table,t)
-	}
-	fileName := table+".xml"
+	body,fileName:= it.createXml(obj,t)
 	if it.pkg == "" || it.pkg == "./" {
 		w.WriteString("./")
 		w.WriteString(fileName)
@@ -1372,11 +1363,11 @@ func (it *Engine)xmlPath(pointer interface{})string{
 				it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
 			} else {
 				it.log.Println("写入文件成功："+s)
-				return s
 			}
 		}
 	}
-	return s
+	it.data = make(map[reflect.Value]string,0)
+	it.data[obj]=s
 }
 func snake(s string) string {
 	data := make([]byte, 0, len(s)*2)
