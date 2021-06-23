@@ -15,7 +15,7 @@ const (
 	nStr
 	nIf
 	nTrim
-	nForEach
+	nForeach
 	nChoose
 	nOtherwise
 	nWhen
@@ -31,12 +31,12 @@ func (it xmlNode) ToString() string {
 		return "nIf"
 	case nTrim:
 		return "nTrim"
-	case nForEach:
-		return "nFor"
+	case nForeach:
+		return "nForeach"
 	case nChoose:
-		return "nSwitch"
+		return "nChoose"
 	case nOtherwise:
-		return "nDefault"
+		return "nOtherwise"
 	case nWhen:
 		return "nWhen"
 	case nBind:
@@ -270,27 +270,28 @@ type nodeForeach struct {
 	holder     express
 }
 func (it nodeForeach) Type() xmlNode {
-	return nForEach
+	return nForeach
 }
 func (it nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
 	if it.collection == "" {
 		panic(`[Error] collection value can not be "" in <foreach collection=""> !`)
 	}
 	var tempSql bytes.Buffer
-	var err error
 	evalData, err := it.holder.Proxy.LexerAndEval(it.collection, env)
 	if err != nil {
 		return nil, err
 	}
-	var collectionValue = reflect.ValueOf(evalData)
-	var kind = collectionValue.Kind()
+	var (
+		collectionValue = reflect.ValueOf(evalData)
+		kind = collectionValue.Kind()
+		collectionValueLen = collectionValue.Len()
+	)
 	if kind == reflect.Invalid {
 		return nil, errors.New(" collection value is invalid value!")
 	}
 	if kind != reflect.Slice && kind != reflect.Array && kind != reflect.Map {
 		panic(`[Error] collection value must be a slice or map !`)
 	}
-	var collectionValueLen = collectionValue.Len()
 	if collectionValueLen == 0 {
 		return nil, nil
 	}
@@ -302,20 +303,24 @@ func (it nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stm
 	}
 	switch collectionValue.Kind() {
 	case reflect.Map:
-		var mapKeys = collectionValue.MapKeys()
-		var collectionKeyLen = len(mapKeys)
+		var (
+			mapKeys = collectionValue.MapKeys()
+			collectionKeyLen = len(mapKeys)
+			tempArgMap = env
+		)
 		if collectionKeyLen == 0 {
 			return nil, nil
 		}
-		var tempArgMap = env
 		for _, keyValue := range mapKeys {
-			var key = keyValue.Interface()
-			var collectionItem = collectionValue.MapIndex(keyValue)
+			var (
+				key = keyValue.Interface()
+				collectionItem = collectionValue.MapIndex(keyValue)
+			)
 			if it.item != "" {
 				tempArgMap[it.item] = collectionItem.Interface()
 			}
 			tempArgMap[it.index] = key
-			var r, err = doChildNodes(it.child, tempArgMap, array, stmtConvert)
+			r, err := doChildNodes(it.child, tempArgMap, array, stmtConvert)
 			if err != nil {
 				return nil, err
 			}
@@ -327,16 +332,16 @@ func (it nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stm
 		}
 		break
 	case reflect.Slice:
-		var tempArgMap = env
+		tempArgMap := env
 		for i := 0; i < collectionValueLen; i++ {
-			var collectionItem = collectionValue.Index(i)
+			collectionItem := collectionValue.Index(i)
 			if it.item != "" {
 				tempArgMap[it.item] = collectionItem.Interface()
 			}
 			if it.index != "" {
 				tempArgMap[it.index] = i
 			}
-			var r, err = doChildNodes(it.child, tempArgMap, array, stmtConvert)
+			r, err := doChildNodes(it.child, tempArgMap, array, stmtConvert)
 			if err != nil {
 				return nil, err
 			}
@@ -348,13 +353,15 @@ func (it nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stm
 		}
 		break
 	}
-	var newTempSql bytes.Buffer
-	var tempSqlString = bytes.Trim(tempSql.Bytes(), it.separator)
+	var (
+		newTempSql bytes.Buffer
+		tempSqlString = bytes.Trim(tempSql.Bytes(), it.separator)
+	)
 	tempSql.Reset()
 	newTempSql.WriteString(it.open)
 	newTempSql.Write(tempSqlString)
 	newTempSql.WriteString(it.close)
-	var newTempSqlBytes = newTempSql.Bytes()
+	newTempSqlBytes := newTempSql.Bytes()
 	newTempSql.Reset()
 	return newTempSqlBytes, nil
 }
@@ -385,7 +392,7 @@ func (it nodeInclude) Type() xmlNode {
 	return nInclude
 }
 func (it nodeInclude) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
-	var sql, err = doChildNodes(it.child, env, array, stmtConvert)
+	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	return sql, err
 }
 type nodeOtherwise struct {
@@ -396,7 +403,7 @@ func (it nodeOtherwise) Type() xmlNode {
 	return nOtherwise
 }
 func (it nodeOtherwise) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
-	var r, e = doChildNodes(it.child, env, array, stmtConvert)
+	r, e := doChildNodes(it.child, env, array, stmtConvert)
 	if e != nil {
 		return nil, e
 	}
@@ -414,7 +421,7 @@ func (it nodeTrim) Type() xmlNode {
 	return nTrim
 }
 func (it nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
-	var sql, err = doChildNodes(it.child, env, array, stmtConvert)
+	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	if err != nil {
 		return nil, err
 	}
@@ -429,18 +436,18 @@ func (it nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtCo
 		}
 	}
 	if it.prefixOverrides != nil {
-		var prefixOverridesArray = bytes.Split(it.prefixOverrides, []byte("|"))
+		prefixOverridesArray := bytes.Split(it.prefixOverrides, []byte("|"))
 		if len(prefixOverridesArray) > 0 {
 			for _, v := range prefixOverridesArray {
-				sql = bytes.TrimPrefix(sql, []byte(v))
+				sql = bytes.TrimPrefix(sql, v)
 			}
 		}
 	}
 	if it.suffixOverrides != nil {
-		var suffixOverrideArray = bytes.Split(it.suffixOverrides, []byte("|"))
+		suffixOverrideArray := bytes.Split(it.suffixOverrides, []byte("|"))
 		if len(suffixOverrideArray) > 0 {
 			for _, v := range suffixOverrideArray {
-				sql = bytes.TrimSuffix(sql, []byte(v))
+				sql = bytes.TrimSuffix(sql, v)
 			}
 		}
 	}
@@ -482,7 +489,7 @@ func (it nodeWhere) Type() xmlNode {
 	return nWhere
 }
 func (it nodeWhere) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
-	var sql, err = doChildNodes(it.child, env, array, stmtConvert)
+	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	if err != nil {
 		return nil, err
 	}
@@ -531,7 +538,7 @@ func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
 		argStr.WriteString(`'`)
 		return argStr.String()
 	case *string:
-		var v = argValue.(*string)
+		v := argValue.(*string)
 		if v == nil {
 			return "''"
 		}
@@ -547,7 +554,7 @@ func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
 			return "false"
 		}
 	case *bool:
-		var v = argValue.(*bool)
+		v := argValue.(*bool)
 		if v == nil {
 			return "''"
 		}
@@ -563,7 +570,7 @@ func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
 		argStr.WriteString(`'`)
 		return argStr.String()
 	case *time.Time:
-		var timePtr = argValue.(*time.Time)
+		timePtr := argValue.(*time.Time)
 		if timePtr == nil {
 			return "''"
 		}
@@ -575,37 +582,37 @@ func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
 	case int, int16, int32, int64, float32, float64:
 		return fmt.Sprint(argValue)
 	case *int:
-		var v = argValue.(*int)
+		v := argValue.(*int)
 		if v == nil {
 			return ""
 		}
 		return fmt.Sprint(*v)
 	case *int16:
-		var v = argValue.(*int16)
+		v := argValue.(*int16)
 		if v == nil {
 			return ""
 		}
 		return fmt.Sprint(*v)
 	case *int32:
-		var v = argValue.(*int32)
+		v := argValue.(*int32)
 		if v == nil {
 			return ""
 		}
 		return fmt.Sprint(*v)
 	case *int64:
-		var v = argValue.(*int64)
+		v := argValue.(*int64)
 		if v == nil {
 			return ""
 		}
 		return fmt.Sprint(*v)
 	case *float32:
-		var v = argValue.(*float32)
+		v := argValue.(*float32)
 		if v == nil {
 			return ""
 		}
 		return fmt.Sprint(*v)
 	case *float64:
-		var v = argValue.(*float64)
+		v := argValue.(*float64)
 		if v == nil {
 			return ""
 		}
@@ -634,10 +641,10 @@ func (it express) Parser(mapperXml []token) []iiNode {
 	list := make([]iiNode,0)
 	for _, item := range mapperXml {
 		var nod iiNode
-		var typeString = reflect.TypeOf(item).String()
+		typeString := reflect.TypeOf(item).String()
 		if typeString == "*mbt.charData" {
 			chard := item.(*charData)
-			var str = chard.Data
+			str := chard.Data
 			str = strings.Replace(str, "\n", " ", -1)
 			str = strings.Replace(str, "\t", " ", -1)
 			str = strings.Trim(str, " ")
@@ -654,8 +661,8 @@ func (it express) Parser(mapperXml []token) []iiNode {
 			}
 			nod = &n
 		} else if typeString == "*mbt.element" {
-			var v = item.(*element)
-			var childItems = v.Child
+			v := item.(*element)
+			childItems := v.Child
 			switch v.Tag {
 			case "if":
 				n := nodeIf{
@@ -665,7 +672,7 @@ func (it express) Parser(mapperXml []token) []iiNode {
 					holder: it,
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					n.child = append(n.child, childNodes...)
 				}
 				nod = &n
@@ -675,12 +682,12 @@ func (it express) Parser(mapperXml []token) []iiNode {
 					t:               nTrim,
 					prefix:          []byte(v.SelectAttrValue("prefix", "")),
 					suffix:          []byte(v.SelectAttrValue("suffix", "")),
-					prefixOverrides: []byte(v.SelectAttrValue("trimPrefix", "")),
-					suffixOverrides: []byte(v.SelectAttrValue("trimSuffix", "")),
+					prefixOverrides: []byte(v.SelectAttrValue("prefixOverrides", "")),
+					suffixOverrides: []byte(v.SelectAttrValue("suffixOverrides", "")),
 					child:           []iiNode{},
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					n.child = append(n.child, childNodes...)
 				}
 				nod = &n
@@ -689,7 +696,6 @@ func (it express) Parser(mapperXml []token) []iiNode {
 				n := nodeTrim{
 					t:     nTrim,
 					child: []iiNode{},
-
 					prefix:          []byte(" set "),
 					suffix:          nil,
 					prefixOverrides: []byte(","),
@@ -701,11 +707,11 @@ func (it express) Parser(mapperXml []token) []iiNode {
 				}
 				nod = &n
 				break
-			case "for":
+			case "foreach":
 				n := nodeForeach{
-					t:          nForEach,
+					t:          nForeach,
 					child:      []iiNode{},
-					collection: v.SelectAttrValue("list", ""),
+					collection: v.SelectAttrValue("collection", ""),
 					index:      v.SelectAttrValue("index", ""),
 					item:       v.SelectAttrValue("item", ""),
 					open:       v.SelectAttrValue("open", ""),
@@ -714,18 +720,18 @@ func (it express) Parser(mapperXml []token) []iiNode {
 					holder:     it,
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					n.child = append(n.child, childNodes...)
 				}
 				nod = &n
 				break
-			case "switch":
+			case "choose":
 				n := nodeChoose{
 					t:         nChoose,
 					whenNodes: []iiNode{},
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					for _, v := range childNodes {
 						if v.Type() == nWhen {
 							n.whenNodes = append(n.whenNodes, childNodes...)
@@ -747,7 +753,7 @@ func (it express) Parser(mapperXml []token) []iiNode {
 				}
 				nod = &n
 				break
-			case "case":
+			case "when":
 				n := nodeWhen{
 					t:      nOtherwise,
 					child:  []iiNode{},
@@ -755,18 +761,18 @@ func (it express) Parser(mapperXml []token) []iiNode {
 					holder: it,
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					n.child = append(n.child, childNodes...)
 				}
 				nod = &n
 				break
-			case "default":
+			case "otherwise":
 				n := nodeOtherwise{
 					t:     nOtherwise,
 					child: []iiNode{},
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					n.child = append(n.child, childNodes...)
 				}
 				nod = &n
@@ -777,7 +783,7 @@ func (it express) Parser(mapperXml []token) []iiNode {
 					child: []iiNode{},
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					n.child = append(n.child, childNodes...)
 				}
 				nod = &n
@@ -795,7 +801,7 @@ func (it express) Parser(mapperXml []token) []iiNode {
 					t: nInclude,
 				}
 				if childItems != nil {
-					var childNodes = it.Parser(childItems)
+					childNodes := it.Parser(childItems)
 					n.child = append(n.child, childNodes...)
 				}
 				nod = &n

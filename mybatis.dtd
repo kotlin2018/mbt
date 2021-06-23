@@ -16,26 +16,63 @@
                limitations under the License.
 
         -->
-        <!ELEMENT mapper (resultMap*  | sql* | insert* | update* |updateTemplate* | delete* |deleteTemplate* | select* | selectTemplate* | insertTemplate* )+>
+        <!ELEMENT mapper (cache-ref | cache | parameterMap* | resultMap*  | sql* | insert* | insertTemplate* | update* |updateTemplate* | delete* |deleteTemplate* | select* | selectTemplate* )+>
         <!ATTLIST mapper
-                >
+        namespace CDATA #IMPLIED
+        >
+
+        <!ELEMENT cache-ref EMPTY>
+        <!ATTLIST cache-ref
+        namespace CDATA #REQUIRED
+        >
+
+        <!ELEMENT cache (property*)>
+        <!ATTLIST cache
+        type CDATA #IMPLIED
+        eviction CDATA #IMPLIED
+        flushInterval CDATA #IMPLIED
+        size CDATA #IMPLIED
+        readOnly CDATA #IMPLIED
+        blocking CDATA #IMPLIED
+        >
+
+        <!ELEMENT parameterMap (parameter+)?>
+        <!ATTLIST parameterMap
+        id CDATA #REQUIRED
+        type CDATA #REQUIRED
+        >
+
+        <!ELEMENT parameter EMPTY>
+        <!ATTLIST parameter
+        property CDATA #REQUIRED
+        javaType CDATA #IMPLIED
+        jdbcType CDATA #IMPLIED
+        mode (IN | OUT | INOUT) #IMPLIED
+        resultMap CDATA #IMPLIED
+        scale CDATA #IMPLIED
+        typeHandler CDATA #IMPLIED
+        >
 
         <!ELEMENT resultMap (id*,result*)>
         <!ATTLIST resultMap
                 id CDATA #REQUIRED
                 table  #REQUIRED
+                type CDATA #REQUIRED
                 >
 
         <!ELEMENT id EMPTY>
         <!ATTLIST id
                 langType CDATA #IMPLIED
                 column CDATA #IMPLIED
+                property CDATA #IMPLIED
+                jdbcType CDATA #IMPLIED
                 >
 
         <!ELEMENT result EMPTY>
         <!ATTLIST result
                 langType CDATA #IMPLIED
                 column CDATA #IMPLIED
+                property CDATA #IMPLIED
                 version_enable CDATA #IMPLIED
                 logic_enable CDATA #IMPLIED
                 logic_deleted CDATA #IMPLIED
@@ -49,6 +86,7 @@
                 select CDATA #IMPLIED
                 resultMap CDATA #IMPLIED
                 name CDATA #IMPLIED
+                jdbcType CDATA #IMPLIED
                 >
 
         <!ELEMENT typeAlias EMPTY>
@@ -57,14 +95,21 @@
                 type CDATA #REQUIRED
                 >
 
-        <!ELEMENT select (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT property EMPTY>
+        <!ATTLIST property
+                name CDATA #REQUIRED
+                value CDATA #REQUIRED
+                >
+
+        <!ELEMENT select (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST select
                 id CDATA #REQUIRED
                 resultMap CDATA #IMPLIED
                 lang CDATA #IMPLIED
+                parameterMap CDATA #IMPLIED
                 >
 
-        <!ELEMENT selectTemplate (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT selectTemplate (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST selectTemplate
                 id CDATA #IMPLIED
                 resultMap (BaseResultMap) #IMPLIED
@@ -72,19 +117,18 @@
                 table CDATA #IMPLIED
                 column CDATA #IMPLIED
                 where CDATA #IMPLIED
+                parameterMap CDATA #IMPLIED
                 >
 
 
-        <!ELEMENT insert (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT insert (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST insert
                 id CDATA #REQUIRED
-
-
-                useGeneratedKeys (true|false) #IMPLIED
                 lang CDATA #IMPLIED
+                parameterMap CDATA #IMPLIED
                 >
 
-        <!ELEMENT insertTemplate (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT insertTemplate (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST insertTemplate
                 id CDATA #IMPLIED
                 resultMap CDATA #IMPLIED
@@ -93,13 +137,14 @@
                 resultMap (BaseResultMap) #IMPLIED
                 >
 
-        <!ELEMENT update (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT update (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST update
                 id CDATA #REQUIRED
                 lang CDATA #IMPLIED
+                parameterMap CDATA #IMPLIED
                 >
         <!--set指定值(例如 sets="name?name = #{name}"  )会更新对应值，否则为""设置全部属性-->
-        <!ELEMENT updateTemplate (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT updateTemplate (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST updateTemplate
                 id CDATA #IMPLIED
                 resultMap (BaseResultMap) #IMPLIED
@@ -107,22 +152,23 @@
                 table CDATA #IMPLIED
                 set CDATA #IMPLIED
                 where CDATA #IMPLIED
+                parameterMap CDATA #IMPLIED
                 >
 
-        <!ELEMENT delete (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT delete (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST delete
                 id CDATA #REQUIRED
-
                 lang CDATA #IMPLIED
+                parameterMap CDATA #IMPLIED
                 >
-        <!ELEMENT deleteTemplate (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT deleteTemplate (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST deleteTemplate
                 id CDATA #IMPLIED
-
                 lang CDATA #IMPLIED
                 table CDATA #IMPLIED
                 where CDATA #IMPLIED
                 resultMap (BaseResultMap) #IMPLIED
+                parameterMap CDATA #IMPLIED
                 >
         <!-- Dynamic -->
 
@@ -137,26 +183,25 @@
                 value CDATA #REQUIRED
                 >
 
-        <!ELEMENT sql (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT sql (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST sql
                 id CDATA #REQUIRED
                 lang CDATA #IMPLIED
-
                 >
 
-        <!ELEMENT trim (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT trim (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST trim
                 prefix CDATA #IMPLIED
-                trimPrefix CDATA #IMPLIED
+                prefixOverrides CDATA #IMPLIED
                 suffix CDATA #IMPLIED
-                trimSuffix CDATA #IMPLIED
+                suffixOverrides CDATA #IMPLIED
                 >
-        <!ELEMENT where (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
-        <!ELEMENT set (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT where (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ELEMENT set (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
 
-        <!ELEMENT for (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
-        <!ATTLIST for
-                list CDATA #REQUIRED
+        <!ELEMENT foreach (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST foreach
+                collection CDATA #REQUIRED
                 item CDATA #IMPLIED
                 index CDATA #IMPLIED
                 open CDATA #IMPLIED
@@ -164,14 +209,14 @@
                 separator CDATA #IMPLIED
                 >
 
-        <!ELEMENT switch (case* , default?)>
-        <!ELEMENT case (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
-        <!ATTLIST case
+        <!ELEMENT choose (when* , otherwise?)>
+        <!ELEMENT when (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST when
                 test CDATA #REQUIRED
                 >
-        <!ELEMENT default (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT otherwise (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
 
-        <!ELEMENT if (#PCDATA | include | trim | where | set | for | switch | if | bind)*>
+        <!ELEMENT if (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
         <!ATTLIST if
                 test CDATA #REQUIRED
                 >

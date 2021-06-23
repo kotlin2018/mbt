@@ -392,7 +392,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 			Attr: []attr{
 				{Key: "prefix", Value: "("},
 				{Key: "suffix", Value: ")"},
-				{Key: "trimSuffix", Value: ","},
+				{Key: "suffixOverrides", Value: ","},
 			},
 			Child: []token{},
 		}
@@ -428,7 +428,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		mapper.Child = append(mapper.Child, &trimColumn)
 		var tempElement = element{
 			Tag:   elementTrim,
-			Attr:  []attr{{Key: "prefix", Value: "values ("}, {Key: "suffix", Value: ")"}, {Key: "trimSuffix", Value: ","}},
+			Attr:  []attr{{Key: "prefix", Value: "values ("}, {Key: "suffix", Value: ")"}, {Key: "suffixOverrides", Value: ","}},
 			Child: []token{},
 		}
 		if collectionName == "" {
@@ -458,14 +458,14 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		} else {
 			tempElement.Attr = []attr{}
 			tempElement.Tag = elementForeach
-			tempElement.Attr = []attr{{Key: "open", Value: "values "}, {Key: "close", Value: ""}, {Key: "separator", Value: ","}, {Key: "list", Value: collectionName}}
+			tempElement.Attr = []attr{{Key: "open", Value: "values "}, {Key: "close", Value: ""}, {Key: "separator", Value: ","}, {Key: "collection", Value: collectionName}}
 			tempElement.Child = []token{}
 			for index, v := range resultMapData.ChildElements() {
-				var prefix = ""
+				prefix := ""
 				if index == 0 {
 					prefix = "("
 				}
-				var defProperty = v.SelectAttrValue("column", "")
+				defProperty := v.SelectAttrValue("column", "")
 				if method != nil {
 					for i := 0; i < method.Type.NumIn(); i++ {
 						var argItem = method.Type.In(i)
@@ -491,7 +491,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 						}
 					}
 				}
-				var value = prefix + "#{" + "item." + defProperty + "}"
+				value := prefix + "#{" + "item." + defProperty + "}"
 				if logic.Enable && v.SelectAttrValue("column", "") == logic.Property {
 					value = `'` + logic.UndeleteValue + "'"
 				}

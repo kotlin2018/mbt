@@ -1,0 +1,36 @@
+[INFO] 2021/06/20 12:29:39 example.ActivityDao.SelectByCondition2() [ c863cf45-efce-456e-9d6a-7d3acce32d77 ] Query ==>   select * from biz_activity WHERE  name like  ?   and create_time >=  ?   or create_time <=  ?  order by create_time desc limit  ? ,  ?  
+[INFO] 2021/06/20 12:29:39 example.ActivityDao.SelectByCondition2() [ c863cf45-efce-456e-9d6a-7d3acce32d77 ] Args  ==> [%刺客%,2021-06-20,03:29:39.870322,+0800,CST,m=-32399.996006940,0001-01-01,00:00:00,+0000,UTC,0,2]
+[INFO] 2021/06/20 12:29:39 example.ActivityDao.SelectByCondition2() [ c863cf45-efce-456e-9d6a-7d3acce32d77 ] ReturnRows <== 0
+[INFO] 2021/06/20 12:42:10 example.ActivityDao.SelectByCondition2() [ de9a58fb-6253-4353-9890-f92dc09e3945 ] Query ==>   select * from biz_activity WHERE  name like  ?   and create_time >=  ?   or create_time <=  ?  order by create_time desc limit  ? ,  ?  
+[INFO] 2021/06/20 12:42:10 example.ActivityDao.SelectByCondition2() [ de9a58fb-6253-4353-9890-f92dc09e3945 ] Args  ==> [%刺客%,2021-06-20,03:42:10.165177,+0800,CST,m=-32399.995893970,0001-01-01,00:00:00,+0000,UTC,0,2]
+[INFO] 2021/06/20 12:42:10 example.ActivityDao.SelectByCondition2() [ de9a58fb-6253-4353-9890-f92dc09e3945 ] ReturnRows <== 0
+[INFO] 2021/06/20 12:45:47 example.ActivityDao.Choose2() [ ccd0d010-31db-4528-8d5e-8ec0b996a2f2 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/20 12:45:47 example.ActivityDao.Choose2() [ ccd0d010-31db-4528-8d5e-8ec0b996a2f2 ] Args  ==> [刺客,]
+[INFO] 2021/06/20 12:45:47 example.ActivityDao.Choose2() [ ccd0d010-31db-4528-8d5e-8ec0b996a2f2 ] ReturnRows <== 4
+[INFO] 2021/06/20 12:45:47 example.ActivityDao.Choose2() [ ccd0d010-31db-4528-8d5e-8ec0b996a2f2 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/20 12:45:47 example.ActivityDao.Choose2() [ ccd0d010-31db-4528-8d5e-8ec0b996a2f2 ] Args  ==> [,后羿]
+[INFO] 2021/06/20 12:45:47 example.ActivityDao.Choose2() [ ccd0d010-31db-4528-8d5e-8ec0b996a2f2 ] ReturnRows <== 0
+[INFO] 2021/06/20 12:45:57 example.ActivityDao.Choose2() [ 453f99d2-d4af-4921-9c65-544f0bcc7f56 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/20 12:45:57 example.ActivityDao.Choose2() [ 453f99d2-d4af-4921-9c65-544f0bcc7f56 ] Args  ==> [刺客,]
+[INFO] 2021/06/20 12:45:57 example.ActivityDao.Choose2() [ 453f99d2-d4af-4921-9c65-544f0bcc7f56 ] ReturnRows <== 4
+[INFO] 2021/06/20 12:45:57 example.ActivityDao.Choose2() [ 453f99d2-d4af-4921-9c65-544f0bcc7f56 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/20 12:45:57 example.ActivityDao.Choose2() [ 453f99d2-d4af-4921-9c65-544f0bcc7f56 ] Args  ==> [,后羿]
+[INFO] 2021/06/20 12:45:57 example.ActivityDao.Choose2() [ 453f99d2-d4af-4921-9c65-544f0bcc7f56 ] ReturnRows <== 0
+[INFO] 2021/06/20 12:46:27 example.ActivityDao.Choose2() [ e7d2f539-85de-4266-a0c9-0aedb2dfc413 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/20 12:46:27 example.ActivityDao.Choose2() [ e7d2f539-85de-4266-a0c9-0aedb2dfc413 ] Args  ==> [刺客,]
+[INFO] 2021/06/20 12:46:27 example.ActivityDao.Choose2() [ e7d2f539-85de-4266-a0c9-0aedb2dfc413 ] ReturnRows <== 4
+[INFO] 2021/06/20 12:46:27 example.ActivityDao.Choose2() [ e7d2f539-85de-4266-a0c9-0aedb2dfc413 ] Query ==>  select * from biz_activity where name =  ?   or pc_link =  ?  
+[INFO] 2021/06/20 12:46:27 example.ActivityDao.Choose2() [ e7d2f539-85de-4266-a0c9-0aedb2dfc413 ] Args  ==> [,后羿]
+[INFO] 2021/06/20 12:46:27 example.ActivityDao.Choose2() [ e7d2f539-85de-4266-a0c9-0aedb2dfc413 ] ReturnRows <== 0
+[INFO] 2021/06/20 12:49:55 example.ActivityDao.SelectByCondition2() [ e5a5b2ed-b5cf-4151-a57a-d222c4d0641b ] Query ==>   select * from biz_activity WHERE  name like  ?   and create_time >=  ?   or create_time <=  ?  order by create_time desc limit  ? ,  ?  
+[INFO] 2021/06/20 12:49:55 example.ActivityDao.SelectByCondition2() [ e5a5b2ed-b5cf-4151-a57a-d222c4d0641b ] Args  ==> [%刺客%,2021-06-20,03:49:55.636908,+0800,CST,m=-32399.996150176,0001-01-01,00:00:00,+0000,UTC,0,2]
+[INFO] 2021/06/20 12:49:55 example.ActivityDao.SelectByCondition2() [ e5a5b2ed-b5cf-4151-a57a-d222c4d0641b ] ReturnRows <== 0
+[INFO] 2021/06/20 12:56:39 example.ActivityDao.SelectByCondition2() [ cb68625b-f1b4-415d-99d0-87b8ce041aef ] Query ==>   select * from biz_activity WHERE  name like  ?   and create_time >=  ?   or create_time <=  ?  order by create_time desc limit  ? ,  ?  
+[INFO] 2021/06/20 12:56:39 example.ActivityDao.SelectByCondition2() [ cb68625b-f1b4-415d-99d0-87b8ce041aef ] Args  ==> [%刺客%,2021-06-20,03:56:39.405357,+0800,CST,m=-32399.996049615,0001-01-01,00:00:00,+0000,UTC,0,2]
+[INFO] 2021/06/20 12:56:39 example.ActivityDao.SelectByCondition2() [ cb68625b-f1b4-415d-99d0-87b8ce041aef ] ReturnRows <== 0
+[INFO] 2021/06/20 12:57:09 example.ActivityDao.SelectByCondition2() [ aeb27a79-ae46-4bf5-ae4b-0bc79f840dcd ] Query ==>   select * from biz_activity WHERE  name like  ?   and create_time >=  ?   or create_time <=  ?  order by create_time desc limit  ? ,  ?  
+[INFO] 2021/06/20 12:57:09 example.ActivityDao.SelectByCondition2() [ aeb27a79-ae46-4bf5-ae4b-0bc79f840dcd ] Args  ==> [%刺客%,2021-06-20,03:57:09.379838,+0800,CST,m=-32399.995963515,0001-01-01,00:00:00,+0000,UTC,0,2]
+[INFO] 2021/06/20 12:57:09 example.ActivityDao.SelectByCondition2() [ aeb27a79-ae46-4bf5-ae4b-0bc79f840dcd ] ReturnRows <== 0
+[INFO] 2021/06/20 13:50:33 example.ActivityDao.SelectByCondition2() [ ee0660c4-d9b7-4047-90db-8911f6b09c8b ] Query ==>   select * from biz_activity WHERE  name like  ?   and create_time >=  ?   or create_time <=  ?  order by create_time desc limit  ? ,  ?  
+[INFO] 2021/06/20 13:50:33 example.ActivityDao.SelectByCondition2() [ ee0660c4-d9b7-4047-90db-8911f6b09c8b ] Args  ==> [%刺客%,2021-06-20,04:50:33.66397,+0800,CST,m=-32399.996089300,0001-01-01,00:00:00,+0000,UTC,0,2]
+[INFO] 2021/06/20 13:50:33 example.ActivityDao.SelectByCondition2() [ ee0660c4-d9b7-4047-90db-8911f6b09c8b ] ReturnRows <== 0

@@ -163,7 +163,7 @@ const (
 	elementSelectTemplate elementType = "selectTemplate"
 	elementIf        elementType = `if`
 	elementTrim      elementType = "trim"
-	elementForeach   elementType = "for" //
+	elementForeach   elementType = "foreach"
 	elementWhere     elementType = "where"
 	elementInclude   elementType = "include"
 	elementMapper = "mapper"
