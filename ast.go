@@ -58,7 +58,7 @@ func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]inter
 	}
 	var sql bytes.Buffer
 	for _, v := range childNodes {
-		var r, e = v.Eval(env, array, stmtConvert)
+		r, e := v.Eval(env, array, stmtConvert)
 		if e != nil {
 			return nil, e
 		}
@@ -66,17 +66,16 @@ func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]inter
 			sql.Write(r)
 		}
 	}
-	var bytes = sql.Bytes()
+	bytes := sql.Bytes()
 	sql.Reset()
 	return bytes, nil
 }
 func replace(findStrS []string, data string, arg map[string]interface{}, engine iExpression, array *[]interface{}, indexConvert iConvert) (string, error) {
 	for _, findStr := range findStrS {
-		var argValue = arg[findStr]
+		argValue := arg[findStr]
 		if argValue != nil {
 			*array = append(*array, argValue)
 		} else {
-			var err error
 			evalData, err := engine.LexerAndEval(findStr, arg)
 			if err != nil {
 				return "", err
@@ -90,18 +89,20 @@ func replace(findStrS []string, data string, arg map[string]interface{}, engine 
 }
 func replaceRaw(findStrS []string, data string, typeConvert sqlArgTypeConv, arg map[string]interface{}, engine iExpression) (string, error) {
 	for _, findStr := range findStrS {
-		var evalData interface{}
-		var argValue = arg[findStr]
+		var (
+			evalData interface{}
+			argValue = arg[findStr]
+			resultStr string
+			err error
+		)
 		if argValue != nil {
 			evalData = argValue
 		} else {
-			var err error
 			evalData, err = engine.LexerAndEval(findStr, arg)
 			if err != nil {
 				return "", err
 			}
 		}
-		var resultStr string
 		if typeConvert != nil {
 			resultStr = typeConvert.Convert(evalData)
 		} else {
@@ -114,11 +115,14 @@ func replaceRaw(findStrS []string, data string, typeConvert sqlArgTypeConv, arg 
 	return data, nil
 }
 func findExpress(str string) []string {
-	finds := make([]string,0)
-	var item []byte
-	var lastIndex = -1
-	var startIndex = -1
-	var strBytes = []byte(str)
+	var (
+		item []byte
+		lastIndex = -1
+		startIndex = -1
+		strBytes = []byte(str)
+		finds = make([]string,0)
+		strS = make([]string,0)
+	)
 	for index, v := range strBytes {
 		if v == 35 {
 			lastIndex = index
@@ -139,18 +143,20 @@ func findExpress(str string) []string {
 	}
 	item = nil
 	strBytes = nil
-	strS := make([]string,0)
 	for _, k := range finds {
 		strS = append(strS, k)
 	}
 	return strS
 }
 func findRawExpressString(str string) []string {
-	finds := make([]string,0)
-	var item []byte
-	var lastIndex = -1
-	var startIndex = -1
-	var strBytes = []byte(str)
+	var (
+		item []byte
+		lastIndex = -1
+		startIndex = -1
+		strBytes = []byte(str)
+		finds = make([]string,0)
+		strS = make([]string,0)
+	)
 	for index, v := range str {
 		if v == 36 {
 			lastIndex = index
@@ -171,7 +177,6 @@ func findRawExpressString(str string) []string {
 	}
 	item = nil
 	strBytes = nil
-	strS := make([]string,0)
 	for _, k := range finds {
 		strS = append(strS, k)
 	}
@@ -188,8 +193,10 @@ func (it nodeString) Type() xmlNode {
 	return nStr
 }
 func (it nodeString) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
-	var data = it.value
-	var err error
+	var (
+		data = it.value
+		err error
+	)
 	if it.expressMap != nil {
 		data, err = replace(it.expressMap, data, env, it.holder.Proxy, array, stmtConvert)
 		if err != nil {
@@ -222,7 +229,7 @@ func (it nodeBind) Eval(env map[string]interface{}, array *[]interface{}, stmtCo
 		return nil, nil
 	}
 	res, err := it.holder.Proxy.LexerAndEval(it.value, env)
-	if err != nil {
+	if err != nil  {
 		return nil, err
 	}
 	env[it.name] = res
@@ -841,11 +848,6 @@ type oracle struct {
 	sync.RWMutex
 	counter int
 }
-
-func (it *oracle) Convert() string {
-	return fmt.Sprint(" :val", it.Get(), " ")
-}
-
 func (it *oracle) Inc() {
 	it.Lock()
 	defer it.Unlock()
@@ -855,6 +857,9 @@ func (it *oracle) Get() int {
 	it.RLock()
 	defer it.RUnlock()
 	return it.counter
+}
+func (it *oracle) Convert() string {
+	return fmt.Sprint(" :val", it.Get(), " ")
 }
 type postgreSQL struct {
 	sync.RWMutex
