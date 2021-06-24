@@ -49,7 +49,8 @@ type Engine struct {
 	printXml  bool
 	printSql  bool
 	namespace string
-	data      map[reflect.Value]string
+	//data      map[reflect.Value]string
+	data      map[reflect.Value]map[string]*element
 }
 func New(cfg *Database)(*Engine,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
@@ -159,10 +160,6 @@ const (
 	elementUpdate    elementType = `update`
 	elementSelect    elementType = "select"
 	elementSql       elementType = "sql"
-	elementInsertTemplate elementType = "insertTemplate"
-	elementDeleteTemplate elementType = "deleteTemplate"
-	elementUpdateTemplate elementType = `updateTemplate`
-	elementSelectTemplate elementType = "selectTemplate"
 	elementIf        elementType = `if`
 	elementTrim      elementType = "trim"
 	elementForeach   elementType = "foreach"
@@ -172,8 +169,7 @@ const (
 )
 func isMethodElement(tag elementType) bool {
 	switch tag {
-	case elementInsert, elementDelete, elementUpdate, elementSelect,
-		elementInsertTemplate, elementDeleteTemplate, elementUpdateTemplate, elementSelectTemplate:
+	case elementInsert, elementDelete, elementUpdate, elementSelect:
 		return true
 	}
 	return false

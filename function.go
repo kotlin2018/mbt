@@ -11,16 +11,21 @@ import (
 	"strconv"
 	"strings"
 )
-
 func (it *Engine)Run(){
 	for k,v := range it.data {
 		it.start(k,v)
 	}
 }
-func (it *Engine)start(bean reflect.Value,name string) {
-	mapperTree := it.parseXml(name)
+func (it *Engine)start(bean reflect.Value,mapperTree map[string]*element) {
 	bt := bean.Type().Elem()
 	be := bean.Elem()
+	name := ""
+	fileName := bt.Name() + ".xml"
+	if it.pkg == "" || it.pkg == "./" {
+		name = "./" + fileName
+	}else {
+		name = it.pkg + "/" + fileName
+	}
 	outPut := it.makeReturnTypeMap(be.Type())
 	resultMaps := makeResultMaps(mapperTree)
 	it.decodeTree(mapperTree, bt,name)
@@ -178,61 +183,6 @@ func newNodeParser() express {
 		Proxy: &nodeExpress{},
 	}
 }
-// ======================================= 将 []byte 类型的XML数据解析成结构体 ================================================
-func expressSymbol(bytes *[]byte) {
-	byteStr := string(*bytes)
-	testRegex, _ := regexp.Compile(`test=".*"`)
-	findList := testRegex.FindAllString(byteStr, -1)
-	for _, findStr := range findList {
-		newStr := findStr
-		newStr = strings.Replace(newStr, "<", "&lt;", -1)
-		newStr = strings.Replace(newStr, ">", "&gt;", -1)
-		byteStr = strings.Replace(byteStr, findStr, newStr, -1)
-	}
-	*bytes = []byte(byteStr)
-}
-func (it *Engine)parseXml(xmlName string) (items map[string]*element) {
-	bytes, _ := ioutil.ReadFile(xmlName)
-	expressSymbol(&bytes)
-	doc := newDocument()
-	if err := doc.ReadFromBytes(bytes); err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("解析 "+xmlName+" 文件错误,err=",err)
-	}
-	items = make(map[string]*element)
-	root := doc.SelectElement(elementMapper)
-	for _, s := range root.ChildElements() {
-		if s.Tag == elementInsert ||
-			s.Tag == elementDelete ||
-			s.Tag == elementUpdate ||
-			s.Tag == elementSelect ||
-			s.Tag == elementResultMap ||
-			s.Tag == elementSql ||
-			s.Tag == elementInsertTemplate ||
-			s.Tag == elementDeleteTemplate ||
-			s.Tag == elementUpdateTemplate ||
-			s.Tag == elementSelectTemplate {
-			idValue := s.SelectAttrValue("id", "")
-			if idValue == "" {
-				idValue = s.Tag
-			}
-			if idValue != "" {
-				oldItem := items[idValue]
-				if oldItem != nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(xmlName+` 文件内的同一类 <` + s.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
-				}
-			}
-			items[idValue] = s
-		}
-	}
-	for _, mapperXml := range items {
-		for _, v := range mapperXml.ChildElements() {
-			it.includeElementReplace(v, &items,xmlName)
-		}
-	}
-	return items
-}
 func (it *Engine)includeElementReplace(xml *element, xmlMap *map[string]*element,xmlName string) {
 	if xml.Tag == elementInclude {
 		ref := xml.SelectAttr("refid").Value
@@ -328,23 +278,22 @@ func printElement(ele *element, v *string) {
 }
 func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[string]*element,xmlName string){
 	switch mapper.Tag {
-	case elementSelectTemplate:
-		mapper.Tag = elementSelect
+	case elementSelect:
 		id := mapper.SelectAttrValue("id", "")
 		if id == "" {
-			mapper.CreateAttr("id", elementSelectTemplate)
+			mapper.CreateAttr("id", elementSelect)
+		}
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			break
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		columns := mapper.SelectAttrValue("column", "")
 		wheres := mapper.SelectAttrValue("where", "")
-		resultMap := mapper.SelectAttrValue("resultMap", "")
-		if resultMap == "" {
-			resultMap = "BaseResultMap"
-		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
@@ -363,25 +312,24 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 			decodeWheres(wheres, mapper, logic, nil)
 		}
 		break
-	case elementInsertTemplate:
-		mapper.Tag = elementInsert
+	case elementInsert:
 		id := mapper.SelectAttrValue("id", "")
 		if id == "" {
-			mapper.CreateAttr("id", elementInsertTemplate)
+			mapper.CreateAttr("id", elementInsert)
+		}
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			break
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		inserts := mapper.SelectAttrValue("insert", "")
-		resultMap := mapper.SelectAttrValue("resultMap", "")
-		if resultMap == "" {
-			resultMap = "BaseResultMap"
-		}
 		if inserts == "" {
 			inserts = "*?*"
 		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
@@ -512,23 +460,22 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		}
 		mapper.Child = append(mapper.Child, &tempElement)
 		break
-	case elementUpdateTemplate:
-		mapper.Tag = elementUpdate
+	case elementUpdate:
 		id := mapper.SelectAttrValue("id", "")
 		if id == "" {
-			mapper.CreateAttr("id", elementUpdateTemplate)
+			mapper.CreateAttr("id", elementUpdate)
+		}
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			break
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		columns := mapper.SelectAttrValue("set", "")
 		wheres := mapper.SelectAttrValue("where", "")
-		resultMap := mapper.SelectAttrValue("resultMap", "")
-		if resultMap == "" {
-			resultMap = "BaseResultMap"
-		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
@@ -568,22 +515,21 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 			decodeWheres(wheres, mapper, logic, version)
 		}
 		break
-	case elementDeleteTemplate:
-		mapper.Tag = elementDelete
+	case elementDelete:
 		id := mapper.SelectAttrValue("id", "")
 		if id == "" {
-			mapper.CreateAttr("id", elementDeleteTemplate)
+			mapper.CreateAttr("id", elementDelete)
+		}
+		resultMap := mapper.SelectAttrValue("resultMap", "")
+		if resultMap == "" {
+			break
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		wheres := mapper.SelectAttrValue("where", "")
-		resultMap := mapper.SelectAttrValue("resultMap", "")
-		if resultMap == "" {
-			resultMap = "BaseResultMap"
-		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
@@ -1259,27 +1205,27 @@ func isBasicType(tItemTypeFieldType reflect.Type) bool {
 var (
 	xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+       "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper namespace="#{namespace}">
     <!--logic_enable 逻辑删除字段-->
     <!--logic_deleted 逻辑删除已删除字段-->
     <!--logic_undelete 逻辑删除 未删除字段-->
     <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
-    <resultMap id="BaseResultMap" table="#{table}">
+	<resultMap id="#{resultMap}" table="#{table}">
     #{resultMapBody}
     </resultMap>
-	<insertTemplate/>
-	<updateTemplate/>
-	<deleteTemplate/>
-	<selectTemplate/>
+	<insert id=""/>
+	<update id=""/>
+	<delete id=""/>
+	<select id=""/>
 </mapper>
 `
-
 	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" langType="#{langType}" #{version} #{logic}/>`
 )
-func (it *Engine)createXml(obj reflect.Value,tv reflect.Type) ([]byte,string) {
+
+func (it *Engine)createXml(name string,tv reflect.Type)[]byte{
 	content := ""
 	for i := 0; i < tv.NumField(); i++ {
 		item := tv.Field(i)
@@ -1304,12 +1250,11 @@ func (it *Engine)createXml(obj reflect.Value,tv reflect.Type) ([]byte,string) {
 			content += "\n"
 		}
 	}
-	dao := obj.Type().Elem().Name()
-	fileName := dao+".xml"
-	res := strings.Replace(xmlData, "#{resultMapBody}", content, -1)
+	res := strings.Replace(xmlData, "#{namespace}", it.namespace+"."+name, -1)
+	res = strings.Replace(res, "#{resultMap}", tv.String(), -1)
 	res = strings.Replace(res, "#{table}", snake(tv.Name()), -1)
-	res = strings.Replace(res, "#{namespace}", it.namespace+"."+dao, -1)
-	return []byte(res),fileName
+	res = strings.Replace(res, "#{resultMapBody}", content, -1)
+	return []byte(res)
 }
 func (it *Engine)xmlPath(t reflect.Type,obj reflect.Value){
 	var (
@@ -1319,7 +1264,8 @@ func (it *Engine)xmlPath(t reflect.Type,obj reflect.Value){
 		s string
 		flag bool
 	)
-	body,fileName:= it.createXml(obj,t)
+	name := obj.Type().Elem().Name()
+	fileName := name+".xml"
 	if it.pkg == "" || it.pkg == "./" {
 		w.WriteString("./")
 		w.WriteString(fileName)
@@ -1347,7 +1293,7 @@ func (it *Engine)xmlPath(t reflect.Type,obj reflect.Value){
 				it.log.Fatalln("create file"+s+" error:"+ err.Error())
 			}
 			defer f.Close()
-			_, err = f.Write(body)
+			_, err = f.Write(it.createXml(name,t))
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
@@ -1356,8 +1302,59 @@ func (it *Engine)xmlPath(t reflect.Type,obj reflect.Value){
 			}
 		}
 	}
-	it.data = make(map[reflect.Value]string,0)
-	it.data[obj]=s
+	it.data = make(map[reflect.Value]map[string]*element,0)
+	it.data[obj]=it.parseXml(s)
+}
+// ======================================= 将 []byte 类型的XML数据解析成结构体 ================================================
+func expressSymbol(bytes *[]byte) {
+	byteStr := string(*bytes)
+	testRegex, _ := regexp.Compile(`test=".*"`)
+	findList := testRegex.FindAllString(byteStr, -1)
+	for _, findStr := range findList {
+		newStr := findStr
+		newStr = strings.Replace(newStr, "<", "&lt;", -1)
+		newStr = strings.Replace(newStr, ">", "&gt;", -1)
+		byteStr = strings.Replace(byteStr, findStr, newStr, -1)
+	}
+	*bytes = []byte(byteStr)
+}
+func (it *Engine)parseXml(xmlName string) (items map[string]*element) {
+	bytes, _ := ioutil.ReadFile(xmlName)
+	expressSymbol(&bytes)
+	doc := newDocument()
+	if err := doc.ReadFromBytes(bytes); err != nil {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("解析 "+xmlName+" 文件错误,err=",err)
+	}
+	items = make(map[string]*element)
+	root := doc.SelectElement(elementMapper)
+	for _, s := range root.ChildElements() {
+		if s.Tag == elementInsert ||
+			s.Tag == elementDelete ||
+			s.Tag == elementUpdate ||
+			s.Tag == elementSelect ||
+			s.Tag == elementResultMap ||
+			s.Tag == elementSql{
+			idValue := s.SelectAttrValue("id", "")
+			if idValue == "" {
+				idValue = s.Tag
+			}
+			if idValue != "" {
+				oldItem := items[idValue]
+				if oldItem != nil {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln(xmlName+` 文件内的同一类 <` + s.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
+				}
+			}
+			items[idValue] = s
+		}
+	}
+	for _, mapperXml := range items {
+		for _, v := range mapperXml.ChildElements() {
+			it.includeElementReplace(v, &items,xmlName)
+		}
+	}
+	return items
 }
 func snake(s string) string {
 	data := make([]byte, 0, len(s)*2)
