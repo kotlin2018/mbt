@@ -167,11 +167,6 @@ type (
 		LastInsertId int64
 		RowsAffected int64
 	}
-	resultProperty struct {
-		XMLName   string
-		Column    string
-		LangType  string
-	}
 	proxyArg struct {
 		TagArgs    []tagArg
 		TagArgsLen int
@@ -191,7 +186,6 @@ type (
 	mapper struct {
 		xml   *element
 		nodes []iiNode
-		Namespace string
 	}
 )
 func newArg(tagArgs []tagArg,args []reflect.Value)proxyArg{

@@ -144,7 +144,6 @@ func(it *Engine) makeMethodXmlMap(beanType reflect.Type, mapperTree map[string]*
 			methodXmlMap[fieldItem.Name] = &mapper{
 				xml:   mapperXml,
 				nodes: newNodeParser().Parser(mapperXml.Child),
-				Namespace: "",
 			}
 		}
 	}
