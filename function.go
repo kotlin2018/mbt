@@ -16,15 +16,11 @@ func (it *Engine)Run(){
 		it.start(k,v)
 	}
 }
-func (it *Engine)start(bean reflect.Value,methodXmlMap map[string]*mapper) {
-	bt := bean.Type().Elem()
-	be := bean.Elem()
-	outPut := it.makeReturnTypeMap(be.Type())
+func (it *Engine)start(be reflect.Value,outPut map[string]*returnValue) {
 	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		funcName := funcField.Name
 		ret := outPut[funcName]
-		m := methodXmlMap[funcName]
-		if funcName == "Tx" {
+		if funcField.Type.String() == "mbt.Tx" {
 			proxyFunc := func(arg proxyArg) []reflect.Value {
 				var res *reflect.Value = nil
 				returnV := reflect.New(*ret.Value)
@@ -50,24 +46,25 @@ func (it *Engine)start(bean reflect.Value,methodXmlMap map[string]*mapper) {
 					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
 				}
 				res = &returnV
-				it.exeMethodByXml(m.xml.Tag, arg, m.nodes,res,bt.String()+"."+funcName+"() ")
+				it.exeMethodByXml(ret.xml.Tag, arg, ret.nodes,res,ret.name)
 				return buildReturnValue(ret, res)
 			}
 			return proxyFunc
 		}
 	})
 }
-func (it *Engine)makeReturnTypeMap(bean reflect.Type) map[string]*returnValue {
+func (it *Engine)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*element,xmlName string) map[string]*returnValue {
 	returnMap := make(map[string]*returnValue)
 	name := bean.String()
 	for i := 0; i < bean.NumField(); i++ {
 		fieldItem := bean.Field(i)
 		funcType := fieldItem.Type
+		funcTypes := funcType.String()
 		funcName := fieldItem.Name
 		funcKind := funcType.Kind()
 		if funcKind != reflect.Func {
 			if funcKind == reflect.Struct {
-				childMap := it.makeReturnTypeMap(funcType)
+				childMap := it.makeReturnTypeMap(funcType,mapperTree,xmlName)
 				for k, v := range childMap {
 					returnMap[k] = v
 				}
@@ -99,11 +96,9 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type) map[string]*returnValue {
 			outType := funcType.Out(k)
 			outTypeK := outType.Kind()
 			outTypeS := outType.String()
-			if funcName != "Tx" {
-				if outTypeK == reflect.Ptr || (outTypeK == reflect.Interface && outTypeS != "error") {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(name + "." + funcName + "()' return '" + outTypeS + "' can not be a 'ptr' or 'interface'!")
-				}
+			if outTypeK == reflect.Ptr || (outTypeK == reflect.Interface && outTypeS != "error") && funcTypes != "mbt.Tx"{
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(name + "." + funcName + "()' return '" + outTypeS + "' can not be a 'ptr' or 'interface'!")
 			}
 			ret := returnMap[funcName]
 			if ret == nil {
@@ -119,9 +114,15 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type) map[string]*returnValue {
 				returnMap[funcName].Error = &outType
 			}
 		}
-		if returnMap[funcName].Error == nil && funcName != "Tx"{
+		if returnMap[funcName].Error == nil && funcTypes != "mbt.Tx"{
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name + "." + funcName + "()' must return an 'error'!")
+		}
+		if funcTypes != "mbt.Tx" {
+			mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
+			returnMap[funcName].xml = mapperXml
+			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
+			returnMap[funcName].name = name+"."+funcName+"() "
 		}
 	}
 	return returnMap
@@ -134,21 +135,6 @@ func isCustomStruct(value reflect.Type) bool {
 	}
 }
 // ==============================================================================================================
-func(it *Engine) makeMethodXmlMap(beanType reflect.Type, mapperTree map[string]*element,xmlName string) map[string]*mapper {
-	methodXmlMap := make(map[string]*mapper)
-	totalField := beanType.NumField()
-	for i := 0; i < totalField; i++ {
-		fieldItem := beanType.Field(i)
-		if fieldItem.Type.Kind() == reflect.Func && fieldItem.Name != "Tx"{
-			mapperXml := it.findMapperXml(mapperTree, beanType.String(),fieldItem.Name,xmlName)
-			methodXmlMap[fieldItem.Name] = &mapper{
-				xml:   mapperXml,
-				nodes: newNodeParser().Parser(mapperXml.Child),
-			}
-		}
-	}
-	return methodXmlMap
-}
 func (it *Engine)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
 	for _, mapperXml := range mapperTree {
 		key := mapperXml.SelectAttrValue("id", "")
@@ -159,11 +145,6 @@ func (it *Engine)findMapperXml(mapperTree map[string]*element, beanName,methodNa
 	it.log.SetPrefix("[Fatal] ")
 	it.log.Fatalln("在 "+ xmlName +" 文件中没有找到 "+ beanName + "." + methodName +"() 对应的 id 值 "+ methodName)
 	return nil
-}
-func newNodeParser() express {
-	return express{
-		Proxy: &nodeExpress{},
-	}
 }
 func (it *Engine)includeElementReplace(xml *element, xmlMap *map[string]*element,xmlName string) {
 	if xml.Tag == "include" {
@@ -265,25 +246,22 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		if id == "" {
 			mapper.CreateAttr("id", "select")
 		}
-		resultMap := mapper.SelectAttrValue("resultMap", "")
-		if resultMap == "" {
+		columns := mapper.SelectAttrValue("column", "")
+		if columns == ""{
 			break
 		}
+		resultMap := mapper.SelectAttrValue("resultMap", "")
 		resultMapData := tree[resultMap]
-		if resultMapData == nil{
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+" 文件中 <select id = "+id+" />"+" resultMap id's value == nil ")
-		}
 		tables := mapper.SelectAttrValue("table", "")
+		if resultMapData == nil && tables == ""{
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
+		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
-		columns := mapper.SelectAttrValue("column", "")
 		wheres := mapper.SelectAttrValue("where", "")
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
 		var sql bytes.Buffer
 		sql.WriteString("select ")
-		if columns == "" {
-			columns = "*"
-		}
 		sql.WriteString(columns)
 		sql.WriteString(" from ")
 		sql.WriteString(tables)
@@ -774,7 +752,7 @@ func (it *Engine)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []i
 	convert := s.stmtConvert()
 	array := make([]interface{},0)
 	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
-	if elementType == "select" {
+	if elementType == "select"{
 		res, err := s.queryPrepare(sql, array...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
@@ -1205,57 +1183,71 @@ func (it *Engine)createXml(name string,tv reflect.Type)[]byte{
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
 }
-func (it *Engine)xmlPath(t reflect.Type,obj reflect.Value){
+func (it *Engine)register(mapperPtr,modelPtr interface{}){
 	var (
+		obj = reflect.ValueOf(mapperPtr)
+		bt = obj.Type().Elem()
+		t reflect.Type
 		w strings.Builder
 		f *os.File
 		err error
 		s string
+		fileName string
 		flag bool
 	)
-	bt := obj.Type().Elem()
-	name := bt.Name()
-	fileName := name+".xml"
-	if it.pkg == "" || it.pkg == "./" {
-		w.WriteString("./")
-		w.WriteString(fileName)
-		s = w.String()
-		flag = true
-	}else {
-		w.WriteString(it.pkg)
-		w.WriteString("/")
-		w.WriteString(fileName)
-		s = w.String()
-	}
-	_,err = os.Stat(s)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if !flag {
-				err = os.MkdirAll(it.pkg, os.ModePerm)
+	if bt.NumField() != 0 {
+		if xml,ok := modelPtr.(string);ok {
+			fileName = xml
+		}else {
+			t = reflect.TypeOf(modelPtr)
+			if t.Kind() != reflect.Ptr {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
+			}
+			t = t.Elem()
+			fileName = bt.Name()+".xml"
+		}
+		if it.pkg == "" || it.pkg == "./" {
+			w.WriteString("./")
+			w.WriteString(fileName)
+			s = w.String()
+			flag = true
+		}else {
+			w.WriteString(it.pkg)
+			w.WriteString("/")
+			w.WriteString(fileName)
+			s = w.String()
+		}
+		_,err = os.Stat(s)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if !flag {
+					err = os.MkdirAll(it.pkg, os.ModePerm)
+					if err != nil {
+						it.log.SetPrefix("[Fatal] ")
+						it.log.Fatalln("create package "+it.pkg+" error:"+ err.Error())
+					}
+				}
+				f, err = os.Create(s)
 				if err != nil {
 					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln("create package "+it.pkg+" error:"+ err.Error())
+					it.log.Fatalln("create file"+s+" error:"+ err.Error())
+				}
+				defer f.Close()
+				_, err = f.Write(it.createXml(bt.Name(),t))
+				if err != nil {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
+				} else {
+					it.log.Println("写入文件成功："+s)
 				}
 			}
-			f, err = os.Create(s)
-			if err != nil {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln("create file"+s+" error:"+ err.Error())
-			}
-			defer f.Close()
-			_, err = f.Write(it.createXml(name,t))
-			if err != nil {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
-			} else {
-				it.log.Println("写入文件成功："+s)
-			}
 		}
+		it.data = make(map[reflect.Value]map[string]*returnValue,0)
+		tree := it.parseXml(s)
+		it.decodeTree(tree,bt,s)
+		it.data[obj.Elem()] = it.makeReturnTypeMap(bt, tree,s)
 	}
-	it.data = make(map[reflect.Value]map[string]*mapper,0)
-	tree := it.parseXml(s)
-	it.decodeTree(tree,bt,s)
-	it.data[obj] = it.makeMethodXmlMap(bt, tree,s)
 }
 // ======================================= 将 []byte 类型的XML数据解析成结构体 ================================================
 func expressSymbol(bytes *[]byte) {
@@ -1269,7 +1261,7 @@ func expressSymbol(bytes *[]byte) {
 		byteStr = strings.Replace(byteStr, findStr, newStr, -1)
 	}
 	*bytes = []byte(byteStr)
-}// "insert", "delete", "update", "select":
+}
 func (it *Engine)parseXml(xmlName string) (items map[string]*element) {
 	bytes, _ := ioutil.ReadFile(xmlName)
 	expressSymbol(&bytes)

@@ -49,7 +49,7 @@ type Engine struct {
 	printXml  bool
 	printSql  bool
 	namespace string
-	data      map[reflect.Value]map[string]*mapper
+	data      map[reflect.Value]map[string]*returnValue
 }
 func New(cfg *Database)(*Engine,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
@@ -81,17 +81,6 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 func (it *Engine)SetOutPut(w io.Writer)*Engine{
 	it.log.SetOutput(w)
 	return it
-}
-func (it *Engine)register(mapperPtr,modelPtr interface{}){
-	obj := reflect.ValueOf(mapperPtr)
-	if obj.Type().Elem().NumField() != 0 {
-		t := reflect.TypeOf(modelPtr)
-		if t.Kind() != reflect.Ptr {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
-		}
-		it.xmlPath(t.Elem(),obj)
-	}
 }
 func (it *Engine) Register(h H)*Engine{
 	for i, v:= range h {
@@ -182,10 +171,9 @@ type (
 		Value *reflect.Type
 		Num   int
 		Index int
-	}
-	mapper struct {
 		xml   *element
 		nodes []iiNode
+		name  string
 	}
 )
 func newArg(tagArgs []tagArg,args []reflect.Value)proxyArg{
