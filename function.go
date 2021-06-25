@@ -281,15 +281,15 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		if resultMap == "" {
 			break
 		}
-		tables := mapper.SelectAttrValue("table", "")
-		inserts := mapper.SelectAttrValue("insert", "")
-		if inserts == "" {
-			inserts = "*?*"
-		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
+		}
+		tables := mapper.SelectAttrValue("table", "")
+		inserts := mapper.SelectAttrValue("insert", "")
+		if inserts == "" {
+			inserts = "*?*"
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
@@ -300,7 +300,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		mapper.Child = append(mapper.Child, &charData{
 			Data: sql.String(),
 		})
-		var trimColumn = element{
+		trimColumn := element{
 			Tag: "trim",
 			Attr: []attr{
 				{Key: "prefix", Value: "("},
@@ -429,14 +429,14 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		if resultMap == "" {
 			break
 		}
-		tables := mapper.SelectAttrValue("table", "")
-		columns := mapper.SelectAttrValue("set", "")
-		wheres := mapper.SelectAttrValue("where", "")
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
+		tables := mapper.SelectAttrValue("table", "")
+		columns := mapper.SelectAttrValue("set", "")
+		wheres := mapper.SelectAttrValue("where", "")
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
 		version := it.decodeVersionData(resultMapData,xmlName)
@@ -484,13 +484,13 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		if resultMap == "" {
 			break
 		}
-		tables := mapper.SelectAttrValue("table", "")
-		wheres := mapper.SelectAttrValue("where", "")
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
+		tables := mapper.SelectAttrValue("table", "")
+		wheres := mapper.SelectAttrValue("where", "")
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
 		if logic.Enable {
