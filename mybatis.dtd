@@ -25,18 +25,21 @@
         <!ATTLIST resultMap
                 id CDATA #REQUIRED
                 table  #REQUIRED
+                type CDATA #REQUIRED
                 >
 
         <!ELEMENT id EMPTY>
         <!ATTLIST id
                 langType CDATA #IMPLIED
                 column CDATA #IMPLIED
+                property CDATA #IMPLIED
                 >
 
         <!ELEMENT result EMPTY>
         <!ATTLIST result
                 langType CDATA #IMPLIED
                 column CDATA #IMPLIED
+                property CDATA #IMPLIED
                 version_enable CDATA #IMPLIED
                 logic_enable CDATA #IMPLIED
                 logic_deleted CDATA #IMPLIED

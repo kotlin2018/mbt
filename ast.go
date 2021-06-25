@@ -566,7 +566,7 @@ func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
 	case time.Time:
 		var argStr bytes.Buffer
 		argStr.WriteString(`'`)
-		argStr.WriteString(argValue.(time.Time).Format(adapterFormatDate))
+		argStr.WriteString(argValue.(time.Time).Format(`2006-01-02 15:04:05`))
 		argStr.WriteString(`'`)
 		return argStr.String()
 	case *time.Time:
@@ -576,7 +576,7 @@ func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
 		}
 		var argStr bytes.Buffer
 		argStr.WriteString(`'`)
-		argStr.WriteString(timePtr.Format(adapterFormatDate))
+		argStr.WriteString(timePtr.Format(`2006-01-02 15:04:05`))
 		argStr.WriteString(`'`)
 		return argStr.String()
 	case int, int16, int32, int64, float32, float64:

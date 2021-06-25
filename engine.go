@@ -49,8 +49,7 @@ type Engine struct {
 	printXml  bool
 	printSql  bool
 	namespace string
-	//data      map[reflect.Value]string
-	data      map[reflect.Value]map[string]*element
+	data      map[reflect.Value]map[string]*mapper
 }
 func New(cfg *Database)(*Engine,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
@@ -152,37 +151,13 @@ func (it *Engine)Driver(driverType string)string{
 		return "github.com/go-sql-driver/mysql"
 	}
 }
-type elementType = string
-const (
-	elementResultMap elementType = "resultMap"
-	elementInsert    elementType = "insert"
-	elementDelete    elementType = "delete"
-	elementUpdate    elementType = `update`
-	elementSelect    elementType = "select"
-	elementSql       elementType = "sql"
-	elementIf        elementType = `if`
-	elementTrim      elementType = "trim"
-	elementForeach   elementType = "foreach"
-	elementWhere     elementType = "where"
-	elementInclude   elementType = "include"
-	elementMapper = "mapper"
-)
-func isMethodElement(tag elementType) bool {
+func isMethodElement(tag string) bool {
 	switch tag {
-	case elementInsert, elementDelete, elementUpdate, elementSelect:
+	case "insert", "delete", "update", "select":
 		return true
 	}
 	return false
 }
-const (
-	sessionFunc = "Tx"
-	mSessionPtr = `*mbt.Session`
-	mSession = `mbt.Session`
-	mTime = `time.Time`
-	mTimePtr = `*time.Time`
-	defaultOneArg = `arg`
-	adapterFormatDate = `2006-01-02 15:04:05`
-)
 var (
 	timeDefault       time.Time
 	timeType = reflect.TypeOf(timeDefault)
@@ -196,7 +171,6 @@ type (
 		XMLName   string
 		Column    string
 		LangType  string
-		Property  string
 	}
 	proxyArg struct {
 		TagArgs    []tagArg
