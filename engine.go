@@ -1,7 +1,6 @@
 package mbt
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,10 +10,8 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 type (
@@ -41,9 +38,14 @@ type (
 	}
 	H map[interface{}]interface{}
 )
-type Engine struct {
-	s         *Session
-	m         sync.Map //用来缓存*Session
+type Session struct {
+	db         *sql.DB
+	tx         []*sql.Tx
+	stmt       *sql.Stmt
+	i          int
+	sessionId  string
+	driverName string
+	dsn        string
 	log       *log.Logger
 	pkg       string
 	printXml  bool
@@ -51,74 +53,47 @@ type Engine struct {
 	namespace string
 	data      map[reflect.Value]map[string]*returnValue
 }
-func New(cfg *Database)(*Engine,*sql.DB,error){
+func New(cfg *Database)(*Session,*sql.DB,error){
 	db, err := sql.Open(cfg.DriverName, cfg.DSN)
 	if err != nil{
 		return nil,nil,err
 	}
-	it := new(Engine)
-	it.log = log.New(os.Stdout,"[INFO] ",log.LstdFlags)
-	it.printXml = cfg.Logger.PrintXml
-	it.printSql = cfg.Logger.PrintSql
-	it.pkg = cfg.Pkg
-	it.namespace = cfg.Namespace
 	db.SetConnMaxIdleTime(time.Duration(cfg.ConnMaxIdleTime) * time.Minute)
 	db.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Minute)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
-	it.s = &Session{
-		sessionId:  newUUID().String(),
-		db:         db,
-		tx:         make([]*sql.Tx, 0),
-		i:          0,
+	it := &Session{
+		db: db,
+		sessionId: newUUID().String(),
 		driverName: cfg.DriverName,
-		dsn:        cfg.DSN,
-		printLog:   it.printSql,
-		log:        it.log,
+		dsn: cfg.DSN,
+		printSql: cfg.Logger.PrintSql,
+		printXml: cfg.Logger.PrintXml,
+		namespace: cfg.Namespace,
+		pkg: cfg.Pkg,
+		log: log.New(os.Stdout,"[INFO] ",log.LstdFlags),
 	}
 	return it,db,nil
 }
-func (it *Engine)SetOutPut(w io.Writer)*Engine{
+func (it *Session)SetOutPut(w io.Writer)*Session{
 	it.log.SetOutput(w)
 	return it
 }
-func (it *Engine) Register(h H)*Engine{
+func (it *Session) Register(h H)*Session{
 	for i, v:= range h {
 		it.register(i,v)
 	}
 	return it
 }
 // 生成雪花算法的ID
-func (it *Engine) ID(node int64) Id {
+func (it *Session) ID(node int64) Id {
 	id, _ := newNode(node)
 	return id.Generate()
 }
-// 缓存*Session
-func (it *Engine)put(k int64,s *Session){
-	it.m.Store(k,s)
-}
-func (it *Engine)get(k int64)*Session{
-	if v,ok := it.m.Load(k);ok {
-		return v.(*Session)
-	}else {
-		return nil
-	}
-}
-func (it *Engine)delete(k int64){
-	it.m.Delete(k)
-}
-func goroutineID() int64{
-	b := make([]byte, 64)
-	b = b[:runtime.Stack(b, false)]
-	b = bytes.TrimPrefix(b, []byte("goroutine "))
-	b = b[:bytes.IndexByte(b, ' ')]
-	n, _ := strconv.ParseInt(string(b), 10, 64)
-	return n
-}
 // 输入参数为: mysql,mymysql,postgres,sqlite3或者sqlite,mssql,oci8,tidb,cockroachDB
 // 返回值为: 这些数据库的驱动地址!
-func (it *Engine)Driver()string{
-	switch it.s.driverName {
+func (it *Session)Driver()string{
+	switch it.driverName {
 	case "mysql","tidb":
 		return "github.com/go-sql-driver/mysql"
 	case "mymysql":

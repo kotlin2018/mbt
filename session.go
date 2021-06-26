@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"strconv"
 	"time"
@@ -55,17 +54,6 @@ func (it *Session) push(k *sql.Tx) {
 	it.tx = append(it.tx, k)
 	it.i++
 }
-type Session struct {
-	db         *sql.DB
-	tx         []*sql.Tx
-	stmt       *sql.Stmt
-	log        *log.Logger
-	i          int
-	sessionId  string
-	driverName string
-	dsn        string
-	printLog   bool
-}
 func (it *Session) id() string {
 	return it.sessionId
 }
@@ -76,7 +64,7 @@ func (it *Session) Rollback() error {
 		if err != nil {
 			return err
 		}
-		if it.printLog {
+		if it.printSql {
 			it.log.Println(" Rollback() tx SessionId == "+"[",it.id(),"]")
 		}
 	}
@@ -89,19 +77,21 @@ func (it *Session) Commit() error {
 		if err != nil {
 			return err
 		}
-		if it.printLog {
+		if it.printSql {
 			it.log.Println(" Commit() tx SessionId == "+"[",it.id(),"]")
 		}
 	}
 	return nil
 }
 func (it *Session) Begin() error {
+	it.tx = make([]*sql.Tx, 0)
+	it.i = 0
 	t, err := it.db.Begin()
 	if err != nil {
 		return err
 	}
 	it.push(t)
-	if it.printLog {
+	if it.printSql {
 		it.log.Println(" Begin() tx SessionId == "+"[",it.id(),"]")
 	}
 	return nil

@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 )
-func (it *Engine)Run(){
+func (it *Session)Run(){
 	for k,v := range it.data {
 		it.start(k,v)
 	}
 }
-func (it *Engine)start(be reflect.Value,outPut map[string]*returnValue) {
+func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		funcName := funcField.Name
 		ret := outPut[funcName]
@@ -31,7 +31,7 @@ func (it *Engine)start(be reflect.Value,outPut map[string]*returnValue) {
 					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
 				}
 				res = &returnV
-				res.Elem().Set(reflect.ValueOf(it.s).Elem().Addr().Convert(*ret.Value))
+				res.Elem().Set(reflect.ValueOf(it).Elem().Addr().Convert(*ret.Value))
 				return buildReturnValue(ret, res)
 			}
 			return proxyFunc
@@ -53,7 +53,7 @@ func (it *Engine)start(be reflect.Value,outPut map[string]*returnValue) {
 		}
 	})
 }
-func (it *Engine)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*element,xmlName string) map[string]*returnValue {
+func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*element,xmlName string) map[string]*returnValue {
 	returnMap := make(map[string]*returnValue)
 	name := bean.String()
 	for i := 0; i < bean.NumField(); i++ {
@@ -135,7 +135,7 @@ func isCustomStruct(value reflect.Type) bool {
 	}
 }
 // ==============================================================================================================
-func (it *Engine)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
+func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
 	for _, mapperXml := range mapperTree {
 		key := mapperXml.SelectAttrValue("id", "")
 		if strings.EqualFold(key, methodName) {
@@ -146,7 +146,7 @@ func (it *Engine)findMapperXml(mapperTree map[string]*element, beanName,methodNa
 	it.log.Fatalln("在 "+ xmlName +" 文件中没有找到 "+ beanName + "." + methodName +"() 对应的 id 值 "+ methodName)
 	return nil
 }
-func (it *Engine)includeElementReplace(xml *element, xmlMap *map[string]*element,xmlName string) {
+func (it *Session)includeElementReplace(xml *element, xmlMap *map[string]*element,xmlName string) {
 	if xml.Tag == "include" {
 		ref := xml.SelectAttr("refid").Value
 		if ref == "" {
@@ -196,7 +196,7 @@ func upperFirst(fieldStr string) string {
 	return fieldStr
 }
 // 参数 tree肯定不为空,所以该方法内部不用对 tree判空!!!
-func (it *Engine)decodeTree(tree map[string]*element, beanType reflect.Type,xmlName string){
+func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xmlName string){
 	for _, v := range tree {
 		var method *reflect.StructField
 		if isMethodElement(v.Tag) {
@@ -239,7 +239,7 @@ func printElement(ele *element, v *string) {
 	}
 	*v += "</" + ele.Tag + ">\n"
 }
-func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[string]*element,xmlName string){
+func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[string]*element,xmlName string){
 	switch mapper.Tag {
 	case "select":
 		id := mapper.SelectAttrValue("id", "")
@@ -523,7 +523,7 @@ func (it *Engine)decode(method *reflect.StructField, mapper *element, tree map[s
 		}
 	}
 }
-func (it *Engine)checkTablesValue(mapper *element, tables *string, resultMapData *element,xmlName string) {
+func (it *Session)checkTablesValue(mapper *element, tables *string, resultMapData *element,xmlName string) {
 	if *tables == "" {
 		*tables = resultMapData.SelectAttrValue("table", "")
 		if *tables == "" {
@@ -649,7 +649,7 @@ func makeIfNotNull(arg string) string {
 	}
 	return arg + ` != nil`
 }
-func (it *Engine)decodeLogicDelete(xml *element,xmlName string) logicDeleteData {
+func (it *Session)decodeLogicDelete(xml *element,xmlName string) logicDeleteData {
 	if xml == nil || len(xml.Child) == 0 {
 		return logicDeleteData{}
 	}
@@ -679,7 +679,7 @@ func (it *Engine)decodeLogicDelete(xml *element,xmlName string) logicDeleteData 
 	}
 	return logicData
 }
-func (it *Engine)decodeVersionData(xml *element,xmlName string) *versionData {
+func (it *Session)decodeVersionData(xml *element,xmlName string) *versionData {
 	if xml == nil || len(xml.Child) == 0 {
 		return nil
 	}
@@ -740,14 +740,11 @@ func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
 func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
-func (it *Engine)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
+func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
 	var s *Session
 	 s = findArgSession(proxyArg)
 	 if s == nil {
-		 s = it.get(goroutineID())
-		 if s == nil {
-			 s = it.s
-		 }
+		 s = it
 	 }
 	convert := s.stmtConvert()
 	array := make([]interface{},0)
@@ -814,7 +811,7 @@ func lowerFirst(fieldStr string) string {
 	}
 	return fieldStr
 }
-func (it *Engine)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert iConvert,name string) string{
+func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert iConvert,name string) string{
 	paramMap := make(map[string]interface{})
 	tagArgsLen := proxyArg.TagArgsLen
 	argsLen := proxyArg.ArgsLen
@@ -858,7 +855,7 @@ func (it *Engine)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{
 	}
 	return it.sqlBuild(paramMap, nodes, array, stmtConvert,name)
 }
-func (it *Engine)sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert iConvert,name string)string{
+func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert iConvert,name string)string{
 	sql, err := doChildNodes(node, args, array, stmtConvert)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
@@ -866,7 +863,7 @@ func (it *Engine)sqlBuild(args map[string]interface{}, node []iiNode, array *[]i
 	}
 	return string(sql)
 }
-func (it *Engine)scanStructArgFields(v reflect.Value, tag *tagArg,name string) map[string]interface{} {
+func (it *Session)scanStructArgFields(v reflect.Value, tag *tagArg,name string) map[string]interface{} {
 	t := v.Type()
 	parameters := make(map[string]interface{})
 	if v.Kind() == reflect.Ptr {
@@ -907,7 +904,7 @@ func (it *Engine)scanStructArgFields(v reflect.Value, tag *tagArg,name string) m
 	}
 	return parameters
 }
-func (it *Engine)proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
+func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		ft := f.Type()
@@ -927,7 +924,7 @@ func (it *Engine)proxyValue(v reflect.Value, buildFunc func(funcField reflect.St
 	}
 	v.Set(v)
 }
-func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
+func (it *Session)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
 	var (
 		tagParams []string
 		num = ft.NumIn()
@@ -973,7 +970,7 @@ func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type,
 	f.Set(reflect.MakeFunc(ft, fn))
 	tagParams = nil
 }
-func (it *Engine)decodeSqlResult(sqlResult []map[string][]byte, result interface{},name string){
+func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interface{},name string){
 	if sqlResult == nil || result == nil {
 		return
 	}
@@ -1161,7 +1158,7 @@ var (
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`
 )
-func (it *Engine)createXml(name string,tv reflect.Type)[]byte{
+func (it *Session)createXml(name string,tv reflect.Type)[]byte{
 	content := ""
 	for i := 0; i < tv.NumField(); i++ {
 		item := tv.Field(i)
@@ -1194,7 +1191,7 @@ func (it *Engine)createXml(name string,tv reflect.Type)[]byte{
 	return []byte(res)
 }
 // https://mp.weixin.qq.com/s/1nqpVzitGdVVvHIuk8iAeQ
-func (it *Engine)register(mapperPtr,modelPtr interface{}){
+func (it *Session)register(mapperPtr,modelPtr interface{}){
 	var (
 		obj = reflect.ValueOf(mapperPtr)
 		bt = obj.Type().Elem()
@@ -1277,7 +1274,7 @@ func expressSymbol(bytes *[]byte) {
 	}
 	*bytes = []byte(byteStr)
 }
-func (it *Engine)parseXml(xmlName string) (items map[string]*element) {
+func (it *Session)parseXml(xmlName string) (items map[string]*element) {
 	bytes, _ := ioutil.ReadFile(xmlName)
 	expressSymbol(&bytes)
 	doc := newDocument()
@@ -1332,7 +1329,7 @@ func snake(s string) string {
 	return strings.ToLower(string(data[:]))
 }
 // ===================== 以下几个函数只给嵌套事务使用 =================================
-func (it *Engine)Tx(mapperPtr interface{}) {
+func (it *Session)Tx(mapperPtr interface{}) {
 	service := reflect.ValueOf(mapperPtr)
 	if service.Kind() != reflect.Ptr {
 		it.log.SetPrefix("[Fatal] ")
@@ -1343,22 +1340,20 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 		name := service.Type().Elem().String()+"."
 		funcName := funcField.Name
 		fn := func(arg proxyArg) []reflect.Value {
-			s := it.s
-			it.put(goroutineID(),s)
-			err := s.Begin()
+			err := it.Begin()
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(name+funcName+"() "+"Begin() err = " +err.Error())
 			}
-			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, s)
+			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, it)
 			if !haveRollBackType(nativeImplResult) {
-				err = s.Commit()
+				err = it.Commit()
 				if err != nil {
 					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Commit() err = "+ err.Error())
 				}
 			} else {
-				err = s.Rollback()
+				err = it.Rollback()
 				if err != nil {
 					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name+funcName+"() "+"Rollback() err = "+ err.Error())
@@ -1369,7 +1364,7 @@ func (it *Engine)Tx(mapperPtr interface{}) {
 		return fn
 	})
 }
-func (it *Engine)txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
+func (it *Session)txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
 	v = v.Elem()
 	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
@@ -1391,7 +1386,7 @@ func (it *Engine)txStruct(v reflect.Value, buildFunc func(funcField reflect.Stru
 	}
 	v.Set(v)
 }
-func (it *Engine)txMethod(f reflect.Value, ft reflect.Type, proxyFunc func(arg proxyArg) []reflect.Value) {
+func (it *Session)txMethod(f reflect.Value, ft reflect.Type, proxyFunc func(arg proxyArg) []reflect.Value) {
 	tagArgs := make([]tagArg, 0)
 	fn := func(args []reflect.Value) (results []reflect.Value) {
 		proxyResults := proxyFunc(newArg(tagArgs, args))
@@ -1402,7 +1397,7 @@ func (it *Engine)txMethod(f reflect.Value, ft reflect.Type, proxyFunc func(arg p
 	}
 	f.Set(reflect.MakeFunc(ft, fn))
 }
-func (it *Engine)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplFunc reflect.Value, s *Session) []reflect.Value {
+func (it *Session)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplFunc reflect.Value, s *Session) []reflect.Value {
 	defer func() {
 		err := recover()
 		if err != nil {
