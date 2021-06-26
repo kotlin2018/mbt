@@ -748,8 +748,7 @@ func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
 func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
-	var s *Session
-	 s = findArgSession(proxyArg)
+	 s := findArgSession(proxyArg)
 	 if s == nil {
 		 s = it
 	 }
@@ -760,11 +759,11 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 		res, err := s.queryPrepare(sql, array...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(fmt.Sprintf(name+" [%s] error == %s",s.id(),err.Error()))
+			it.log.Fatalln(name+" error == ",err.Error())
 		}
 		if it.printSql {
-			it.log.Println(name+"[",s.id(),"] Query ==> "+sql)
-			it.log.Println(name+"[",s.id(),"] Args  ==> "+printArray(array))
+			it.log.Println(name+" Query ==> "+sql)
+			it.log.Println(name+" Args  ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -772,7 +771,7 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 				if res != nil {
 					RowsAffected = strconv.Itoa(len(res))
 				}
-				it.log.Println(name+"[", s.id(), "] ReturnRows <== "+RowsAffected)
+				it.log.Println(name+" ReturnRows <== "+RowsAffected)
 			}
 		}()
 		it.decodeSqlResult(res, returnValue.Interface(),name)
@@ -780,11 +779,11 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 		res, err := s.execPrepare(sql, array...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(fmt.Sprintf(name+" [%s] error == %s",s.id(),err.Error()))
+			it.log.Fatalln(name+" error == ",err.Error())
 		}
 		if it.printSql {
-			it.log.Println(name+"[", s.id(), "] Exec ==> "+sql)
-			it.log.Println(name+"[", s.id(), "] Args ==> "+printArray(array))
+			it.log.Println(name+" Exec ==> "+sql)
+			it.log.Println(name+" Args ==> "+printArray(array))
 		}
 		defer func() {
 			if it.printSql {
@@ -792,7 +791,7 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 				if res != nil {
 					RowsAffected = strconv.FormatInt(res.RowsAffected, 10)
 				}
-				it.log.Println(name+"[", s.id(), "] RowsAffected <== "+RowsAffected)
+				it.log.Println(name+" RowsAffected <== "+RowsAffected)
 			}
 		}()
 		returnValue.Elem().SetInt(res.RowsAffected)

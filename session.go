@@ -1,9 +1,7 @@
 package mbt
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -13,14 +11,12 @@ import (
 	"time"
 )
 var (
-	ra = rand.Reader
 	timeDefault       time.Time
 	timeType = reflect.TypeOf(timeDefault)
 )
 type (
 	Tx func()*Session
 	H map[interface{}]interface{}
-	uuid [16]byte
 	Database struct {
 		Pkg             string  `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
 		DriverName      string  `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
@@ -66,10 +62,7 @@ type (
 	}
 	Session struct {
 		db         *sql.DB
-		tx         []*sql.Tx
-		stmt       *sql.Stmt
-		i          int
-		sessionId  string
+		tx         *sql.Tx
 		driverName string
 		dsn        string
 		log        *log.Logger
@@ -91,7 +84,6 @@ func New(cfg *Database)(*Session,*sql.DB,error){
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
 	it := &Session{
 		db: db,
-		sessionId: newUUID().String(),
 		driverName: cfg.DriverName,
 		dsn: cfg.DSN,
 		printSql: cfg.Logger.PrintSql,
@@ -137,87 +129,34 @@ func (it *Session)Driver()string{
 		return ""
 	}
 }
-func (u uuid) String() string {
-	var buf [36]byte
-	encodeHex(buf[:], u)
-	return string(buf[:])
-}
-func newUUID()uuid{
-	var u uuid
-	io.ReadFull(ra, u[:])
-	u[6] = (u[6] & 0x0f) | 0x40
-	u[8] = (u[8] & 0x3f) | 0x80
-	return u
-}
-func encodeHex(dst []byte, u uuid) {
-	hex.Encode(dst, u[:4])
-	dst[8] = '-'
-	hex.Encode(dst[9:13], u[4:6])
-	dst[13] = '-'
-	hex.Encode(dst[14:18], u[6:8])
-	dst[18] = '-'
-	hex.Encode(dst[19:23], u[8:10])
-	dst[23] = '-'
-	hex.Encode(dst[24:], u[10:])
-}
-func (it *Session) last() *sql.Tx {
-	if it.i == 0 {
-		return nil
-	}
-	return it.tx[it.i-1]
-}
-func (it *Session) pop() *sql.Tx {
-	if it.i == 0 {
-		return nil
-	}
-	it.i--
-	ret := it.tx[it.i]
-	it.tx = it.tx[0:it.i]
-	return ret
-}
-func (it *Session) push(k *sql.Tx) {
-	it.tx = append(it.tx, k)
-	it.i++
-}
-func (it *Session) id() string {
-	return it.sessionId
-}
 func (it *Session) Rollback() error {
-	t := it.pop()
-	if t != nil{
-		err := t.Rollback()
-		if err != nil {
-			return err
-		}
-		if it.printSql {
-			it.log.Println(" Rollback() tx SessionId == "+"[",it.id(),"]")
-		}
+	err := it.tx.Rollback()
+	if err != nil {
+		return err
+	}
+	if it.printSql {
+		it.log.Println(" Rollback() One Transaction")
 	}
 	return nil
 }
 func (it *Session) Commit() error {
-	t := it.pop()
-	if t != nil {
-		err := t.Commit()
-		if err != nil {
-			return err
-		}
-		if it.printSql {
-			it.log.Println(" Commit() tx SessionId == "+"[",it.id(),"]")
-		}
+	err := it.tx.Commit()
+	if err != nil {
+		return err
+	}
+	if it.printSql {
+		it.log.Println(" Commit() One Transaction")
 	}
 	return nil
 }
 func (it *Session) Begin() error {
-	it.tx = make([]*sql.Tx, 0)
-	it.i = 0
 	t, err := it.db.Begin()
 	if err != nil {
 		return err
 	}
-	it.push(t)
+	it.tx = t
 	if it.printSql {
-		it.log.Println(" Begin() tx SessionId == "+"[",it.id(),"]")
+		it.log.Println(" Begin() One Transaction")
 	}
 	return nil
 }
@@ -226,10 +165,9 @@ func (it *Session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[s
 		rows *sql.Rows
 		stmt *sql.Stmt
 		err error
-		t = it.last()
 	)
-	if t != nil {
-		stmt, err = t.Prepare(sqlPrepare)
+	if it.tx != nil {
+		stmt, err = it.tx.Prepare(sqlPrepare)
 		if err != nil {
 			return nil, err
 		}
@@ -264,10 +202,9 @@ func (it *Session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 		res sql.Result
 		stmt *sql.Stmt
 		err error
-		t = it.last()
 	)
-	if t != nil {
-		stmt, err = t.Prepare(sqlPrepare)
+	if it.tx != nil {
+		stmt, err = it.tx.Prepare(sqlPrepare)
 		if err != nil {
 			return nil, err
 		}
