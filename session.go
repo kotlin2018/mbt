@@ -6,12 +6,137 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"reflect"
 	"strconv"
 	"time"
 )
-type uuid [16]byte
-var ra = rand.Reader
+var (
+	ra = rand.Reader
+	timeDefault       time.Time
+	timeType = reflect.TypeOf(timeDefault)
+)
+type (
+	Tx func()*Session
+	H map[interface{}]interface{}
+	uuid [16]byte
+	Database struct {
+		Pkg             string  `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
+		DriverName      string  `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
+		DSN             string  `yaml:"dsn" toml:"dsn"`                               // 数据库连接信息。例如: "root:root@(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local"
+		MaxOpenConn     int     `yaml:"max_open_conn" toml:"max_open_conn"`           // 最大的并发打开连接数。例如: 这个值是5则表示==>连接池中最多有5个并发打开的连接，如果5个连接都已经打开被使用，并且应用程序需要另一个连接的话，那么应用程序将被迫等待，直到5个打开的连接其中的一个被释放并变为空闲。
+		MaxIdleConn     int     `yaml:"max_idle_conn" toml:"max_idle_conn"`           // 最大的空闲连接数。注意: MaxIdleConn 应该始终小于或等于 MaxOpenConn，设置比 MaxOpenConn 更多的空闲连接数是没有意义的，因为你最多也就能拿到所有打开的连接，剩余的空闲连接依然保持的空闲。
+		ConnMaxLifetime int     `yaml:"conn_max_life_time" toml:"conn_max_life_time"` // 单位 time.Minute 连接的最大生命周期(默认值:0)。设置为0的话意味着没有最大生命周期，连接总是可重用。注意: ConnMaxLifetime 越短，从零开始创建连接的频率就越高!
+		ConnMaxIdleTime int     `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"` // 单位 time.Minute
+		Logger          *logger `yaml:"logger" toml:"logger"`                         // logger日志记录器
+		Namespace       string  `yaml:"namespace" toml:"namespace"`                   // dao 结构体的具体相对路径
+	}
+	logger struct {
+		PrintSql bool   `yaml:"print_sql" toml:"print_sql"` // 设置是否打印SQL语句
+		PrintXml bool   `yaml:"print_xml" toml:"print_xml"` // 是否打印 xml文件信息
+		Path     string `yaml:"path" toml:"path"`           // 日志输出路径
+		LinkName string `yaml:"link_name" toml:"link_name"` // 为最新的日志建立软连接
+		Interval int    `yaml:"interval" toml:"interval"`   // 设置日志分割的时间，隔多久分割一次
+		MaxAge   int    `yaml:"max_age" toml:"max_age"`     // 日志文件被清理前的最长保存时间
+		Count    int    `yaml:"count" toml:"count"`         // 日志文件被清理前最多保存的个数,(-1 表示不使用该项)
+	}
+	result struct {
+		LastInsertId int64
+		RowsAffected int64
+	}
+	proxyArg struct {
+		TagArgs    []tagArg
+		TagArgsLen int
+		Args       []reflect.Value
+		ArgsLen    int
+	}
+	tagArg struct {
+		Name  string
+		Index int
+	}
+	returnValue struct {
+		Error *reflect.Type
+		Value *reflect.Type
+		Num   int
+		Index int
+		xml   *element
+		nodes []iiNode
+		name  string
+	}
+	Session struct {
+		db         *sql.DB
+		tx         []*sql.Tx
+		stmt       *sql.Stmt
+		i          int
+		sessionId  string
+		driverName string
+		dsn        string
+		log        *log.Logger
+		pkg        string
+		printXml   bool
+		printSql   bool
+		namespace  string
+		data       map[reflect.Value]map[string]*returnValue
+	}
+)
+func New(cfg *Database)(*Session,*sql.DB,error){
+	db, err := sql.Open(cfg.DriverName, cfg.DSN)
+	if err != nil{
+		return nil,nil,err
+	}
+	db.SetConnMaxIdleTime(time.Duration(cfg.ConnMaxIdleTime) * time.Minute)
+	db.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Minute)
+	db.SetMaxIdleConns(cfg.MaxIdleConn)
+	db.SetMaxOpenConns(cfg.MaxOpenConn)
+	it := &Session{
+		db: db,
+		sessionId: newUUID().String(),
+		driverName: cfg.DriverName,
+		dsn: cfg.DSN,
+		printSql: cfg.Logger.PrintSql,
+		printXml: cfg.Logger.PrintXml,
+		namespace: cfg.Namespace,
+		pkg: cfg.Pkg,
+		log: log.New(os.Stdout,"[INFO] ",log.LstdFlags),
+	}
+	return it,db,nil
+}
+func (it *Session)SetOutPut(w io.Writer)*Session{
+	it.log.SetOutput(w)
+	return it
+}
+func (it *Session) Register(h H)*Session{
+	for i, v:= range h {
+		it.register(i,v)
+	}
+	return it
+}
+// 生成雪花算法的ID
+func (it *Session) ID(node int64) Id {
+	id, _ := newNode(node)
+	return id.Generate()
+}
+// 输入参数为: mysql,mymysql,postgres,sqlite3或者sqlite,mssql,oci8,tidb,cockroachDB
+// 返回值为: 这些数据库的驱动地址!
+func (it *Session)Driver()string{
+	switch it.driverName {
+	case "mysql","tidb":
+		return "github.com/go-sql-driver/mysql"
+	case "mymysql":
+		return "github.com/ziutek/mymysql/godrv"
+	case "postgres","cockroachDB":
+		return "github.com/lib/pq"
+	case "sqlite3","sqlite":
+		return "github.com/mattn/go-sqlite3"
+	case "mssql":
+		return "github.com/denisenkom/go-mssqldb"
+	case "oci8":
+		return "github.com/mattn/go-oci8"
+	default:
+		return ""
+	}
+}
 func (u uuid) String() string {
 	var buf [36]byte
 	encodeHex(buf[:], u)

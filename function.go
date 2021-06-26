@@ -195,6 +195,13 @@ func upperFirst(fieldStr string) string {
 	}
 	return fieldStr
 }
+func isMethodElement(tag string) bool {
+	switch tag {
+	case "insert", "delete", "update", "select":
+		return true
+	}
+	return false
+}
 // 参数 tree肯定不为空,所以该方法内部不用对 tree判空!!!
 func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xmlName string){
 	for _, v := range tree {
