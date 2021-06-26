@@ -75,9 +75,9 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*elem
 		customLen := 0
 		for j := 0; j < argsLen; j++ {
 			inType := funcType.In(j)
-			if inType.String() == `*mbt.Session` {
+			if inType.String() == `mbt.Session` {
 				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name+"."+funcName+"()"+" 的输入参数不能是 "+`*mbt.Session`+",只能是 "+`mbt.Session`)
+				it.log.Fatalln(name+"."+funcName+"()"+" 的输入参数不能是 "+`mbt.Session`+",只能是 "+`*mbt.Session`)
 			}
 			if isCustomStruct(inType) {
 				customLen++
@@ -96,7 +96,7 @@ func (it *Engine)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*elem
 			outType := funcType.Out(k)
 			outTypeK := outType.Kind()
 			outTypeS := outType.String()
-			if outTypeK == reflect.Ptr || (outTypeK == reflect.Interface && outTypeS != "error") && funcTypes != "mbt.Tx"{
+			if outTypeK == reflect.Ptr && funcTypes != "mbt.Tx"|| (outTypeK == reflect.Interface && outTypeS != "error"){
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(name + "." + funcName + "()' return '" + outTypeS + "' can not be a 'ptr' or 'interface'!")
 			}
@@ -741,7 +741,7 @@ func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
 func (it *Engine)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
-	var s Session
+	var s *Session
 	 s = findArgSession(proxyArg)
 	 if s == nil {
 		 s = it.get(goroutineID())
@@ -794,13 +794,13 @@ func (it *Engine)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []i
 		returnValue.Elem().SetInt(res.RowsAffected)
 	}
 }
-func findArgSession(proxyArg proxyArg)Session{
+func findArgSession(proxyArg proxyArg)*Session{
 	for _, arg := range proxyArg.Args {
 		argInterface := arg.Interface()
 		argK := arg.Kind()
 		argS := arg.Type().String()
-		if argK == reflect.Interface && argInterface != nil && argS == `mbt.Session` {
-			return argInterface.(Session)
+		if argK == reflect.Interface && argInterface != nil && argS == `*mbt.Session` {
+			return argInterface.(*Session)
 		}
 	}
 	return nil
@@ -938,7 +938,7 @@ func (it *Engine)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type,
 		for i := 0;i<num;i++ {
 			fti := ft.In(i)
 			ftk := fti.Kind()
-			if fti.String() == `mbt.Session` || ftk == reflect.Struct || ftk == reflect.Slice && fti.Elem().Kind() == reflect.Struct{
+			if fti.String() == `*mbt.Session` || ftk == reflect.Struct || ftk == reflect.Slice && fti.Elem().Kind() == reflect.Struct{
 				continue
 			}else {
 				it.log.SetPrefix("[Fatal] ")
@@ -1147,6 +1147,16 @@ var (
 	<select id=""/>
 </mapper>
 `
+	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+<mapper namespace="#{namespace}">
+	<insert id=""/>
+	<update id=""/>
+	<delete id=""/>
+	<select id=""/>
+</mapper>
+`
 	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`
@@ -1183,10 +1193,12 @@ func (it *Engine)createXml(name string,tv reflect.Type)[]byte{
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
 }
+// https://mp.weixin.qq.com/s/1nqpVzitGdVVvHIuk8iAeQ
 func (it *Engine)register(mapperPtr,modelPtr interface{}){
 	var (
 		obj = reflect.ValueOf(mapperPtr)
 		bt = obj.Type().Elem()
+		name = bt.Name()
 		t reflect.Type
 		w strings.Builder
 		f *os.File
@@ -1194,10 +1206,12 @@ func (it *Engine)register(mapperPtr,modelPtr interface{}){
 		s string
 		fileName string
 		flag bool
+		body []byte
 	)
 	if bt.NumField() != 0 {
-		if xml,ok := modelPtr.(string);ok {
+		if xml,ok := modelPtr.(string);ok && xml !="" {
 			fileName = xml
+			body = []byte(strings.Replace(xmlDataS, "#{namespace}", it.namespace+"."+name, -1))
 		}else {
 			t = reflect.TypeOf(modelPtr)
 			if t.Kind() != reflect.Ptr {
@@ -1205,7 +1219,8 @@ func (it *Engine)register(mapperPtr,modelPtr interface{}){
 				it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
 			}
 			t = t.Elem()
-			fileName = bt.Name()+".xml"
+			fileName = name+".xml"
+			body = it.createXml(name,t)
 		}
 		if it.pkg == "" || it.pkg == "./" {
 			w.WriteString("./")
@@ -1234,7 +1249,7 @@ func (it *Engine)register(mapperPtr,modelPtr interface{}){
 					it.log.Fatalln("create file"+s+" error:"+ err.Error())
 				}
 				defer f.Close()
-				_, err = f.Write(it.createXml(bt.Name(),t))
+				_, err = f.Write(body)
 				if err != nil {
 					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
@@ -1387,7 +1402,7 @@ func (it *Engine)txMethod(f reflect.Value, ft reflect.Type, proxyFunc func(arg p
 	}
 	f.Set(reflect.MakeFunc(ft, fn))
 }
-func (it *Engine)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplFunc reflect.Value, s Session) []reflect.Value {
+func (it *Engine)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplFunc reflect.Value, s *Session) []reflect.Value {
 	defer func() {
 		err := recover()
 		if err != nil {

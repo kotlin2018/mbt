@@ -884,26 +884,28 @@ func (p *postgreSQL) Get() int {
 func (p *postgreSQL) Convert() string {
 	return fmt.Sprint(" $", p.Get(), " ")
 }
-func buildStmtConvert(driverType string) (iConvert, error) {
-	switch driverType {
+func (it *Session)stmtConvert() iConvert {
+	switch it.driverName {
 	case "mysql", "mymysql", "mssql", "sqlite3","sqlite","dm","gbase":
-		return &mysql{}, nil
+		return &mysql{}
 	case "postgres","kingbase":
 		return &postgreSQL{
 			sync.RWMutex{},
 			0,
-		}, nil
+		}
 	case "oci8":
 		return &oracle{sync.RWMutex{},
-			0}, nil
+			0}
 	case "shentong":
 		return &shenTong{
 			sync.RWMutex{},
 			0,
-		}, nil
+		}
 	default:
-		panic(fmt.Sprint("[Error] un support dbName:", driverType, " only support: ", "mysql,", "mymysql,", "mssql,", "sqlite3,", "postgres,", "oci8"))
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(`un support driverName :`+it.driverName+"only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
 	}
+	return nil
 }
 
 

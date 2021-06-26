@@ -36,13 +36,13 @@ func encodeHex(dst []byte, u uuid) {
 	dst[23] = '-'
 	hex.Encode(dst[24:], u[10:])
 }
-func (it *session) last() *sql.Tx {
+func (it *Session) last() *sql.Tx {
 	if it.i == 0 {
 		return nil
 	}
 	return it.tx[it.i-1]
 }
-func (it *session) pop() *sql.Tx {
+func (it *Session) pop() *sql.Tx {
 	if it.i == 0 {
 		return nil
 	}
@@ -51,35 +51,25 @@ func (it *session) pop() *sql.Tx {
 	it.tx = it.tx[0:it.i]
 	return ret
 }
-func (it *session) push(k *sql.Tx) {
+func (it *Session) push(k *sql.Tx) {
 	it.tx = append(it.tx, k)
 	it.i++
 }
-type Session interface {
-	queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error)
-	execPrepare(sqlPrepare string, args ...interface{}) (*result, error)
-	id() string
-	stmtConvert() iConvert
-	Begin() error
-	Commit() error
-	Rollback() error
+type Session struct {
+	db         *sql.DB
+	tx         []*sql.Tx
+	stmt       *sql.Stmt
+	log        *log.Logger
+	i          int
+	sessionId  string
+	driverName string
+	dsn        string
+	printLog   bool
 }
-type session struct {
-	db          *sql.DB
-	tx          []*sql.Tx
-	stmt        *sql.Stmt
-	log         *log.Logger
-	i           int
-	SessionId   string
-	driverType  string
-	dsn         string
-	isClosed    bool
-	printLog    bool
+func (it *Session) id() string {
+	return it.sessionId
 }
-func (it *session) id() string {
-	return it.SessionId
-}
-func (it *session) Rollback() error {
+func (it *Session) Rollback() error {
 	t := it.pop()
 	if t != nil{
 		err := t.Rollback()
@@ -92,7 +82,7 @@ func (it *session) Rollback() error {
 	}
 	return nil
 }
-func (it *session) Commit() error {
+func (it *Session) Commit() error {
 	t := it.pop()
 	if t != nil {
 		err := t.Commit()
@@ -105,7 +95,7 @@ func (it *session) Commit() error {
 	}
 	return nil
 }
-func (it *session) Begin() error {
+func (it *Session) Begin() error {
 	t, err := it.db.Begin()
 	if err != nil {
 		return err
@@ -116,7 +106,7 @@ func (it *session) Begin() error {
 	}
 	return nil
 }
-func (it *session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error) {
+func (it *Session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error) {
 	var (
 		rows *sql.Rows
 		stmt *sql.Stmt
@@ -153,9 +143,8 @@ func (it *session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[s
 	} else {
 		return rows2maps(rows)
 	}
-	return nil, nil
 }
-func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result, error) {
+func (it *Session) execPrepare(sqlPrepare string, args ...interface{}) (*result, error) {
 	var (
 		res sql.Result
 		stmt *sql.Stmt
@@ -194,14 +183,6 @@ func (it *session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 			RowsAffected: RowsAffected,
 		}, nil
 	}
-}
-func (it *session) stmtConvert() iConvert {
-	res,err := buildStmtConvert(it.driverType)
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(it.driverType+"error"+err.Error())
-	}
-	return res
 }
 func rows2maps(rows *sql.Rows) (resultsSlice []map[string][]byte, err error) {
 	fields, err := rows.Columns()

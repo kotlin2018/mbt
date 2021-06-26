@@ -18,7 +18,7 @@ import (
 	"time"
 )
 type (
-	Tx func()Session
+	Tx func()*Session
 	Database struct {
 		Pkg             string  `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
 		DriverName      string  `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
@@ -42,7 +42,7 @@ type (
 	H map[interface{}]interface{}
 )
 type Engine struct {
-	s         Session
+	s         *Session
 	m         sync.Map //用来缓存*Session
 	log       *log.Logger
 	pkg       string
@@ -66,16 +66,16 @@ func New(cfg *Database)(*Engine,*sql.DB,error){
 	db.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Minute)
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
-	it.s =Session(&session{
-		SessionId:   newUUID().String(),
-		db:          db,
-		tx:          make([]*sql.Tx, 0),
-		i:           0,
-		driverType:  cfg.DriverName,
-		dsn:         cfg.DSN,
-		printLog:    it.printSql,
-		log:         it.log,
-	})
+	it.s = &Session{
+		sessionId:  newUUID().String(),
+		db:         db,
+		tx:         make([]*sql.Tx, 0),
+		i:          0,
+		driverName: cfg.DriverName,
+		dsn:        cfg.DSN,
+		printLog:   it.printSql,
+		log:        it.log,
+	}
 	return it,db,nil
 }
 func (it *Engine)SetOutPut(w io.Writer)*Engine{
@@ -94,13 +94,12 @@ func (it *Engine) ID(node int64) Id {
 	return id.Generate()
 }
 // 缓存*Session
-func (it *Engine)put(k int64,s Session){
+func (it *Engine)put(k int64,s *Session){
 	it.m.Store(k,s)
 }
-func (it *Engine)get(k int64)Session{
-	v, ok := it.m.Load(k)
-	if ok {
-		return v.(*session)
+func (it *Engine)get(k int64)*Session{
+	if v,ok := it.m.Load(k);ok {
+		return v.(*Session)
 	}else {
 		return nil
 	}
@@ -118,13 +117,13 @@ func goroutineID() int64{
 }
 // 输入参数为: mysql,mymysql,postgres,sqlite3或者sqlite,mssql,oci8,tidb,cockroachDB
 // 返回值为: 这些数据库的驱动地址!
-func (it *Engine)Driver(driverType string)string{
-	switch driverType {
-	case "mysql":
+func (it *Engine)Driver()string{
+	switch it.s.driverName {
+	case "mysql","tidb":
 		return "github.com/go-sql-driver/mysql"
 	case "mymysql":
 		return "github.com/ziutek/mymysql/godrv"
-	case "postgres":
+	case "postgres","cockroachDB":
 		return "github.com/lib/pq"
 	case "sqlite3","sqlite":
 		return "github.com/mattn/go-sqlite3"
@@ -132,12 +131,8 @@ func (it *Engine)Driver(driverType string)string{
 		return "github.com/denisenkom/go-mssqldb"
 	case "oci8":
 		return "github.com/mattn/go-oci8"
-	case "tidb":
-		return "github.com/go-sql-driver/mysql"
-	case "cockroachDB":
-		return "github.com/lib/pq"
 	default:
-		return "github.com/go-sql-driver/mysql"
+		return ""
 	}
 }
 func isMethodElement(tag string) bool {
