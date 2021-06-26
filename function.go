@@ -817,7 +817,7 @@ func lowerFirst(fieldStr string) string {
 	}
 	return fieldStr
 }
-func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert iConvert,name string) string{
+func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert Convert,name string) string{
 	paramMap := make(map[string]interface{})
 	tagArgsLen := proxyArg.TagArgsLen
 	argsLen := proxyArg.ArgsLen
@@ -861,7 +861,7 @@ func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface
 	}
 	return it.sqlBuild(paramMap, nodes, array, stmtConvert,name)
 }
-func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert iConvert,name string)string{
+func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert Convert,name string)string{
 	sql, err := doChildNodes(node, args, array, stmtConvert)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")

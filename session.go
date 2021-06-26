@@ -70,6 +70,7 @@ type (
 		printXml   bool
 		printSql   bool
 		namespace  string
+		driver     map[string]Convert
 		data       map[reflect.Value]map[string]*returnValue
 	}
 )
@@ -109,25 +110,10 @@ func (it *Session) ID(node int64) Id {
 	id, _ := newNode(node)
 	return id.Generate()
 }
-// 输入参数为: mysql,mymysql,postgres,sqlite3或者sqlite,mssql,oci8,tidb,cockroachDB
-// 返回值为: 这些数据库的驱动地址!
-func (it *Session)Driver()string{
-	switch it.driverName {
-	case "mysql","tidb":
-		return "github.com/go-sql-driver/mysql"
-	case "mymysql":
-		return "github.com/ziutek/mymysql/godrv"
-	case "postgres","cockroachDB":
-		return "github.com/lib/pq"
-	case "sqlite3","sqlite":
-		return "github.com/mattn/go-sqlite3"
-	case "mssql":
-		return "github.com/denisenkom/go-mssqldb"
-	case "oci8":
-		return "github.com/mattn/go-oci8"
-	default:
-		return ""
-	}
+func (it *Session)Driver(driverType Convert)*Session{
+	it.driver = make(map[string]Convert,0)
+	it.driver[it.driverName] = driverType
+	return it
 }
 func (it *Session) Rollback() error {
 	err := it.tx.Rollback()

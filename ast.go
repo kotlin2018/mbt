@@ -53,9 +53,9 @@ func (it xmlNode) ToString() string {
 }
 type iiNode interface {
 	Type() xmlNode
-	Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error)
+	Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error)
 }
-func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	if childNodes == nil {
 		return nil, nil
 	}
@@ -73,7 +73,7 @@ func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]inter
 	sql.Reset()
 	return bytes, nil
 }
-func replace(findStrS []string, data string, arg map[string]interface{}, engine iExpression, array *[]interface{}, indexConvert iConvert) (string, error) {
+func replace(findStrS []string, data string, arg map[string]interface{}, engine iExpression, array *[]interface{}, indexConvert Convert) (string, error) {
 	for _, findStr := range findStrS {
 		argValue := arg[findStr]
 		if argValue != nil {
@@ -195,7 +195,7 @@ type nodeString struct {
 func (it nodeString) Type() xmlNode {
 	return nStr
 }
-func (it nodeString) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeString) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	var (
 		data = it.value
 		err error
@@ -223,7 +223,7 @@ type nodeBind struct {
 func (it nodeBind) Type() xmlNode {
 	return nBind
 }
-func (it nodeBind) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeBind) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	if it.name == "" {
 		panic(`[Error] 元素 <bind name = ""> 名称不能为空!`)
 	}
@@ -246,7 +246,7 @@ type nodeChoose struct {
 func (it nodeChoose) Type() xmlNode {
 	return nChoose
 }
-func (it nodeChoose) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeChoose) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	if it.whenNodes == nil && it.otherwiseNode == nil {
 		return nil, nil
 	}
@@ -275,7 +275,7 @@ type nodeForeach struct {
 func (it nodeForeach) Type() xmlNode {
 	return nForeach
 }
-func (it nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	if it.collection == "" {
 		panic(`[Error] collection value can not be "" in <foreach collection=""> !`)
 	}
@@ -377,7 +377,7 @@ type nodeIf struct {
 func (it nodeIf) Type() xmlNode {
 	return nIf
 }
-func (it nodeIf) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeIf) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	res, err := it.holder.Proxy.LexerAndEval(it.test, env)
 	if err != nil {
 		err = errors.New(fmt.Sprint("SqlBuilder", "[Error] <test `", it.test, `> fail,`, err.Error()))
@@ -394,7 +394,7 @@ type nodeInclude struct {
 func (it nodeInclude) Type() xmlNode {
 	return nInclude
 }
-func (it nodeInclude) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeInclude) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	return sql, err
 }
@@ -405,7 +405,7 @@ type nodeOtherwise struct {
 func (it nodeOtherwise) Type() xmlNode {
 	return nOtherwise
 }
-func (it nodeOtherwise) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeOtherwise) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	r, e := doChildNodes(it.child, env, array, stmtConvert)
 	if e != nil {
 		return nil, e
@@ -423,7 +423,7 @@ type nodeTrim struct {
 func (it nodeTrim) Type() xmlNode {
 	return nTrim
 }
-func (it nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	if err != nil {
 		return nil, err
@@ -474,7 +474,7 @@ type nodeWhen struct {
 func (it nodeWhen) Type() xmlNode {
 	return nWhen
 }
-func (it nodeWhen) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeWhen) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	res, err := it.holder.Proxy.LexerAndEval(it.test, env)
 	if err != nil {
 		err = errors.New(fmt.Sprint("SqlBuilder", "[Error] <test `", it.test, `> fail,`, err.Error()))
@@ -491,7 +491,7 @@ type nodeWhere struct {
 func (it nodeWhere) Type() xmlNode {
 	return nWhere
 }
-func (it nodeWhere) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert iConvert) ([]byte, error) {
+func (it nodeWhere) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	if err != nil {
 		return nil, err
@@ -822,7 +822,7 @@ func (it express) Parser(mapperXml []token) []iiNode {
 	return list
 }
 
-type iConvert interface {
+type Convert interface {
 	Convert() string
 	Inc()
 	Get()int
@@ -887,7 +887,7 @@ func (p *postgreSQL) Get() int {
 func (p *postgreSQL) Convert() string {
 	return fmt.Sprint(" $", p.Get(), " ")
 }
-func (it *Session)stmtConvert() iConvert {
+func (it *Session)stmtConvert() Convert {
 	switch it.driverName {
 	case "mysql", "mymysql", "mssql", "sqlite3","sqlite","dm","gbase":
 		return &mysql{}
@@ -905,8 +905,13 @@ func (it *Session)stmtConvert() iConvert {
 			0,
 		}
 	default:
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(`un support driverName :`+it.driverName+"only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
+		driverType := it.driver[it.driverName]
+		if driverType != nil {
+			return driverType
+		}else {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(`un support driverName :`+it.driverName+"only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
+		}
 	}
 	return nil
 }
