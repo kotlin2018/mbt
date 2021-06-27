@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 )
 var (
@@ -61,11 +62,12 @@ type (
 		name  string
 	}
 	Session struct {
-		db         *sql.DB
-		tx         *sql.Tx
+		db  *sql.DB
+		tx  *sql.Tx
+		log *log.Logger
+		sync.Mutex
 		driverName string
 		dsn        string
-		log        *log.Logger
 		pkg        string
 		printXml   bool
 		printSql   bool
@@ -100,6 +102,8 @@ func (it *Session)SetOutPut(w io.Writer)*Session{
 	return it
 }
 func (it *Session) Register(h H)*Session{
+	it.Lock()
+	defer it.Unlock()
 	for i, v:= range h {
 		it.register(i,v)
 	}

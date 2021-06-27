@@ -1011,9 +1011,9 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 			for _, s := range sqlResult[0] {
 				var b = strings.Builder{}
 				if resultV.Kind() == reflect.String || (resultV.Kind() == reflect.Struct) {
-					b.WriteString("\"")
+					b.WriteString(`"`)
 					b.Write(s)
-					b.WriteString("\"")
+					b.WriteString(`"`)
 				} else {
 					b.Write(s)
 				}
@@ -1048,9 +1048,9 @@ func makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.T
 	done := len(sqlData) - 1
 	index := 0
 	for k, sqlV := range sqlData {
-		jsonData.WriteString("\"")
+		jsonData.WriteString(`"`)
 		jsonData.WriteString(k)
-		jsonData.WriteString("\":")
+		jsonData.WriteString(`":`)
 		isStringType := false
 		fetched := true
 		if structMap != nil {
@@ -1067,9 +1067,9 @@ func makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.T
 		}
 		if fetched {
 			if isStringType {
-				jsonData.WriteString("\"")
+				jsonData.WriteString(`"`)
 				jsonData.WriteString(encodeStringValue(sqlV))
-				jsonData.WriteString("\"")
+				jsonData.WriteString(`"`)
 			} else {
 				if sqlV == nil || len(sqlV) == 0 {
 					sqlV = []byte("null")
