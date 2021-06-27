@@ -134,7 +134,6 @@ func isCustomStruct(value reflect.Type) bool {
 		return false
 	}
 }
-// ==============================================================================================================
 func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
 	for _, mapperXml := range mapperTree {
 		key := mapperXml.SelectAttrValue("id", "")
@@ -202,7 +201,6 @@ func isMethodElement(tag string) bool {
 	}
 	return false
 }
-// 参数 tree肯定不为空,所以该方法内部不用对 tree判空!!!
 func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xmlName string){
 	for _, v := range tree {
 		var method *reflect.StructField
@@ -1131,7 +1129,6 @@ func isBasicType(arg reflect.Type) bool {
 	}
 	return false
 }
-// =========================================== 根据表的model实体,生成该表的 xml 文件 =====================================================
 var (
 	xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
@@ -1267,7 +1264,6 @@ func (it *Session)register(mapperPtr,modelPtr interface{}){
 		it.data[obj.Elem()] = it.makeReturnTypeMap(bt, tree,s)
 	}
 }
-// ======================================= 将 []byte 类型的XML数据解析成结构体 ================================================
 func expressSymbol(bytes *[]byte) {
 	byteStr := string(*bytes)
 	testRegex, _ := regexp.Compile(`test=".*"`)
@@ -1334,7 +1330,6 @@ func snake(s string) string {
 	}
 	return strings.ToLower(string(data[:]))
 }
-// ===================== 以下几个函数只给嵌套事务使用 =================================
 func (it *Session)Tx(mapperPtr interface{}) {
 	service := reflect.ValueOf(mapperPtr)
 	if service.Kind() != reflect.Ptr {

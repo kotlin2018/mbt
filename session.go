@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"sync"
 	"time"
 )
 var (
@@ -65,7 +64,6 @@ type (
 		db  *sql.DB
 		tx  *sql.Tx
 		log *log.Logger
-		sync.Mutex
 		driverName string
 		dsn        string
 		pkg        string
@@ -102,8 +100,6 @@ func (it *Session)SetOutPut(w io.Writer)*Session{
 	return it
 }
 func (it *Session) Register(h H)*Session{
-	it.Lock()
-	defer it.Unlock()
 	for i, v:= range h {
 		it.register(i,v)
 	}
