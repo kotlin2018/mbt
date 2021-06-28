@@ -1300,10 +1300,15 @@ func (it *Session)Tx(mapperPtr interface{}) {
 	}
 	it.txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		nativeImplFunc := reflect.ValueOf(field.Interface())
+		txTag, ok  := funcField.Tag.Lookup("tx")
 		name := service.Type().Elem().String()+"."
 		funcName := funcField.Name
 		fn := func(arg proxyArg) []reflect.Value {
-			it.Begin()
+			if !ok {
+				it.begin("")
+			}else {
+				it.begin(txTag)
+			}
 			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, it)
 			if !haveRollBackType(nativeImplResult) {
 				it.Commit()

@@ -66,6 +66,8 @@ type (
 		tx         []*sql.Tx
 		i          int
 		si         int
+		savePoint  []string
+		propagation []string
 		log        *log.Logger
 		driverName string
 		dsn        string
@@ -118,45 +120,87 @@ func (it *Session)Driver(driverType Convert)*Session{
 	it.driver[it.driverName] = driverType
 	return it
 }
-func (it *Session) last() *sql.Tx {
+func (it *Session) last() (*sql.Tx,string) {
 	if it.i == 0 {
-		return nil
+		return nil,"0"
 	}
-	return it.tx[it.i-1]
+	ret := it.tx[it.i-1]
+	p := it.propagation[it.i-1]
+	return ret,p
 }
-func (it *Session) pop() *sql.Tx {
+func (it *Session) pop() (*sql.Tx,string) {
 	if it.i == 0 {
-		return nil
+		return nil,"0"
 	}
 	it.i--
 	ret := it.tx[it.i]
 	it.tx = it.tx[0:it.i]
-	return ret
+	p := it.propagation[it.i]
+	it.propagation = it.propagation[0:it.i]
+	return ret,p
 }
-func (it *Session) push(k *sql.Tx) {
+func (it *Session) push(k *sql.Tx,p string) {
 	it.tx = append(it.tx, k)
+	it.propagation = append(it.propagation,p)
 	it.i++
 }
+func (it *Session) sPush(k string) {
+	it.savePoint = append(it.savePoint, k)
+	it.si++
+}
+func (it *Session) sPop() *string {
+	if it.si == 0 {
+		return nil
+	}
+	it.si--
+	ret := it.savePoint[it.si]
+	it.savePoint = it.savePoint[0:it.si]
+	return &ret
+}
 func (it *Session) Rollback(){
-	t := it.pop()
-	if t != nil && it.i==0{
-		err := t.Rollback()
-		if err != nil {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln("Rollback Transaction Failed ",err.Error())
+	t, p := it.pop()
+	if t != nil && p != `0`{
+		if p == "nested" {
+			point := it.sPop()
+			if point != nil {
+				_, err := t.Exec("rollback to " + *point)
+				if err != nil {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln("Rollback Nested Transaction Failed ",err.Error())
+				}
+			}
 		}
-		it.log.Println("Rollback Transaction Successfully")
+		if it.i ==0 {
+			err := t.Rollback()
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("Rollback Transaction Failed ",err.Error())
+			}
+			it.log.Println("Rollback Transaction Successfully")
+		}
 	}
 }
 func (it *Session) Commit(){
-	t := it.pop()
-	if t !=nil && it.i==0{
-		err := t.Commit()
-		if err != nil {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
+	t, p := it.pop()
+	if t !=nil && p != `0`{
+		if p == "nested" {
+			pId := "p" + strconv.Itoa(it.i+1)
+			it.sPush(pId)
+			_, err := t.Exec("savepoint "+pId)
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("Nested Transaction Set Savepoint Failed ",err.Error())
+			}
+			it.log.Println(" Nested Transaction Set Savepoint "+pId)
 		}
-		it.log.Println("Commit Transaction Successfully")
+		if it.i == 0 {
+			err := t.Commit()
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
+			}
+			it.log.Println("Commit Transaction Successfully")
+		}
 	}
 }
 func (it *Session) Begin(){
@@ -169,8 +213,50 @@ func (it *Session) Begin(){
 			it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
 		}
 		it.tx = make([]*sql.Tx,0)
-		it.push(t)
+		it.push(t,"")
 		it.log.Println("Begin Transaction Successfully")
+	}
+}
+func (it *Session) begin(p string){
+	it.tx = make([]*sql.Tx,0)
+	switch p {
+	case "","required":
+		if it.i > 0 {
+			it.push(it.last())
+		}else {
+			t, err := it.db.Begin()
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
+			}
+			it.push(t,p)
+			it.log.Println("Begin Transaction Successfully")
+		}
+		break
+	case "nested":
+		it.si = 0
+		it.savePoint = make([]string,0)
+		if it.i > 0 {
+			it.push(it.last())
+		}else {
+			it.begin("required")
+		}
+		break
+	case "support":
+		if it.i > 0 {
+			t, err := it.db.Begin()
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
+			}
+			it.push(t, p)
+		}else {
+			return
+		}
+		break
+	default:
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("Begin Transaction Failed error")
 	}
 }
 func printArray(array []interface{}) string {
@@ -181,7 +267,7 @@ func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []m
 		rows *sql.Rows
 		stmt *sql.Stmt
 		err error
-		t = it.last()
+		t,_ = it.last()
 	)
 	if t != nil {
 		stmt, err = t.Prepare(sqlPrepare)
@@ -233,7 +319,7 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{}) *res
 		res sql.Result
 		stmt *sql.Stmt
 		err error
-		t = it.last()
+		t,_ = it.last()
 	)
 	if t != nil {
 		stmt, err = t.Prepare(sqlPrepare)
