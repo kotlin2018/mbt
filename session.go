@@ -62,9 +62,11 @@ type (
 		name  string
 	}
 	Session struct {
-		db  *sql.DB
-		tx  *sql.Tx
-		log *log.Logger
+		db         *sql.DB
+		tx         []*sql.Tx
+		i          int
+		si         int
+		log        *log.Logger
 		driverName string
 		dsn        string
 		pkg        string
@@ -116,32 +118,58 @@ func (it *Session)Driver(driverType Convert)*Session{
 	it.driver[it.driverName] = driverType
 	return it
 }
-func (it *Session) Rollback(){
-	err := it.tx.Rollback()
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("Rollback Transaction Failed error == ",err.Error())
+func (it *Session) last() *sql.Tx {
+	if it.i == 0 {
+		return nil
 	}
-	it.tx =nil
-	it.log.Println("Rollback Transaction Successfully")
+	return it.tx[it.i-1]
+}
+func (it *Session) pop() *sql.Tx {
+	if it.i == 0 {
+		return nil
+	}
+	it.i--
+	ret := it.tx[it.i]
+	it.tx = it.tx[0:it.i]
+	return ret
+}
+func (it *Session) push(k *sql.Tx) {
+	it.tx = append(it.tx, k)
+	it.i++
+}
+func (it *Session) Rollback(){
+	t := it.pop()
+	if t != nil && it.i==0{
+		err := t.Rollback()
+		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln("Rollback Transaction Failed ",err.Error())
+		}
+		it.log.Println("Rollback Transaction Successfully")
+	}
 }
 func (it *Session) Commit(){
-	err := it.tx.Commit()
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
+	t := it.pop()
+	if t !=nil && it.i==0{
+		err := t.Commit()
+		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
+		}
+		it.log.Println("Commit Transaction Successfully")
 	}
-	it.tx =nil
-	it.log.Println("Commit Transaction Successfully")
 }
 func (it *Session) Begin(){
-	if it.tx == nil {
+	if it.i > 0 {
+		it.push(it.last())
+	}else {
 		t, err := it.db.Begin()
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
 		}
-		it.tx = t
+		it.tx = make([]*sql.Tx,0)
+		it.push(t)
 		it.log.Println("Begin Transaction Successfully")
 	}
 }
@@ -153,9 +181,10 @@ func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []m
 		rows *sql.Rows
 		stmt *sql.Stmt
 		err error
+		t = it.last()
 	)
-	if it.tx != nil {
-		stmt, err = it.tx.Prepare(sqlPrepare)
+	if t != nil {
+		stmt, err = t.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" Transaction Prepared Statements Failed ",err.Error())
@@ -204,9 +233,10 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{}) *res
 		res sql.Result
 		stmt *sql.Stmt
 		err error
+		t = it.last()
 	)
-	if it.tx != nil {
-		stmt, err = it.tx.Prepare(sqlPrepare)
+	if t != nil {
+		stmt, err = t.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" Transaction Prepared Statements Failed ",err.Error())
