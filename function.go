@@ -746,16 +746,8 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 	s := findArgSession(proxyArg)
 	if s == nil {
 		s = it
-	}else {
-		if s.tx == nil {
-			t, err := it.db.Begin()
-			if err != nil {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name+" Begin Transaction Failed error == ", err.Error())
-			}
-			it.tx = t
-			it.log.Println(name+" Begin One Transaction Successfully")
-		}
+	}else if s.tx !=nil {
+		s.tx =nil
 	}
 	convert := s.stmtConvert()
 	array := make([]interface{},0)
