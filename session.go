@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 var (
@@ -115,38 +116,36 @@ func (it *Session)Driver(driverType Convert)*Session{
 	it.driver[it.driverName] = driverType
 	return it
 }
-func (it *Session) Rollback() error {
+func (it *Session) Rollback(){
 	err := it.tx.Rollback()
 	if err != nil {
-		return err
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("Rollback Transaction Failed error == ",err.Error())
 	}
-	if it.printSql {
-		it.log.Println(" Rollback() One Transaction")
-	}
-	return nil
+	it.log.Println("Rollback One Transaction Successfully")
 }
-func (it *Session) Commit() error {
+func (it *Session) Commit(){
 	err := it.tx.Commit()
 	if err != nil {
-		return err
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
 	}
-	if it.printSql {
-		it.log.Println(" Commit() One Transaction")
-	}
-	return nil
+	it.log.Println("Commit One Transaction Successfully")
 }
-func (it *Session) Begin() error {
+
+func (it *Session) Begin(){
 	t, err := it.db.Begin()
 	if err != nil {
-		return err
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
 	}
 	it.tx = t
-	if it.printSql {
-		it.log.Println(" Begin() One Transaction")
-	}
-	return nil
+	it.log.Println("Begin One Transaction Successfully")
 }
-func (it *Session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[string][]byte, error) {
+func printArray(array []interface{}) string {
+	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
+}
+func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []map[string][]byte {
 	var (
 		rows *sql.Rows
 		stmt *sql.Stmt
@@ -155,20 +154,24 @@ func (it *Session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[s
 	if it.tx != nil {
 		stmt, err = it.tx.Prepare(sqlPrepare)
 		if err != nil {
-			return nil, err
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Transaction Prepared Statements error == ",err.Error())
 		}
 		rows, err = stmt.Query(args...)
 		if err != nil {
-			return nil, err
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Transaction error == ",err.Error())
 		}
 	} else {
 		stmt, err = it.db.Prepare(sqlPrepare)
 		if err != nil {
-			return nil, err
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" SQL Prepared Statements Error == ",err.Error())
 		}
 		rows, err = stmt.Query(args...)
 		if err != nil {
-			return nil, err
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Query SQL Failed Error == ",err.Error())
 		}
 	}
 	if stmt != nil {
@@ -177,13 +180,23 @@ func (it *Session) queryPrepare(sqlPrepare string, args ...interface{}) ([]map[s
 	if rows != nil {
 		defer rows.Close()
 	}
-	if err != nil {
-		return nil, err
-	} else {
-		return rows2maps(rows)
+	res := it.rows2maps(name,rows)
+	if it.printSql {
+		it.log.Println(name+" Query ==> "+sqlPrepare)
+		it.log.Println(name+" Args  ==> "+printArray(args))
 	}
+	defer func() {
+		if it.printSql {
+			RowsAffected := "0"
+			if res != nil {
+				RowsAffected = strconv.Itoa(len(res))
+			}
+			it.log.Println(name+" ReturnRows <== "+RowsAffected)
+		}
+	}()
+	return res
 }
-func (it *Session) execPrepare(sqlPrepare string, args ...interface{}) (*result, error) {
+func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{}) *result{
 	var (
 		res sql.Result
 		stmt *sql.Stmt
@@ -192,51 +205,59 @@ func (it *Session) execPrepare(sqlPrepare string, args ...interface{}) (*result,
 	if it.tx != nil {
 		stmt, err = it.tx.Prepare(sqlPrepare)
 		if err != nil {
-			return nil, err
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Transaction Prepared Statements Error == ",err.Error())
 		}
-		res, err = stmt.Exec(args...)
-		if err != nil {
-			return nil, err
-		}
+		res, _ = stmt.Exec(args...)
 	} else {
 		stmt, err = it.db.Prepare(sqlPrepare)
 		if err != nil {
-			return nil, err
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" SQL Prepared Statements Error == ",err.Error())
 		}
 		res, err = stmt.Exec(args...)
 		if err != nil {
-			return nil, err
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Execute SQL Failed Error == ",err.Error())
 		}
 	}
 	if stmt != nil {
 		defer stmt.Close()
 	}
-	if err != nil {
-		return nil, err
-	} else {
-		LastInsertId, _ := res.LastInsertId()
-		RowsAffected, _ := res.RowsAffected()
-		return &result{
-			LastInsertId: LastInsertId,
-			RowsAffected: RowsAffected,
-		}, nil
+	LastInsertId, _ := res.LastInsertId()
+	RowsAffected, _ := res.RowsAffected()
+	ret := &result{
+		LastInsertId: LastInsertId,
+		RowsAffected: RowsAffected,
 	}
+	if it.printSql {
+		it.log.Println(name+" Exec ==> "+sqlPrepare)
+		it.log.Println(name+" Args ==> "+printArray(args))
+	}
+	defer func() {
+		if it.printSql {
+			rowsAffected := "0"
+			if res != nil {
+				rowsAffected = strconv.FormatInt(ret.RowsAffected, 10)
+			}
+			it.log.Println(name+" RowsAffected <== "+rowsAffected)
+		}
+	}()
+	return ret
 }
-func rows2maps(rows *sql.Rows) (resultsSlice []map[string][]byte, err error) {
+func (it *Session)rows2maps(name string,rows *sql.Rows) (resultsSlice []map[string][]byte) {
 	fields, err := rows.Columns()
 	if err != nil {
-		return nil, err
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(name+" error == ",err.Error())
 	}
 	for rows.Next() {
-		res, err := row2map(rows, fields)
-		if err != nil {
-			return nil, err
-		}
+		res := it.row2map(name,rows, fields)
 		resultsSlice = append(resultsSlice, res)
 	}
-	return resultsSlice, nil
+	return resultsSlice
 }
-func row2map(rows *sql.Rows, fields []string) (resultsMap map[string][]byte, err error) {
+func (it *Session)row2map(name string,rows *sql.Rows, fields []string) (resultsMap map[string][]byte) {
 	res := make(map[string][]byte)
 	num := len(fields)
 	list := make([]interface{},num)
@@ -244,8 +265,9 @@ func row2map(rows *sql.Rows, fields []string) (resultsMap map[string][]byte, err
 		var obj interface{}
 		list[i] = &obj
 	}
-	if err = rows.Scan(list...); err != nil {
-		return nil, err
+	if err := rows.Scan(list...); err != nil {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(name+" error == ",err.Error())
 	}
 	for j, v := range fields {
 		rawValue := reflect.Indirect(reflect.ValueOf(list[j]))
@@ -253,15 +275,11 @@ func row2map(rows *sql.Rows, fields []string) (resultsMap map[string][]byte, err
 			res[v] = []byte{}
 			continue
 		}
-		if data, err := value2Bytes(&rawValue); err == nil {
-			res[v] = data
-		} else {
-			return nil, err // REVIEW, should return err or just error logger?
-		}
+		res[v] = it.value2Bytes(name,&rawValue)
 	}
-	return res, nil
+	return res
 }
-func value2Bytes(rawValue *reflect.Value) ([]byte, error) {
+func (it *Session)value2Bytes(name string,rawValue *reflect.Value) []byte {
 	var (
 		str string
 		err error
@@ -301,7 +319,11 @@ func value2Bytes(rawValue *reflect.Value) ([]byte, error) {
 	default:
 		err = fmt.Errorf(" Unsupported struct type %v", vv.Type().Name())
 	}
-	return []byte(str),err
+	if err != nil {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(name+" error == ",err.Error())
+	}
+	return []byte(str)
 }
 
 

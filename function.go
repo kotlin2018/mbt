@@ -20,7 +20,7 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		funcName := funcField.Name
 		ret := outPut[funcName]
-		if funcField.Type.String() == "mbt.Tx" {
+		if funcField.Type.String() == `mbt.Tx` {
 			proxyFunc := func(arg proxyArg) []reflect.Value {
 				var res *reflect.Value = nil
 				returnV := reflect.New(*ret.Value)
@@ -90,13 +90,13 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 		numOut := funcType.NumOut()
 		if numOut > 2 || numOut == 0 {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name + "." + funcName + "()' return num out must = 1 or = 2!")
+			it.log.Fatalln(name + "." + funcName + "() return num out must = 1 or = 2!")
 		}
 		for k := 0; k < numOut; k++ {
 			outType := funcType.Out(k)
 			outTypeK := outType.Kind()
 			outTypeS := outType.String()
-			if outTypeK == reflect.Ptr && funcTypes != "mbt.Tx"|| (outTypeK == reflect.Interface && outTypeS != "error"){
+			if outTypeK == reflect.Ptr && funcTypes != `mbt.Tx`|| (outTypeK == reflect.Interface && outTypeS != `error`){
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(name + "." + funcName + "()' return '" + outTypeS + "' can not be a 'ptr' or 'interface'!")
 			}
@@ -107,18 +107,18 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 					Num:      numOut,
 				}
 			}
-			if outTypeS != "error" {
+			if outTypeS != `error` {
 				returnMap[funcName].Index = k
 				returnMap[funcName].Value = &outType
 			} else {
 				returnMap[funcName].Error = &outType
 			}
 		}
-		if returnMap[funcName].Error == nil && funcTypes != "mbt.Tx"{
+		if returnMap[funcName].Error == nil && funcTypes != `mbt.Tx`{
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name + "." + funcName + "()' must return an 'error'!")
 		}
-		if funcTypes != "mbt.Tx" {
+		if funcTypes != `mbt.Tx` {
 			mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
 			returnMap[funcName].xml = mapperXml
 			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
@@ -128,7 +128,7 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 	return returnMap
 }
 func isCustomStruct(value reflect.Type) bool {
-	if value.Kind() == reflect.Struct && value.String() != "time.Time" && value.String() != "*time.Time" {
+	if value.Kind() == reflect.Struct && value.String() != `time.Time` && value.String() != `*time.Time` {
 		return true
 	} else {
 		return false
@@ -220,14 +220,14 @@ func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xml
 		if it.printXml {
 			s := "================输出 " + beanName + "." + v.SelectAttrValue("id", "") +"()"+" 对应的 xml 标签 ============\n"
 			printElement(v, &s)
-			println(s)//log.Println(s)这里可以将s输出到日志中
+			it.log.Println(s)
 		}
 	}
 }
 func printElement(ele *element, v *string) {
 	*v += "<" + ele.Tag + " "
 	for _, item := range ele.Attr {
-		*v += item.Key + "=\"" + item.Value + "\""
+		*v += item.Key + `="` + item.Value + `"`
 	}
 	*v += " >"
 	if ele.Child != nil && len(ele.Child) != 0 {
@@ -742,65 +742,37 @@ func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
 	}
 	return list
 }
-func printArray(array []interface{}) string {
-	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
-}
 func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
-	 s := findArgSession(proxyArg)
-	 if s == nil {
-		 s = it
-	 }
+	s := findArgSession(proxyArg)
+	if s == nil {
+		s = it
+	}else {
+		if s.tx == nil {
+			t, err := it.db.Begin()
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(name+" Begin Transaction Failed error == ", err.Error())
+			}
+			it.tx = t
+			it.log.Println(name+" Begin One Transaction Successfully")
+		}
+	}
 	convert := s.stmtConvert()
 	array := make([]interface{},0)
 	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
 	if elementType == "select"{
-		res, err := s.queryPrepare(sql, array...)
-		if err != nil {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" error == ",err.Error())
-		}
-		if it.printSql {
-			it.log.Println(name+" Query ==> "+sql)
-			it.log.Println(name+" Args  ==> "+printArray(array))
-		}
-		defer func() {
-			if it.printSql {
-				RowsAffected := "0"
-				if res != nil {
-					RowsAffected = strconv.Itoa(len(res))
-				}
-				it.log.Println(name+" ReturnRows <== "+RowsAffected)
-			}
-		}()
+		res := s.queryPrepare(name,sql, array...)
 		it.decodeSqlResult(res, returnValue.Interface(),name)
 	} else {
-		res, err := s.execPrepare(sql, array...)
-		if err != nil {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" error == ",err.Error())
-		}
-		if it.printSql {
-			it.log.Println(name+" Exec ==> "+sql)
-			it.log.Println(name+" Args ==> "+printArray(array))
-		}
-		defer func() {
-			if it.printSql {
-				RowsAffected := "0"
-				if res != nil {
-					RowsAffected = strconv.FormatInt(res.RowsAffected, 10)
-				}
-				it.log.Println(name+" RowsAffected <== "+RowsAffected)
-			}
-		}()
+		res := s.execPrepare(name,sql, array...)
 		returnValue.Elem().SetInt(res.RowsAffected)
 	}
 }
 func findArgSession(proxyArg proxyArg)*Session{
 	for _, arg := range proxyArg.Args {
 		argInterface := arg.Interface()
-		argK := arg.Kind()
 		argS := arg.Type().String()
-		if argK == reflect.Interface && argInterface != nil && argS == `*mbt.Session` {
+		if argInterface != nil && argS == `*mbt.Session` {
 			return argInterface.(*Session)
 		}
 	}
@@ -1341,24 +1313,12 @@ func (it *Session)Tx(mapperPtr interface{}) {
 		name := service.Type().Elem().String()+"."
 		funcName := funcField.Name
 		fn := func(arg proxyArg) []reflect.Value {
-			err := it.Begin()
-			if err != nil {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name+funcName+"() "+"Begin() err = " +err.Error())
-			}
+			it.Begin()
 			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, it)
 			if !haveRollBackType(nativeImplResult) {
-				err = it.Commit()
-				if err != nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(name+funcName+"() "+"Commit() err = "+ err.Error())
-				}
+				it.Commit()
 			} else {
-				err = it.Rollback()
-				if err != nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(name+funcName+"() "+"Rollback() err = "+ err.Error())
-				}
+				it.Rollback()
 			}
 			return nativeImplResult
 		}
@@ -1402,11 +1362,7 @@ func (it *Session)doNativeMethod(name ,funcName string, arg proxyArg, nativeImpl
 	defer func() {
 		err := recover()
 		if err != nil {
-			rollbackErr := s.Rollback()
-			if rollbackErr != nil {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(fmt.Sprint(err) + rollbackErr.Error())
-			}
+			s.Rollback()
 			it.log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + name+funcName+"()"))
 		}
 	}()
@@ -1427,7 +1383,3 @@ func haveRollBackType(v []reflect.Value) bool {
 	}
 	return false
 }
-
-
-
-
