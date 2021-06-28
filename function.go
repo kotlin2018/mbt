@@ -746,8 +746,6 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 	s := findArgSession(proxyArg)
 	if s == nil {
 		s = it
-	}else if s.tx !=nil {
-		s.tx =nil
 	}
 	convert := s.stmtConvert()
 	array := make([]interface{},0)

@@ -122,6 +122,7 @@ func (it *Session) Rollback(){
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Rollback Transaction Failed error == ",err.Error())
 	}
+	it.tx =nil
 	it.log.Println("Rollback Transaction Successfully")
 }
 func (it *Session) Commit(){
@@ -130,17 +131,19 @@ func (it *Session) Commit(){
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
 	}
+	it.tx =nil
 	it.log.Println("Commit Transaction Successfully")
 }
-
 func (it *Session) Begin(){
-	t, err := it.db.Begin()
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
+	if it.tx == nil {
+		t, err := it.db.Begin()
+		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
+		}
+		it.tx = t
+		it.log.Println("Begin Transaction Successfully")
 	}
-	it.tx = t
-	it.log.Println("Begin Transaction Successfully")
 }
 func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
