@@ -183,6 +183,7 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*resu
 		}
 		res, err = stmt.Exec(args...)
 		if err != nil {
+			it.tx.Rollback()
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" Transaction Execute SQL Failed ",err.Error())
 		}
