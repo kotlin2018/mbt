@@ -16,7 +16,6 @@ var (
 	timeType = reflect.TypeOf(timeDefault)
 )
 type (
-	Tx func()*Session
 	H map[interface{}]interface{}
 	Database struct {
 		Pkg             string  `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
@@ -116,33 +115,23 @@ func (it *Session)Driver(driverType Convert)*Session{
 	it.driver[it.driverName] = driverType
 	return it
 }
-func (it *Session) Rollback(){
-	err := it.tx.Rollback()
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("Rollback Transaction Failed ",err.Error())
-	}
-	it.log.Println("Rollback Transaction Successfully")
-}
 func (it *Session) Commit(){
 	err := it.tx.Commit()
+	it.tx=nil
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
 	}
-	it.tx=nil
 	it.log.Println("Commit Transaction Successfully")
 }
 func (it *Session) Begin(){
-	if it.tx == nil {
-		t, err := it.db.Begin()
-		if err != nil {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
-		}
-		it.tx = t
-		it.log.Println("Begin Transaction Successfully")
+	t, err := it.db.Begin()
+	if err != nil {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
 	}
+	it.tx = t
+	it.log.Println("Begin Transaction Successfully")
 }
 func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
@@ -180,7 +169,7 @@ func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []m
 	}()
 	return res
 }
-func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{}) *result{
+func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*result{
 	var (
 		res sql.Result
 		stmt *sql.Stmt

@@ -3,7 +3,6 @@ package mbt
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -20,46 +19,29 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		funcName := funcField.Name
 		ret := outPut[funcName]
-		if funcField.Type.String() == `mbt.Tx` {
-			proxyFunc := func(arg proxyArg) []reflect.Value {
-				var res *reflect.Value = nil
-				returnV := reflect.New(*ret.Value)
-				switch (*ret.Value).Kind() {
-				case reflect.Map:
-					returnV.Elem().Set(reflect.MakeMap(*ret.Value))
-				case reflect.Slice:
-					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
-				}
-				res = &returnV
-				res.Elem().Set(reflect.ValueOf(it).Elem().Addr().Convert(*ret.Value))
-				return buildReturnValue(ret, res)
+		proxyFunc := func(arg proxyArg) []reflect.Value {
+			var res *reflect.Value = nil
+			returnV := reflect.New(*ret.Value)
+			switch (*ret.Value).Kind() {
+			case reflect.Map:
+				returnV.Elem().Set(reflect.MakeMap(*ret.Value))
+			case reflect.Slice:
+				returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
 			}
-			return proxyFunc
-		} else {
-			proxyFunc := func(arg proxyArg) []reflect.Value {
-				var res *reflect.Value = nil
-				returnV := reflect.New(*ret.Value)
-				switch (*ret.Value).Kind() {
-				case reflect.Map:
-					returnV.Elem().Set(reflect.MakeMap(*ret.Value))
-				case reflect.Slice:
-					returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
-				}
-				res = &returnV
-				it.exeMethodByXml(ret.xml.Tag, arg, ret.nodes,res,ret.name)
-				return buildReturnValue(ret, res)
-			}
-			return proxyFunc
+			res = &returnV
+			it.exeMethodByXml(ret.xml.Tag, arg, ret.nodes,res,ret.name)
+			return buildReturnValue(ret, res)
 		}
+		return proxyFunc
 	})
 }
+
 func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*element,xmlName string) map[string]*returnValue {
 	returnMap := make(map[string]*returnValue)
 	name := bean.String()
 	for i := 0; i < bean.NumField(); i++ {
 		fieldItem := bean.Field(i)
 		funcType := fieldItem.Type
-		funcTypes := funcType.String()
 		funcName := fieldItem.Name
 		funcKind := funcType.Kind()
 		if funcKind != reflect.Func {
@@ -75,10 +57,6 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 		customLen := 0
 		for j := 0; j < argsLen; j++ {
 			inType := funcType.In(j)
-			if inType.String() == `mbt.Session` {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name+"."+funcName+"()"+" 的输入参数不能是 "+`mbt.Session`+",只能是 "+`*mbt.Session`)
-			}
 			if isCustomStruct(inType) {
 				customLen++
 			}
@@ -88,17 +66,17 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
 		}
 		numOut := funcType.NumOut()
-		if numOut > 2 || numOut == 0 {
+		if numOut != 1 {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name + "." + funcName + "() return num out must = 1 or = 2!")
+			it.log.Fatalln(name + "." + funcName + "() return num out must = 1!")
 		}
 		for k := 0; k < numOut; k++ {
 			outType := funcType.Out(k)
 			outTypeK := outType.Kind()
 			outTypeS := outType.String()
-			if outTypeK == reflect.Ptr && funcTypes != `mbt.Tx`|| (outTypeK == reflect.Interface && outTypeS != `error`){
+			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeS == `error`{
 				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name + "." + funcName + "()' return '" + outTypeS + "' can not be a 'ptr' or 'interface'!")
+				it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error'!")
 			}
 			ret := returnMap[funcName]
 			if ret == nil {
@@ -107,18 +85,8 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 					Num:      numOut,
 				}
 			}
-			if outTypeS != `error` {
-				returnMap[funcName].Index = k
-				returnMap[funcName].Value = &outType
-			} else {
-				returnMap[funcName].Error = &outType
-			}
-		}
-		if returnMap[funcName].Error == nil && funcTypes != `mbt.Tx`{
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name + "." + funcName + "()' must return an 'error'!")
-		}
-		if funcTypes != `mbt.Tx` {
+			returnMap[funcName].Index = k
+			returnMap[funcName].Value = &outType
 			mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
 			returnMap[funcName].xml = mapperXml
 			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
@@ -743,30 +711,16 @@ func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
 	return list
 }
 func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
-	s := findArgSession(proxyArg)
-	if s == nil {
-		s = it
-	}
-	convert := s.stmtConvert()
+	convert := it.stmtConvert()
 	array := make([]interface{},0)
 	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
 	if elementType == "select"{
-		res := s.queryPrepare(name,sql, array...)
+		res := it.queryPrepare(name,sql, array...)
 		it.decodeSqlResult(res, returnValue.Interface(),name)
 	} else {
-		res := s.execPrepare(name,sql, array...)
+		res := it.execPrepare(name,sql, array...)
 		returnValue.Elem().SetInt(res.RowsAffected)
 	}
-}
-func findArgSession(proxyArg proxyArg)*Session{
-	for _, arg := range proxyArg.Args {
-		argInterface := arg.Interface()
-		argS := arg.Type().String()
-		if argInterface != nil && argS == `*mbt.Session` {
-			return argInterface.(*Session)
-		}
-	}
-	return nil
 }
 func lowerFirst(fieldStr string) string {
 	if fieldStr != "" {
@@ -884,7 +838,7 @@ func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.S
 			case reflect.Struct:
 				it.proxyValue(f, buildFunc)
 			case reflect.Func:
-				it.buildRemoteMethod(v.Type().String(),f, ft, sf, buildFunc(sf, f))
+				it.buildRemoteMethod(v.Type().String()+"."+sf.Name+"()",f, ft, sf, buildFunc(sf, f))
 			}
 		}
 	}
@@ -901,11 +855,11 @@ func (it *Session)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type
 		for i := 0;i<num;i++ {
 			fti := ft.In(i)
 			ftk := fti.Kind()
-			if fti.String() == `*mbt.Session` || ftk == reflect.Struct || ftk == reflect.Slice && fti.Elem().Kind() == reflect.Struct{
+			if ftk == reflect.Struct || ftk == reflect.Slice && fti.Elem().Kind() == reflect.Struct{
 				continue
 			}else {
 				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name+"."+sf.Name+"()"+` 上的 tag "arg:" 的值的个数 != `+name+"."+sf.Name+"()"+` 的输入参数的个数!!`)
+				it.log.Fatalln(name+` 上的 tag "arg:" 的值的个数 != `+name+` 的输入参数的个数!!`)
 			}
 		}
 	}else {
@@ -923,7 +877,7 @@ func (it *Session)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type
 		tagArgsLen := len(tagArgs)
 		if tagArgsLen > 0 && num != tagArgsLen{
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+"."+sf.Name+"()"+` 上的 tag "arg:" 的值的个数 != `+name+"."+sf.Name+"()"+` 的输入参数的个数!!`)
+			it.log.Fatalln(name+` 上的 tag "arg:" 的值的个数 != `+name+` 的输入参数的个数!!`)
 		}
 	}
 	fn := func(args []reflect.Value) (results []reflect.Value) {
@@ -1291,85 +1245,4 @@ func snake(s string) string {
 		data = append(data, d)
 	}
 	return strings.ToLower(string(data[:]))
-}
-func (it *Session)Tx(mapperPtr interface{}) {
-	service := reflect.ValueOf(mapperPtr)
-	if service.Kind() != reflect.Ptr {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(service.Type().String()+"{} 必须是指针类型!!!")
-	}
-	it.txStruct(service, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
-		nativeImplFunc := reflect.ValueOf(field.Interface())
-		name := service.Type().Elem().String()+"."
-		funcName := funcField.Name
-		fn := func(arg proxyArg) []reflect.Value {
-			it.Begin()
-			nativeImplResult := it.doNativeMethod(name,funcName, arg, nativeImplFunc, it)
-			if !haveRollBackType(nativeImplResult) {
-				it.Commit()
-			} else {
-				it.Rollback()
-			}
-			return nativeImplResult
-		}
-		return fn
-	})
-}
-func (it *Session)txStruct(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
-	v = v.Elem()
-	t := v.Type()
-	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
-		ft := f.Type()
-		ftk := ft.Kind()
-		sf := t.Field(i)
-		if ftk == reflect.Ptr{
-			ft = ft.Elem()
-		}
-		if f.CanSet() {
-			switch ftk {
-			case reflect.Struct:
-				it.txStruct(f, buildFunc)
-			case reflect.Func:
-				it.txMethod(f, ft, buildFunc(sf, f))
-			}
-		}
-	}
-	v.Set(v)
-}
-func (it *Session)txMethod(f reflect.Value, ft reflect.Type, proxyFunc func(arg proxyArg) []reflect.Value) {
-	tagArgs := make([]tagArg, 0)
-	fn := func(args []reflect.Value) (results []reflect.Value) {
-		proxyResults := proxyFunc(newArg(tagArgs, args))
-		for _, returnV := range proxyResults {
-			results = append(results, returnV)
-		}
-		return results
-	}
-	f.Set(reflect.MakeFunc(ft, fn))
-}
-func (it *Session)doNativeMethod(name ,funcName string, arg proxyArg, nativeImplFunc reflect.Value, s *Session) []reflect.Value {
-	defer func() {
-		err := recover()
-		if err != nil {
-			s.Rollback()
-			it.log.Println([]byte(fmt.Sprint(err) + " Throw out error will Rollback! from >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + name+funcName+"()"))
-		}
-	}()
-	return nativeImplFunc.Call(arg.Args)
-}
-func haveRollBackType(v []reflect.Value) bool {
-	if v == nil || len(v) == 0 {
-		return false
-	}
-	for _, item := range v {
-		if item.Kind() == reflect.Interface {
-			if strings.Contains(item.String(), "error") {
-				if !item.IsNil() {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
