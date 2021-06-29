@@ -130,6 +130,7 @@ func (it *Session) Commit(){
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
 	}
+	it.tx=nil
 	it.log.Println("Commit Transaction Successfully")
 }
 func (it *Session) Begin(){
@@ -147,17 +148,12 @@ func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
 func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []map[string][]byte {
-	var (
-		rows *sql.Rows
-		stmt *sql.Stmt
-		err error
-	)
-	stmt, err = it.db.Prepare(sqlPrepare)
+	stmt, err := it.db.Prepare(sqlPrepare)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+" SQL Prepared Statements Failed ",err.Error())
 	}
-	rows, err = stmt.Query(args...)
+	rows, err := stmt.Query(args...)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+" Query SQL Failed ",err.Error())

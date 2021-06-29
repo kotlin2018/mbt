@@ -745,7 +745,6 @@ func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
 func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
 	s := findArgSession(proxyArg)
 	if s == nil {
-		it.tx=nil
 		s = it
 	}
 	convert := s.stmtConvert()
