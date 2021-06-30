@@ -1053,13 +1053,13 @@ var (
     <!--logic_deleted 逻辑删除已删除字段-->
     <!--logic_undelete 逻辑删除 未删除字段-->
     <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
-	<resultMap id="#{resultMap}" table="#{table}">
+	<resultMap id="base" table="#{table}">
     #{resultMapBody}
     </resultMap>
-	<insert id="insert"/>
-	<update id="update"/>
-	<delete id="delete"/>
-	<select id="select"/>
+	<insert id="insert" resultMap="base"/>
+	<update id="update" resultMap="base"/>
+	<delete id="delete" resultMap="base"/>
+	<select id="select" resultMap="base"/>
 </mapper>
 `
 	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1103,7 +1103,6 @@ func (it *Session)createXml(name string,tv reflect.Type)[]byte{
 		}
 	}
 	res := strings.Replace(xmlData, "#{namespace}", it.namespace+"."+name, -1)
-	res = strings.Replace(res, "#{resultMap}", tv.String(), -1)
 	res = strings.Replace(res, "#{table}", snake(tv.Name()), -1)
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
