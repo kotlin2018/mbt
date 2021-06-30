@@ -1056,20 +1056,20 @@ var (
 	<resultMap id="#{resultMap}" table="#{table}">
     #{resultMapBody}
     </resultMap>
-	<insert id="Insert"/>
-	<update id="Update"/>
-	<delete id="Delete"/>
-	<select id="Select"/>
+	<insert id="insert"/>
+	<update id="update"/>
+	<delete id="delete"/>
+	<select id="select"/>
 </mapper>
 `
 	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper namespace="#{namespace}">
-	<insert id="Insert"/>
-	<update id="Update"/>
-	<delete id="Delete"/>
-	<select id="Select"/>
+	<insert id="insert"/>
+	<update id="update"/>
+	<delete id="delete"/>
+	<select id="select"/>
 </mapper>
 `
 	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
