@@ -214,6 +214,10 @@ func printElement(ele *element, v *string) {
 func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[string]*element,xmlName string){
 	switch mapper.Tag {
 	case "select":
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", "select")
+		}
 		columns := mapper.SelectAttrValue("column", "")
 		if columns == ""{
 			break
@@ -226,10 +230,6 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "select")
-		}
 		wheres := mapper.SelectAttrValue("where", "")
 		logic := it.decodeLogicDelete(resultMapData,xmlName)
 		var sql bytes.Buffer
@@ -245,6 +245,10 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		}
 		break
 	case "insert":
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", "insert")
+		}
 		resultMap := mapper.SelectAttrValue("resultMap", "")
 		if resultMap == "" {
 			break
@@ -253,10 +257,6 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
-		}
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "insert")
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		inserts := mapper.SelectAttrValue("insert", "")
@@ -393,6 +393,10 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		mapper.Child = append(mapper.Child, &tempElement)
 		break
 	case "update":
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", "update")
+		}
 		resultMap := mapper.SelectAttrValue("resultMap", "")
 		if resultMap == "" {
 			break
@@ -401,10 +405,6 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
-		}
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "update")
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		columns := mapper.SelectAttrValue("set", "")
@@ -448,6 +448,10 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		}
 		break
 	case "delete":
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			mapper.CreateAttr("id", "delete")
+		}
 		resultMap := mapper.SelectAttrValue("resultMap", "")
 		if resultMap == "" {
 			break
@@ -456,10 +460,6 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
-		}
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "delete")
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		wheres := mapper.SelectAttrValue("where", "")
