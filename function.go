@@ -35,7 +35,6 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 		return proxyFunc
 	})
 }
-
 func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*element,xmlName string) map[string]*returnValue {
 	returnMap := make(map[string]*returnValue)
 	name := bean.String()
