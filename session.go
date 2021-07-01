@@ -52,7 +52,6 @@ type (
 		Index int
 	}
 	returnValue struct {
-		Error *reflect.Type
 		Value *reflect.Type
 		Num   int
 		Index int
@@ -62,7 +61,8 @@ type (
 	}
 	Session struct {
 		db         *sql.DB
-		tx         *sql.Tx
+		tx         []*sql.Tx
+		i          int
 		log        *log.Logger
 		driverName string
 		dsn        string
@@ -115,9 +115,19 @@ func (it *Session)Driver(driverType Convert)*Session{
 	it.driver[it.driverName] = driverType
 	return it
 }
+func (it *Session) push(k *sql.Tx) {
+	it.tx = append(it.tx, k)
+	it.i++
+}
+func (it *Session) last() *sql.Tx {
+	if it.i == 0 {
+		return nil
+	}
+	return it.tx[it.i-1]
+}
 func (it *Session) Commit(){
-	err := it.tx.Commit()
-	it.tx=nil
+	t := it.last()
+	err := t.Commit()
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
@@ -130,7 +140,9 @@ func (it *Session) Begin(){
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
 	}
-	it.tx = t
+	it.i=0
+	it.tx = make([]*sql.Tx,0)
+	it.push(t)
 	it.log.Println("Begin Transaction Successfully")
 }
 func printArray(array []interface{}) string {
@@ -174,16 +186,17 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*resu
 		res sql.Result
 		stmt *sql.Stmt
 		err error
+		t = it.last()
 	)
-	if it.tx != nil {
-		stmt, err = it.tx.Prepare(sqlPrepare)
+	if t != nil {
+		stmt, err = t.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" Transaction Prepared Statements Failed ",err.Error())
 		}
 		res, err = stmt.Exec(args...)
 		if err != nil {
-			err = it.tx.Rollback()
+			err = t.Rollback()
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Println(name+" Rollback Transaction Failed ",err.Error())
