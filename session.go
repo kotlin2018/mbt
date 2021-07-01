@@ -52,17 +52,14 @@ type (
 		Index int
 	}
 	returnValue struct {
-		Value *reflect.Type
-		Num   int
-		Index int
+		value *reflect.Type
 		xml   *element
 		nodes []iiNode
 		name  string
 	}
 	Session struct {
 		db         *sql.DB
-		tx         []*sql.Tx
-		i          int
+		tx         *sql.Tx
 		log        *log.Logger
 		driverName string
 		dsn        string
@@ -115,23 +112,13 @@ func (it *Session)Driver(driverType Convert)*Session{
 	it.driver[it.driverName] = driverType
 	return it
 }
-func (it *Session) push(k *sql.Tx) {
-	it.tx = append(it.tx, k)
-	it.i++
-}
-func (it *Session) last() *sql.Tx {
-	if it.i == 0 {
-		return nil
-	}
-	return it.tx[it.i-1]
-}
 func (it *Session) Commit(){
-	t := it.last()
-	err := t.Commit()
+	err := it.tx.Commit()
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Commit Transaction Failed error == ",err.Error())
 	}
+	it.tx=nil
 	it.log.Println("Commit Transaction Successfully")
 }
 func (it *Session) Begin(){
@@ -140,9 +127,7 @@ func (it *Session) Begin(){
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
 	}
-	it.i=0
-	it.tx = make([]*sql.Tx,0)
-	it.push(t)
+	it.tx = t
 	it.log.Println("Begin Transaction Successfully")
 }
 func printArray(array []interface{}) string {
@@ -186,20 +171,19 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*resu
 		res sql.Result
 		stmt *sql.Stmt
 		err error
-		t = it.last()
 	)
-	if t != nil {
-		stmt, err = t.Prepare(sqlPrepare)
+	if it.tx != nil {
+		stmt, err = it.tx.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" Transaction Prepared Statements Failed ",err.Error())
 		}
 		res, err = stmt.Exec(args...)
 		if err != nil {
-			err = t.Rollback()
-			if err != nil {
+			e := it.tx.Rollback()
+			if e != nil {
 				it.log.SetPrefix("[Fatal] ")
-				it.log.Println(name+" Rollback Transaction Failed ",err.Error())
+				it.log.Println(name+" Rollback Transaction Failed ",e.Error())
 			}
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" Transaction Execute SQL Failed ",err.Error())

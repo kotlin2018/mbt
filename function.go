@@ -21,16 +21,18 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 		ret := outPut[funcName]
 		proxyFunc := func(arg proxyArg) []reflect.Value {
 			var res *reflect.Value = nil
-			returnV := reflect.New(*ret.Value)
-			switch (*ret.Value).Kind() {
+			returnV := reflect.New(*ret.value)
+			switch (*ret.value).Kind() {
 			case reflect.Map:
-				returnV.Elem().Set(reflect.MakeMap(*ret.Value))
+				returnV.Elem().Set(reflect.MakeMap(*ret.value))
 			case reflect.Slice:
-				returnV.Elem().Set(reflect.MakeSlice(*ret.Value, 0, 0))
+				returnV.Elem().Set(reflect.MakeSlice(*ret.value, 0, 0))
 			}
 			res = &returnV
 			it.exeMethodByXml(ret.xml.Tag, arg, ret.nodes,res,ret.name)
-			return buildReturnValue(ret, res)
+			list := make([]reflect.Value, 1)
+			list[0] = (*res).Elem()
+			return list
 		}
 		return proxyFunc
 	})
@@ -64,33 +66,23 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
 		}
-		numOut := funcType.NumOut()
-		if numOut != 1 {
+		if funcType.NumOut() != 1 {
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name + "." + funcName + "() return num out must = 1!")
 		}
-		for k := 0; k < numOut; k++ {
-			outType := funcType.Out(k)
-			outTypeK := outType.Kind()
-			outTypeS := outType.String()
-			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeS == `error`{
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error'!")
-			}
-			ret := returnMap[funcName]
-			if ret == nil {
-				returnMap[funcName] = &returnValue{
-					Index: -1,
-					Num:      numOut,
-				}
-			}
-			returnMap[funcName].Index = k
-			returnMap[funcName].Value = &outType
-			mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
-			returnMap[funcName].xml = mapperXml
-			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
-			returnMap[funcName].name = name+"."+funcName+"() "
+		outType := funcType.Out(0)
+		outTypeK := outType.Kind()
+		outTypeS := outType.String()
+		if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeS == `error`{
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error'!")
 		}
+		returnMap[funcName] = &returnValue{}
+		returnMap[funcName].value = &outType
+		mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
+		returnMap[funcName].xml = mapperXml
+		returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
+		returnMap[funcName].name = name+"."+funcName+"() "
 	}
 	return returnMap
 }
@@ -696,19 +688,6 @@ func decodeCollectionName(method *reflect.StructField) string {
 	}
 	return collection
 }
-func buildReturnValue(ptr *returnValue, value *reflect.Value) []reflect.Value {
-	list := make([]reflect.Value, ptr.Num)
-	for k, _ := range list {
-		if k == ptr.Index {
-			if value != nil {
-				list[k] = (*value).Elem()
-			}
-		} else {
-			list[k] = reflect.Zero(*ptr.Error)
-		}
-	}
-	return list
-}
 func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
 	convert := it.stmtConvert()
 	array := make([]interface{},0)
@@ -1056,9 +1035,17 @@ var (
 	<resultMap id="base" table="#{table}">
     #{resultMapBody}
     </resultMap>
+
+	<!--插入模板:默认id="insert" 支持批量插入 -->
 	<insert id="insert" resultMap="base"/>
-	<update id="update" resultMap="base"/>
+
+	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
 	<delete id="delete" resultMap="base"/>
+
+	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
+	<update id="update" resultMap="base"/>
+
+	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
 	<select id="select" resultMap="base"/>
 </mapper>
 `
