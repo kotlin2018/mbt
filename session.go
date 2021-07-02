@@ -134,15 +134,38 @@ func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
 func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []map[string][]byte {
-	stmt, err := it.db.Prepare(sqlPrepare)
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+" SQL Prepared Statements Failed ",err.Error())
-	}
-	rows, err := stmt.Query(args...)
-	if err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+" Query SQL Failed ",err.Error())
+	var (
+		rows *sql.Rows
+		stmt *sql.Stmt
+		err error
+	)
+	if it.tx != nil {
+		stmt, err = it.tx.Prepare(sqlPrepare)
+		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Transaction Prepared Statements Failed ",err.Error())
+		}
+		rows, err = stmt.Query(args...)
+		if err != nil {
+			e := it.tx.Rollback()
+			if e != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Println(name+" Rollback Transaction Failed ",e.Error())
+			}
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Transaction Query SQL Failed ",err.Error())
+		}
+	}else {
+		stmt, err = it.db.Prepare(sqlPrepare)
+		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" SQL Prepared Statements Failed ",err.Error())
+		}
+		rows, err = stmt.Query(args...)
+		if err != nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Query SQL Failed ",err.Error())
+		}
 	}
 	if stmt != nil {
 		defer stmt.Close()
