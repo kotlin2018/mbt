@@ -28,5 +28,6 @@
 先实现 mbt.Convert 接口，再调用 Session.Driver()，将自定义的驱动注册到当前 Session 对象中即可。
 ````
 
+* [查询是否要使用事务](https://blog.csdn.net/weixin_34157892/article/details/114553584)
 
 
