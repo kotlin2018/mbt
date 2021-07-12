@@ -54,17 +54,27 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 			}
 			continue
 		}
+		args := fieldItem.Tag.Get(`arg`)
 		argsLen := funcType.NumIn()
 		customLen := 0
 		for j := 0; j < argsLen; j++ {
 			inType := funcType.In(j)
+			ftk := inType.Kind()
+			if ftk != reflect.Struct{
+				if ftk == reflect.Slice || ftk == reflect.Map{
+					if inType.Elem().Kind()!= reflect.Struct && args == "" {
+						it.log.SetPrefix("[Fatal] ")
+						it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
+					}
+				}
+			}
 			if isCustomStruct(inType) {
 				customLen++
 			}
 		}
 		if argsLen > 1 && customLen > 1 {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)(int64,error)`)
+			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)int64`)
 		}
 		if funcType.NumOut() != 1 {
 			it.log.SetPrefix("[Fatal] ")
@@ -700,56 +710,24 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 		returnValue.Elem().SetInt(res.RowsAffected)
 	}
 }
-func lowerFirst(fieldStr string) string {
-	if fieldStr != "" {
-		fieldBytes := []byte(fieldStr)
-		fieldLength := len(fieldStr)
-		fieldStr = strings.ToLower(string(fieldBytes[:1])) + string(fieldBytes[1:fieldLength])
-		fieldBytes = nil
-	}
-	return fieldStr
-}
 func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert Convert,name string) string{
 	paramMap := make(map[string]interface{})
 	tagArgsLen := proxyArg.TagArgsLen
-	argsLen := proxyArg.ArgsLen
-	customLen := 0
 	customIndex := -1
 	for argIndex, arg := range proxyArg.Args {
 		argInterface := arg.Interface()
-		argK := arg.Kind()
 		argT := arg.Type()
-		if argK == reflect.Ptr && arg.IsNil() == false && argInterface != nil && argT.String() == `*mbt.Session` {
-			if argsLen > 0 {
-				argsLen--
-			}
-			if tagArgsLen > 0 {
-				tagArgsLen--
-			}
-			continue
-		} else if argInterface != nil && argK == reflect.Interface {
-			continue
-		}
 		if isCustomStruct(argT) {
-			customLen++
 			customIndex = argIndex
 		}
-		if tagArgsLen > 0 && argIndex < tagArgsLen && proxyArg.TagArgs[argIndex].Name != "" {
-			//插入2份参数，兼容大小写不敏感的参数
-			lowerKey := lowerFirst(proxyArg.TagArgs[argIndex].Name)
-			upperKey := upperFirst(proxyArg.TagArgs[argIndex].Name)
-			paramMap[lowerKey] = argInterface
-			paramMap[upperKey] = argInterface
+		if tagArgsLen > 0{
+			paramMap[proxyArg.TagArgs[argIndex].Name] = argInterface
 		} else {
-			paramMap[`arg`+strconv.Itoa(argIndex)] = argInterface
+			paramMap[strconv.Itoa(argIndex)] = argInterface
 		}
 	}
-	if customLen == 1 && customIndex != -1 {
-		var tag *tagArg
-		if proxyArg.TagArgsLen == 1 {
-			tag = &proxyArg.TagArgs[0]
-		}
-		paramMap = it.scanStructArgFields(proxyArg.Args[customIndex], tag,name)
+	if customIndex != -1 {
+		paramMap = it.scanStructArgFields(proxyArg.Args[customIndex])
 	}
 	return it.sqlBuild(paramMap, nodes, array, stmtConvert,name)
 }
@@ -761,20 +739,8 @@ func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]
 	}
 	return string(sql)
 }
-func (it *Session)scanStructArgFields(v reflect.Value, tag *tagArg,name string) map[string]interface{} {
+func (it *Session)scanStructArgFields(v reflect.Value) map[string]interface{} {
 	t := v.Type()
-	parameters := make(map[string]interface{})
-	if v.Kind() == reflect.Ptr {
-		if v.IsNil() == true {
-			return parameters
-		}
-		v = v.Elem()
-		t = t.Elem()
-	}
-	if t.Kind() != reflect.Struct {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name +`the scanParameterBean() arg is not a struct type!,type =` + t.String())
-	}
 	structArg := make(map[string]interface{})
 	for i := 0; i < t.NumField(); i++ {
 		typeValue := t.Field(i)
@@ -783,25 +749,19 @@ func (it *Session)scanStructArgFields(v reflect.Value, tag *tagArg,name string) 
 		if field.CanInterface() {
 			obj = field.Interface()
 		}
-		jsonKey := typeValue.Tag.Get(`json`)
-		if strings.Index(jsonKey, ",") != -1 {
-			jsonKey = strings.Split(jsonKey, ",")[0]
+		tagValue := typeValue.Tag.Get(`json`)
+		if strings.Index(tagValue, `,`) != -1 {
+			tagValue = strings.Split(tagValue, `,`)[0]
 		}
-		if jsonKey != "" {
-			parameters[jsonKey] = obj
-			structArg[jsonKey] = obj
-			parameters[typeValue.Name] = obj
-			structArg[typeValue.Name] = obj
+		if tagValue != "" {
+			structArg[tagValue] = obj
 		} else {
-			parameters[typeValue.Name] = obj
 			structArg[typeValue.Name] = obj
 		}
 	}
-	if tag != nil && parameters[tag.Name] == nil {
-		parameters[tag.Name] = structArg
-	}
-	return parameters
+	return structArg
 }
+
 func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
@@ -822,41 +782,28 @@ func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.S
 	}
 	v.Set(v)
 }
-func (it *Session)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type, sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
+func (it *Session)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type,sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
 	var (
 		tagParams []string
 		num = ft.NumIn()
 		tagArgs = make([]tagArg, 0)
 	)
 	args := sf.Tag.Get(`arg`)
-	if args == ""{
-		for i := 0;i<num;i++ {
-			fti := ft.In(i)
-			ftk := fti.Kind()
-			if ftk == reflect.Struct || ftk == reflect.Slice && fti.Elem().Kind() == reflect.Struct{
-				continue
-			}else {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name+` 上的 tag "arg:" 的值的个数 != `+name+` 的输入参数的个数!!`)
+	tagParams = strings.Split(args, `,`)
+	tagParamsLen := len(tagParams)
+	if tagParamsLen != 0 {
+		for index, v := range tagParams {
+			tag := tagArg{
+				Index: index,
+				Name:  v,
 			}
+			tagArgs = append(tagArgs, tag)
 		}
-	}else {
-		tagParams = strings.Split(args, `,`)
-		tagParamsLen := len(tagParams)
-		if tagParamsLen != 0 {
-			for index, v := range tagParams {
-				tag := tagArg{
-					Index: index,
-					Name:  v,
-				}
-				tagArgs = append(tagArgs, tag)
-			}
-		}
-		tagArgsLen := len(tagArgs)
-		if tagArgsLen > 0 && num != tagArgsLen{
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+` 上的 tag "arg:" 的值的个数 != `+name+` 的输入参数的个数!!`)
-		}
+	}
+	tagArgsLen := len(tagArgs)
+	if tagArgsLen > 0 && num != 0 && num != tagArgsLen {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(name+` 上的 tag "arg:" 的值的个数 != `+name+` 的输入参数的个数!!`)
 	}
 	fn := func(args []reflect.Value) (results []reflect.Value) {
 		proxyResults := proxyFunc(newArg(tagArgs, args))
@@ -866,7 +813,6 @@ func (it *Session)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type
 		return results
 	}
 	f.Set(reflect.MakeFunc(ft, fn))
-	tagParams = nil
 }
 func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interface{},name string){
 	if sqlResult == nil || result == nil {
@@ -884,15 +830,15 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 		done := len(sqlResult) - 1
 		index := 0
 		jsonData := strings.Builder{}
-		jsonData.WriteString("[")
+		jsonData.WriteString(`[`)
 		for _, v := range sqlResult {
 			jsonData.Write(makeJsonObjBytes(v, structMap))
 			if index < done {
-				jsonData.WriteString(",")
+				jsonData.WriteString(`,`)
 			}
 			index += 1
 		}
-		jsonData.WriteString("]")
+		jsonData.WriteString(`]`)
 		value = []byte(jsonData.String())
 	}else {
 		if sqlResultLen > 1 {
@@ -930,13 +876,13 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	structMap := map[string]*reflect.Type{}
 	for i := 0; i < itemType.NumField(); i++ {
 		item := itemType.Field(i)
-		structMap[strings.ToLower(item.Tag.Get("json"))] = &item.Type
+		structMap[strings.ToLower(item.Tag.Get(`json`))] = &item.Type
 	}
 	return structMap
 }
 func makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.Type) []byte {
 	jsonData := strings.Builder{}
-	jsonData.WriteString("{")
+	jsonData.WriteString(`{`)
 	done := len(sqlData) - 1
 	index := 0
 	for k, sqlV := range sqlData {
@@ -948,7 +894,7 @@ func makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.T
 		if structMap != nil {
 			v := structMap[strings.ToLower(k)]
 			if v != nil {
-				if (*v).Kind() == reflect.String || (*v).String() == "time.Time" {
+				if (*v).Kind() == reflect.String || (*v).String() == `time.Time` {
 					isStringType = true
 				}
 			}else {
@@ -964,25 +910,25 @@ func makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.T
 				jsonData.WriteString(`"`)
 			} else {
 				if sqlV == nil || len(sqlV) == 0 {
-					sqlV = []byte("null")
+					sqlV = []byte(`null`)
 				}
 				jsonData.Write(sqlV)
 			}
 		} else {
-			sqlV = []byte("null")
+			sqlV = []byte(`null`)
 			jsonData.Write(sqlV)
 		}
 		if index < done {
-			jsonData.WriteString(",")
+			jsonData.WriteString(`,`)
 		}
 		index += 1
 	}
-	jsonData.WriteString("}")
+	jsonData.WriteString(`}`)
 	return []byte(jsonData.String())
 }
 func encodeStringValue(v []byte) string {
 	if v == nil {
-		return "null"
+		return `null`
 	}
 	if len(v) == 0 {
 		return ""
@@ -990,7 +936,7 @@ func encodeStringValue(v []byte) string {
 	s := string(v)
 	b, e := json.Marshal(s)
 	if e != nil || len(b) == 0 {
-		return "null"
+		return `null`
 	}
 	s = string(b[1 : len(b)-1])
 	return s
@@ -1018,7 +964,7 @@ func isBasicType(arg reflect.Type) bool {
 		arg.Kind() == reflect.String {
 		return true
 	}
-	if arg.Kind() == reflect.Struct && arg.String() == "time.Time" {
+	if arg.Kind() == reflect.Struct && arg.String() == `time.Time` {
 		return true
 	}
 	return false
