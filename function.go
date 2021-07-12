@@ -724,10 +724,10 @@ func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface
 		if isCustomStruct(argT) {
 			customIndex = argIndex
 		}
-		if tagArgsLen > 0{
+		if tagArgsLen > 0 && proxyArg.TagArgs[argIndex].Name != ""{
 			paramMap[proxyArg.TagArgs[argIndex].Name] = argInterface
 		} else {
-			paramMap[strconv.Itoa(argIndex)] = argInterface
+			paramMap[`arg`+strconv.Itoa(argIndex)] = argInterface
 		}
 	}
 	if customIndex != -1 {
@@ -1097,9 +1097,9 @@ func (it *Session)register(mapperPtr,modelPtr interface{}){
 			}
 		}
 		tree := it.parseXml(s)
+		it.decodeTree(tree,bt,s)
 		it.data = make(map[reflect.Value]map[string]*returnValue,0)
 		it.data[obj.Elem()] = it.makeReturnTypeMap(bt, tree,s)
-		it.decodeTree(tree,bt,s)
 	}
 }
 func expressSymbol(bytes *[]byte) {
