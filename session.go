@@ -52,10 +52,11 @@ type (
 		Index int
 	}
 	returnValue struct {
-		value *reflect.Type
-		xml   *element
-		nodes []iiNode
-		name  string
+		value   *reflect.Type
+		tagArgs []tagArg
+		xml     *element
+		nodes   []iiNode
+		name    string
 	}
 	Session struct {
 		db         *sql.DB

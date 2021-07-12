@@ -54,7 +54,8 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 			}
 			continue
 		}
-		args := fieldItem.Tag.Get(`arg`)
+		args,ok := fieldItem.Tag.Lookup(`arg`)
+		tagLen := len(strings.Split(args, `,`))
 		argsLen := funcType.NumIn()
 		customLen := 0
 		for j := 0; j < argsLen; j++ {
@@ -62,10 +63,13 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 			ftk := inType.Kind()
 			if ftk != reflect.Struct{
 				if ftk == reflect.Slice || ftk == reflect.Map{
-					if inType.Elem().Kind()!= reflect.Struct && args == "" {
+					if inType.Elem().Kind()!= reflect.Struct && !ok || tagLen != argsLen{
 						it.log.SetPrefix("[Fatal] ")
 						it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
 					}
+				}else if args == "" || tagLen != argsLen{
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
 				}
 			}
 			if isCustomStruct(inType) {
@@ -761,7 +765,6 @@ func (it *Session)scanStructArgFields(v reflect.Value) map[string]interface{} {
 	}
 	return structArg
 }
-
 func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
@@ -776,34 +779,22 @@ func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.S
 			case reflect.Struct:
 				it.proxyValue(f, buildFunc)
 			case reflect.Func:
-				it.buildRemoteMethod(v.Type().String()+"."+sf.Name+"()",f, ft, sf, buildFunc(sf, f))
+				it.buildRemoteMethod(f, ft, sf, buildFunc(sf, f))
 			}
 		}
 	}
 	v.Set(v)
 }
-func (it *Session)buildRemoteMethod(name string,f reflect.Value, ft reflect.Type,sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
-	var (
-		tagParams []string
-		num = ft.NumIn()
-		tagArgs = make([]tagArg, 0)
-	)
+func (it *Session)buildRemoteMethod(f reflect.Value, ft reflect.Type,sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
+	tagArgs := make([]tagArg, 0)
 	args := sf.Tag.Get(`arg`)
-	tagParams = strings.Split(args, `,`)
-	tagParamsLen := len(tagParams)
-	if tagParamsLen != 0 {
-		for index, v := range tagParams {
-			tag := tagArg{
-				Index: index,
-				Name:  v,
-			}
-			tagArgs = append(tagArgs, tag)
+	tagParams := strings.Split(args, `,`)
+	for index, v := range tagParams {
+		tag := tagArg{
+			Index: index,
+			Name:  v,
 		}
-	}
-	tagArgsLen := len(tagArgs)
-	if tagArgsLen > 0 && num != 0 && num != tagArgsLen {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+` 上的 tag "arg:" 的值的个数 != `+name+` 的输入参数的个数!!`)
+		tagArgs = append(tagArgs, tag)
 	}
 	fn := func(args []reflect.Value) (results []reflect.Value) {
 		proxyResults := proxyFunc(newArg(tagArgs, args))
@@ -1105,10 +1096,10 @@ func (it *Session)register(mapperPtr,modelPtr interface{}){
 				}
 			}
 		}
-		it.data = make(map[reflect.Value]map[string]*returnValue,0)
 		tree := it.parseXml(s)
-		it.decodeTree(tree,bt,s)
+		it.data = make(map[reflect.Value]map[string]*returnValue,0)
 		it.data[obj.Elem()] = it.makeReturnTypeMap(bt, tree,s)
+		it.decodeTree(tree,bt,s)
 	}
 }
 func expressSymbol(bytes *[]byte) {
