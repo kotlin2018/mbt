@@ -147,7 +147,6 @@ func (it *Session) Begin(){
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("Begin Transaction Failed error == ", err.Error())
 	}
-	it.tx = make([]*sql.Tx,0)
 	it.push(t)
 	it.log.Println("Begin Transaction Successfully")
 }
@@ -206,7 +205,7 @@ func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []m
 			if res != nil {
 				RowsAffected = strconv.Itoa(len(res))
 			}
-			it.log.Println(name+" ReturnRows <== "+RowsAffected)
+			it.log.Println(name+" RowsAffected == "+RowsAffected)
 		}
 	}()
 	return res
@@ -265,7 +264,7 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*resu
 			if res != nil {
 				rowsAffected = strconv.FormatInt(ret.RowsAffected, 10)
 			}
-			it.log.Println(name+" RowsAffected <== "+rowsAffected)
+			it.log.Println(name+" RowsAffected == "+rowsAffected)
 		}
 	}()
 	return ret
