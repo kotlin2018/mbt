@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+        <!--
+
+               Copyright 2009-2017 the original author or authors.
+
+               Licensed under the Apache License, Version 2.0 (the "License");
+               you may not use it file except in compliance with the License.
+               You may obtain a copy of the License at
+
+                  http://www.apache.org/licenses/LICENSE-2.0
+
+               Unless required by applicable law or agreed to in writing, software
+               distributed under the License is distributed on an "AS IS" BASIS,
+               WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+               See the License for the specific language governing permissions and
+               limitations under the License.
+
+        -->
+        <!ELEMENT mapper (resultMap*  | sql* | insert* | update* | delete* | select* )+>
+        <!ATTLIST mapper
+                namespace CDATA #IMPLIED
+                >
+
+        <!ELEMENT resultMap (id*,result*)>
+        <!ATTLIST resultMap
+                id CDATA #REQUIRED
+                table  #REQUIRED
+                type CDATA #REQUIRED
+                >
+
+        <!ELEMENT id EMPTY>
+        <!ATTLIST id
+                langType CDATA #IMPLIED
+                column CDATA #IMPLIED
+                property CDATA #IMPLIED
+                >
+
+        <!ELEMENT result EMPTY>
+        <!ATTLIST result
+                langType CDATA #IMPLIED
+                column CDATA #IMPLIED
+                property CDATA #IMPLIED
+                version_enable CDATA #IMPLIED
+                logic_enable CDATA #IMPLIED
+                logic_deleted CDATA #IMPLIED
+                logic_undelete CDATA #IMPLIED
+                >
+
+        <!ELEMENT arg EMPTY>
+        <!ATTLIST arg
+                langType CDATA #IMPLIED
+                column CDATA #IMPLIED
+                select CDATA #IMPLIED
+                resultMap CDATA #IMPLIED
+                name CDATA #IMPLIED
+                >
+
+        <!ELEMENT typeAlias EMPTY>
+        <!ATTLIST typeAlias
+                alias CDATA #REQUIRED
+                type CDATA #REQUIRED
+                >
+
+        <!ELEMENT property EMPTY>
+        <!ATTLIST property
+                name CDATA #REQUIRED
+                value CDATA #REQUIRED
+                >
+
+        <!ELEMENT select (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST select
+                id CDATA #REQUIRED
+                lang CDATA #IMPLIED
+                resultMap CDATA #IMPLIED
+                table CDATA #IMPLIED
+                column CDATA #IMPLIED
+                where CDATA #IMPLIED
+                >
+
+        <!ELEMENT insert (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST insert
+                id CDATA #REQUIRED
+                lang CDATA #IMPLIED
+                resultMap CDATA #IMPLIED
+                useGeneratedKeys (true|false) #IMPLIED
+                table CDATA #IMPLIED
+                insert CDATA #IMPLIED
+                >
+
+        <!--set指定值(例如 sets="name?name = #{name}"  )会更新对应值，否则为""设置全部属性-->
+        <!ELEMENT update (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST update
+                id CDATA #REQUIRED
+                lang CDATA #IMPLIED
+                resultMap CDATA #IMPLIED
+                table CDATA #IMPLIED
+                set CDATA #IMPLIED
+                where CDATA #IMPLIED
+                >
+
+        <!ELEMENT delete (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST delete
+                id CDATA #REQUIRED
+                lang CDATA #IMPLIED
+                resultMap CDATA #IMPLIED
+                table CDATA #IMPLIED
+                where CDATA #IMPLIED
+                >
+
+        <!-- Dynamic -->
+        <!ELEMENT include (property+)?>
+        <!ATTLIST include
+                refid CDATA #REQUIRED
+                >
+
+        <!ELEMENT bind EMPTY>
+        <!ATTLIST bind
+                name CDATA #REQUIRED
+                value CDATA #REQUIRED
+                >
+
+        <!ELEMENT sql (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST sql
+                id CDATA #REQUIRED
+                lang CDATA #IMPLIED
+                >
+
+        <!ELEMENT trim (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST trim
+                prefix CDATA #IMPLIED
+                prefixOverrides CDATA #IMPLIED
+                suffix CDATA #IMPLIED
+                suffixOverrides CDATA #IMPLIED
+                >
+        <!ELEMENT where (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ELEMENT set (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+
+        <!ELEMENT foreach (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST foreach
+                collection CDATA #REQUIRED
+                item CDATA #IMPLIED
+                index CDATA #IMPLIED
+                open CDATA #IMPLIED
+                close CDATA #IMPLIED
+                separator CDATA #IMPLIED
+                >
+
+        <!ELEMENT choose (when* , otherwise?)>
+        <!ELEMENT when (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST when
+                test CDATA #REQUIRED
+                >
+        <!ELEMENT otherwise (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+
+        <!ELEMENT if (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST if
+                test CDATA #REQUIRED
+                >
+
