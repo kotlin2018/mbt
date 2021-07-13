@@ -867,6 +867,13 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	structMap := map[string]*reflect.Type{}
 	for i := 0; i < itemType.NumField(); i++ {
 		item := itemType.Field(i)
+		itemT := item.Type
+		if itemT.Kind() == reflect.Struct{
+			for j :=0; j < itemT.NumField();j++{
+				field := itemT.Field(j)
+				structMap[strings.ToLower(field.Tag.Get(`json`))] = &field.Type
+			}
+		}
 		structMap[strings.ToLower(item.Tag.Get(`json`))] = &item.Type
 	}
 	return structMap
