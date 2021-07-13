@@ -1021,7 +1021,6 @@ func (it *Session)createXml(name string,tv reflect.Type)[]byte{
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
 }
-// https://mp.weixin.qq.com/s/1nqpVzitGdVVvHIuk8iAeQ
 func (it *Session)register(mapperPtr,modelPtr interface{}){
 	var (
 		obj = reflect.ValueOf(mapperPtr)
