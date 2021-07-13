@@ -739,7 +739,7 @@ func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]
 	sql, err := doChildNodes(node, args, array, stmtConvert)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+err.Error())
+		it.log.Fatalln(name+" "+err.Error())
 	}
 	return string(sql)
 }
@@ -834,7 +834,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 	}else {
 		if sqlResultLen > 1 {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+"SqlResultDecoder Decode one result,but find database result size find > 1 !")
+			it.log.Fatalln(name+" SqlResultDecoder Decode one result,but find database result size find > 1 !")
 		}
 		if isBasicType(resultV.Type()) {
 			for _, s := range sqlResult[0] {
