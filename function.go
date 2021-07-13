@@ -707,11 +707,9 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 	array := make([]interface{},0)
 	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
 	if elementType == "select"{
-		res := it.queryPrepare(name,sql, array...)
-		it.decodeSqlResult(res, returnValue.Interface(),name)
+		it.decodeSqlResult(it.queryPrepare(name,sql, array...), returnValue.Interface(),name)
 	} else {
-		res := it.execPrepare(name,sql, array...)
-		returnValue.Elem().SetInt(res.RowsAffected)
+		returnValue.Elem().SetInt(it.execPrepare(name,sql, array...).RowsAffected)
 	}
 }
 func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert Convert,name string) string{
@@ -809,12 +807,12 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 	if sqlResult == nil || result == nil {
 		return
 	}
-	resultV := reflect.ValueOf(result).Elem()
-	value := make([]byte,0)
 	sqlResultLen := len(sqlResult)
 	if sqlResultLen == 0 {
 		return
 	}
+	resultV := reflect.ValueOf(result).Elem()
+	value := make([]byte,0)
 	if isArray(resultV.Kind()) {
 		resultVItemType := resultV.Type().Elem()
 		structMap := makeStructMap(resultVItemType)
@@ -897,8 +895,7 @@ func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Ty
 				jsonData.Write(sqlV)
 			}
 		}else {
-			sqlV = []byte("null")
-			jsonData.Write(sqlV)
+			jsonData.Write([]byte("null"))
 		}
 		if index < done {
 			jsonData.WriteString(`,`)
@@ -1022,7 +1019,6 @@ func (it *Session)createXml(name string,tv reflect.Type)[]byte{
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
 }
-// https://mp.weixin.qq.com/s/1nqpVzitGdVVvHIuk8iAeQ
 func (it *Session)register(mapperPtr,modelPtr interface{}){
 	var (
 		obj = reflect.ValueOf(mapperPtr)
@@ -1105,7 +1101,7 @@ func expressSymbol(bytes *[]byte) {
 	}
 	*bytes = []byte(byteStr)
 }
-func (it *Session)parseXml(xmlName string) (items map[string]*element) {
+func (it *Session)parseXml(xmlName string) map[string]*element {
 	bytes, _ := ioutil.ReadFile(xmlName)
 	expressSymbol(&bytes)
 	doc := newDocument()
@@ -1113,7 +1109,7 @@ func (it *Session)parseXml(xmlName string) (items map[string]*element) {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("解析 "+xmlName+" 文件错误,err=",err)
 	}
-	items = make(map[string]*element)
+	items := make(map[string]*element)
 	root := doc.SelectElement("mapper")
 	for _, s := range root.ChildElements() {
 		if s.Tag == "insert" ||
@@ -1144,9 +1140,9 @@ func (it *Session)parseXml(xmlName string) (items map[string]*element) {
 	return items
 }
 func snake(s string) string {
-	data := make([]byte, 0, len(s)*2)
-	j := false
 	num := len(s)
+	data := make([]byte, 0, 2*num)
+	j := false
 	for i := 0; i < num; i++ {
 		d := s[i]
 		if i > 0 && d >= 'A' && d <= 'Z' && j {
