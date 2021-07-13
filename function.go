@@ -707,11 +707,16 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 	array := make([]interface{},0)
 	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
 	if elementType == "select"{
-		res := it.queryPrepare(name,sql, array...)
+		var res []map[string][]byte
+		if it.slave != nil {
+			list := make([]interface{},0)
+			res = it.slaveQuery(name,it.buildSql(proxyArg, nodes,&list, it.slaveConvert(),name), array...)
+		}else {
+			res = it.queryPrepare(name,sql, array...)
+		}
 		it.decodeSqlResult(res, returnValue.Interface(),name)
 	} else {
-		res := it.execPrepare(name,sql, array...)
-		returnValue.Elem().SetInt(res.RowsAffected)
+		returnValue.Elem().SetInt(it.execPrepare(name,sql, array...).RowsAffected)
 	}
 }
 func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert Convert,name string) string{
@@ -809,12 +814,12 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 	if sqlResult == nil || result == nil {
 		return
 	}
-	resultV := reflect.ValueOf(result).Elem()
-	value := make([]byte,0)
 	sqlResultLen := len(sqlResult)
 	if sqlResultLen == 0 {
 		return
 	}
+	resultV := reflect.ValueOf(result).Elem()
+	value := make([]byte,0)
 	if isArray(resultV.Kind()) {
 		resultVItemType := resultV.Type().Elem()
 		structMap := makeStructMap(resultVItemType)
@@ -823,7 +828,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 		jsonData := strings.Builder{}
 		jsonData.WriteString(`[`)
 		for _, v := range sqlResult {
-			jsonData.Write(it.makeJsonObjBytes(v, structMap,name))
+			jsonData.Write(makeJsonObjByte(v, structMap))
 			if index < done {
 				jsonData.WriteString(`,`)
 			}
@@ -851,7 +856,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 			}
 		} else {
 			structMap := makeStructMap(resultV.Type())
-			value = it.makeJsonObjBytes(sqlResult[0], structMap,name)
+			value = makeJsonObjByte(sqlResult[0], structMap)
 		}
 	}
 	err := json.Unmarshal(value, result)
@@ -875,7 +880,7 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	}
 	return structMap
 }
-func (it *Session)makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.Type,name string) []byte {
+func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Type) []byte {
 	jsonData := strings.Builder{}
 	jsonData.WriteString(`{`)
 	done := len(sqlData) - 1
@@ -885,19 +890,19 @@ func (it *Session)makeJsonObjBytes(sqlData map[string][]byte, structMap map[stri
 		jsonData.WriteString(k)
 		jsonData.WriteString(`":`)
 		v := structMap[strings.ToLower(k)]
-		if v == nil {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Return Value's `json` Tag Is Not Exist !")
-		}
-		if (*v).Kind() == reflect.String || (*v).String() == `time.Time` {
-			jsonData.WriteString(`"`)
-			jsonData.WriteString(encodeStringValue(sqlV))
-			jsonData.WriteString(`"`)
-		}else {
-			if sqlV == nil || len(sqlV) == 0 {
-				sqlV = []byte(`null`)
+		if v != nil {
+			if (*v).Kind() == reflect.String || (*v).String() == "time.Time" {
+				jsonData.WriteString(`"`)
+				jsonData.WriteString(encodeStringValue(sqlV))
+				jsonData.WriteString(`"`)
+			}else {
+				if sqlV == nil || len(sqlV) == 0 {
+					sqlV = []byte("null")
+				}
+				jsonData.Write(sqlV)
 			}
-			jsonData.Write(sqlV)
+		}else {
+			jsonData.Write([]byte("null"))
 		}
 		if index < done {
 			jsonData.WriteString(`,`)
@@ -1103,7 +1108,7 @@ func expressSymbol(bytes *[]byte) {
 	}
 	*bytes = []byte(byteStr)
 }
-func (it *Session)parseXml(xmlName string) (items map[string]*element) {
+func (it *Session)parseXml(xmlName string) map[string]*element {
 	bytes, _ := ioutil.ReadFile(xmlName)
 	expressSymbol(&bytes)
 	doc := newDocument()
@@ -1111,7 +1116,7 @@ func (it *Session)parseXml(xmlName string) (items map[string]*element) {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln("解析 "+xmlName+" 文件错误,err=",err)
 	}
-	items = make(map[string]*element)
+	items := make(map[string]*element)
 	root := doc.SelectElement("mapper")
 	for _, s := range root.ChildElements() {
 		if s.Tag == "insert" ||
@@ -1142,9 +1147,9 @@ func (it *Session)parseXml(xmlName string) (items map[string]*element) {
 	return items
 }
 func snake(s string) string {
-	data := make([]byte, 0, len(s)*2)
-	j := false
 	num := len(s)
+	data := make([]byte, 0, 2*num)
+	j := false
 	for i := 0; i < num; i++ {
 		d := s[i]
 		if i > 0 && d >= 'A' && d <= 'Z' && j {

@@ -59,19 +59,20 @@ type (
 		name  string
 	}
 	Session struct {
-		db         *sql.DB
-		slave      *sql.DB
-		tx         []*sql.Tx
-		i          int
-		log        *log.Logger
-		driverName string
-		dsn        string
-		pkg        string
-		printXml   bool
-		printSql   bool
-		namespace  string
-		driver     map[string]Convert
-		data       map[reflect.Value]map[string]*returnValue
+		db          *sql.DB
+		slave       *sql.DB
+		tx          []*sql.Tx
+		i           int
+		log         *log.Logger
+		driverName  string
+		slaveDriver string
+		dsn         string
+		pkg         string
+		printXml    bool
+		printSql    bool
+		namespace   string
+		driver      map[string]Convert
+		data        map[reflect.Value]map[string]*returnValue
 	}
 )
 func New(cfg *Database)*Session{
@@ -94,11 +95,12 @@ func New(cfg *Database)*Session{
 		pkg: cfg.Pkg,
 		log: log.New(os.Stdout,"[INFO] ",log.LstdFlags),
 	}
-	if cfg.Slave.DriverName != "" && cfg.Slave.DSN != ""{
+	if cfg.Slave != nil && cfg.Slave.DriverName != "" && cfg.Slave.DSN != ""{
 		slave,e := sql.Open(cfg.Slave.DriverName,cfg.Slave.DSN)
 		if e != nil{
 			panic(`Connect Slave Database Failed `+e.Error())
 		}
+		it.slaveDriver = cfg.Slave.DriverName
 		slave.SetConnMaxIdleTime(time.Duration(cfg.Slave.ConnMaxIdleTime) * time.Minute)
 		slave.SetConnMaxLifetime(time.Duration(cfg.Slave.ConnMaxLifetime) * time.Minute)
 		slave.SetMaxIdleConns(cfg.Slave.MaxIdleConn)
@@ -122,9 +124,10 @@ func (it *Session) ID(node int64) Id {
 	id, _ := newNode(node)
 	return id.Generate()
 }
-func (it *Session)Driver(driverType Convert)*Session{
+func (it *Session)Driver(masterDriver,slaveDriver Convert)*Session{
 	it.driver = make(map[string]Convert,0)
-	it.driver[it.driverName] = driverType
+	it.driver[it.driverName] = masterDriver
+	it.driver[it.slaveDriver] = slaveDriver
 	return it
 }
 func (it *Session) last() *sql.Tx {
@@ -228,9 +231,6 @@ func (it *Session) slaveQuery(name,sqlPrepare string, args ...interface{}) []map
 	return res
 }
 func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []map[string][]byte {
-	if it.slave != nil {
-		return it.slaveQuery(name,sqlPrepare,args)
-	}
 	var (
 		rows *sql.Rows
 		stmt *sql.Stmt
