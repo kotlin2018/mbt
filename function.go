@@ -87,9 +87,9 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 		outType := funcType.Out(0)
 		outTypeK := outType.Kind()
 		outTypeS := outType.String()
-		if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeS == `error`{
+		if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error'!")
+			it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
 		}
 		returnMap[funcName] = &returnValue{}
 		returnMap[funcName].value = &outType
@@ -823,7 +823,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 		jsonData := strings.Builder{}
 		jsonData.WriteString(`[`)
 		for _, v := range sqlResult {
-			jsonData.Write(makeJsonObjBytes(v, structMap))
+			jsonData.Write(it.makeJsonObjBytes(v, structMap,name))
 			if index < done {
 				jsonData.WriteString(`,`)
 			}
@@ -838,8 +838,8 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 		}
 		if isBasicType(resultV.Type()) {
 			for _, s := range sqlResult[0] {
-				var b = strings.Builder{}
-				if resultV.Kind() == reflect.String || (resultV.Kind() == reflect.Struct) {
+				b := strings.Builder{}
+				if resultV.Kind() == reflect.String || resultV.Kind() == reflect.Struct {
 					b.WriteString(`"`)
 					b.Write(s)
 					b.WriteString(`"`)
@@ -851,7 +851,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 			}
 		} else {
 			structMap := makeStructMap(resultV.Type())
-			value = makeJsonObjBytes(sqlResult[0], structMap)
+			value = it.makeJsonObjBytes(sqlResult[0], structMap,name)
 		}
 	}
 	err := json.Unmarshal(value, result)
@@ -861,9 +861,6 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 	}
 }
 func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
-	if itemType.Kind() != reflect.Struct {
-		return nil
-	}
 	structMap := map[string]*reflect.Type{}
 	for i := 0; i < itemType.NumField(); i++ {
 		item := itemType.Field(i)
@@ -878,7 +875,7 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	}
 	return structMap
 }
-func makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.Type) []byte {
+func (it *Session)makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.Type,name string) []byte {
 	jsonData := strings.Builder{}
 	jsonData.WriteString(`{`)
 	done := len(sqlData) - 1
@@ -887,33 +884,19 @@ func makeJsonObjBytes(sqlData map[string][]byte, structMap map[string]*reflect.T
 		jsonData.WriteString(`"`)
 		jsonData.WriteString(k)
 		jsonData.WriteString(`":`)
-		isStringType := false
-		fetched := true
-		if structMap != nil {
-			v := structMap[strings.ToLower(k)]
-			if v != nil {
-				if (*v).Kind() == reflect.String || (*v).String() == `time.Time` {
-					isStringType = true
-				}
-			}else {
-				fetched = false
-			}
-		}else {
-			isStringType = true
+		v := structMap[strings.ToLower(k)]
+		if v == nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" Return Value's `json` Tag Is Not Exist !")
 		}
-		if fetched {
-			if isStringType {
-				jsonData.WriteString(`"`)
-				jsonData.WriteString(encodeStringValue(sqlV))
-				jsonData.WriteString(`"`)
-			} else {
-				if sqlV == nil || len(sqlV) == 0 {
-					sqlV = []byte(`null`)
-				}
-				jsonData.Write(sqlV)
+		if (*v).Kind() == reflect.String || (*v).String() == `time.Time` {
+			jsonData.WriteString(`"`)
+			jsonData.WriteString(encodeStringValue(sqlV))
+			jsonData.WriteString(`"`)
+		}else {
+			if sqlV == nil || len(sqlV) == 0 {
+				sqlV = []byte(`null`)
 			}
-		} else {
-			sqlV = []byte(`null`)
 			jsonData.Write(sqlV)
 		}
 		if index < done {
