@@ -886,7 +886,7 @@ func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Ty
 		jsonData.WriteString(`":`)
 		v := structMap[strings.ToLower(k)]
 		if v != nil {
-			if (*v).Kind() == reflect.String || (*v).String() == `time.Time` {
+			if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
 				jsonData.WriteString(`"`)
 				jsonData.WriteString(encodeStringValue(sqlV))
 				jsonData.WriteString(`"`)
