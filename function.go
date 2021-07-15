@@ -37,8 +37,10 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 		return proxyFunc
 	})
 }
-func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*element,xmlName string) map[string]*returnValue {
-	returnMap := make(map[string]*returnValue)
+func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string]*returnValue {
+	mapperTree := it.parseXml(xmlName)
+	it.decodeTree(mapperTree,bean,xmlName)
+	returnMap := make(map[string]*returnValue,0)
 	name := bean.String()
 	for i := 0; i < bean.NumField(); i++ {
 		fieldItem := bean.Field(i)
@@ -47,7 +49,7 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 		funcKind := funcType.Kind()
 		if funcKind != reflect.Func {
 			if funcKind == reflect.Struct {
-				childMap := it.makeReturnTypeMap(funcType,mapperTree,xmlName)
+				childMap := it.makeReturnTypeMap(funcType,xmlName)
 				for k, v := range childMap {
 					returnMap[k] = v
 				}
@@ -962,16 +964,16 @@ var (
     </resultMap>
 
 	<!--插入模板:默认id="insert" 支持批量插入 -->
-	<insert id="insert" resultMap="base"/>
+	<insert id="insert" resultMap="base" />
 
 	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
-	<delete id="delete" resultMap="base"/>
+	<delete id="delete" resultMap="base" where=""/>
 
 	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
-	<update id="update" resultMap="base"/>
+	<update id="update" set="" resultMap="base" where=""/>
 
 	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
-	<select id="select" resultMap="base"/>
+	<select id="select" column="" resultMap="base" where=""/>
 </mapper>
 `
 	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1083,11 +1085,8 @@ func (it *Session)register(mapperPtr,modelPtr interface{}){
 				}
 			}
 		}
-		tree := it.parseXml(s)
-		it.decodeTree(tree,bt,s)
-		it.data = make(map[reflect.Value]map[string]*returnValue,0)
-		it.data[obj.Elem()] = it.makeReturnTypeMap(bt, tree,s)
 	}
+	it.data[obj.Elem()] = it.makeReturnTypeMap(bt,s)
 }
 func expressSymbol(bytes *[]byte) {
 	byteStr := string(*bytes)

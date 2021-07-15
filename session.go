@@ -99,6 +99,7 @@ func (it *Session)SetOutPut(w io.Writer)*Session{
 	return it
 }
 func (it *Session) Register(h H)*Session{
+	it.data = make(map[reflect.Value]map[string]*returnValue,0)
 	for i, v:= range h {
 		it.register(i,v)
 	}
