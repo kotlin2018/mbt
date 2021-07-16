@@ -11,10 +11,6 @@ import (
 	"strings"
 	"time"
 )
-var (
-	timeDefault       time.Time
-	timeType = reflect.TypeOf(timeDefault)
-)
 type (
 	H map[interface{}]interface{}
 	Database struct {
@@ -154,7 +150,7 @@ func (it *Session) Begin(){
 func printArray(array []interface{}) string {
 	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
 }
-func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []map[string][]byte {
+func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{})(res []map[string]string){
 	var (
 		rows *sql.Rows
 		stmt *sql.Stmt
@@ -195,7 +191,7 @@ func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []m
 	if rows != nil {
 		defer rows.Close()
 	}
-	res := it.rows2maps(name,rows)
+	res = it.row2map(name,rows)
 	if it.printSql {
 		it.log.Println(name+" Query ==> "+sqlPrepare)
 		it.log.Println(name+" Args  ==> "+printArray(args))
@@ -209,9 +205,9 @@ func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{}) []m
 			it.log.Println(name+" RowsAffected == "+RowsAffected)
 		}
 	}()
-	return res
+	return
 }
-func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*result{
+func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})(ret *result){
 	var (
 		res sql.Result
 		stmt *sql.Stmt
@@ -251,7 +247,7 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*resu
 	}
 	LastInsertId, _ := res.LastInsertId()
 	RowsAffected, _ := res.RowsAffected()
-	ret := &result{
+	ret = &result{
 		LastInsertId: LastInsertId,
 		RowsAffected: RowsAffected,
 	}
@@ -268,47 +264,40 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})*resu
 			it.log.Println(name+" RowsAffected == "+rowsAffected)
 		}
 	}()
-	return ret
+	return
 }
-func (it *Session)rows2maps(name string,rows *sql.Rows) (resultsSlice []map[string][]byte) {
+func (it *Session)row2map(name string,rows *sql.Rows) (resultsSlice []map[string]string) {
 	fields, err := rows.Columns()
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+" ",err.Error())
 	}
-	for rows.Next() {
-		res := it.row2map(name,rows, fields)
+	for rows.Next(){
+		res := make(map[string]string)
+		num := len(fields)
+		list := make([]interface{},num)
+		for i := 0; i < num; i++ {
+			var obj interface{}
+			list[i] = &obj
+		}
+		if err = rows.Scan(list...); err != nil {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+" ",err.Error())
+		}
+		for j, v := range fields {
+			rawValue := reflect.Indirect(reflect.ValueOf(list[j]))
+			if rawValue.Interface() == nil {
+				res[v] = `null`
+				continue
+			}
+			res[v] = it.value2String(name,&rawValue)
+		}
 		resultsSlice = append(resultsSlice, res)
 	}
-	return resultsSlice
+	return
 }
-func (it *Session)row2map(name string,rows *sql.Rows, fields []string) (resultsMap map[string][]byte) {
-	res := make(map[string][]byte)
-	num := len(fields)
-	list := make([]interface{},num)
-	for i := 0; i < num; i++ {
-		var obj interface{}
-		list[i] = &obj
-	}
-	if err := rows.Scan(list...); err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+" ",err.Error())
-	}
-	for j, v := range fields {
-		rawValue := reflect.Indirect(reflect.ValueOf(list[j]))
-		if rawValue.Interface() == nil {
-			res[v] = []byte{}
-			continue
-		}
-		res[v] = it.value2Bytes(name,&rawValue)
-	}
-	return res
-}
-func (it *Session)value2Bytes(name string,rawValue *reflect.Value) []byte {
-	var (
-		str string
-		err error
-	)
+func (it *Session)value2String(name string,rawValue *reflect.Value)(str string){
+	var err error
 	aa := reflect.TypeOf((*rawValue).Interface())
 	vv := reflect.ValueOf((*rawValue).Interface())
 	switch aa.Kind() {
@@ -323,8 +312,7 @@ func (it *Session)value2Bytes(name string,rawValue *reflect.Value) []byte {
 	case reflect.Array, reflect.Slice:
 		switch aa.Elem().Kind() {
 		case reflect.Uint8:
-			data := rawValue.Interface().([]byte)
-			str = string(data)
+			str = string(rawValue.Interface().([]byte))
 			if str == "\x00" {
 				str = "0"
 			}
@@ -332,6 +320,10 @@ func (it *Session)value2Bytes(name string,rawValue *reflect.Value) []byte {
 			err = fmt.Errorf(" Unsupported struct type %v", vv.Type().Name())
 		}
 	case reflect.Struct:
+		var (
+			timeDefault       time.Time
+			timeType = reflect.TypeOf(timeDefault)
+		)
 		if aa.ConvertibleTo(timeType) {
 			str = vv.Convert(timeType).Interface().(time.Time).Format(time.RFC3339Nano)
 		} else {
@@ -348,7 +340,7 @@ func (it *Session)value2Bytes(name string,rawValue *reflect.Value) []byte {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+" ",err.Error())
 	}
-	return []byte(str)
+	return
 }
 
 

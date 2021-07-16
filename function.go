@@ -741,6 +741,10 @@ func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+" "+err.Error())
 	}
+	if sql == nil {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(name+" Not Find SQL Statements")
+	}
 	return string(sql)
 }
 func (it *Session)scanStructArgFields(v reflect.Value) map[string]interface{} {
@@ -805,10 +809,7 @@ func (it *Session)buildRemoteMethod(f reflect.Value, ft reflect.Type,sf reflect.
 	}
 	f.Set(reflect.MakeFunc(ft, fn))
 }
-func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interface{},name string){
-	if sqlResult == nil || result == nil {
-		return
-	}
+func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interface{},name string){
 	sqlResultLen := len(sqlResult)
 	if sqlResultLen == 0 {
 		return
@@ -841,10 +842,10 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 				b := strings.Builder{}
 				if resultV.Kind() == reflect.String || resultV.Kind() == reflect.Struct {
 					b.WriteString(`"`)
-					b.Write(s)
+					b.WriteString(s)
 					b.WriteString(`"`)
 				} else {
-					b.Write(s)
+					b.WriteString(s)
 				}
 				value = b.String()
 				break
@@ -875,7 +876,7 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	}
 	return structMap
 }
-func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Type) string {
+func makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Type) string {
 	jsonData := strings.Builder{}
 	jsonData.WriteString(`{`)
 	done := len(sqlData) - 1
@@ -888,13 +889,10 @@ func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Ty
 		if v != nil {
 			if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
 				jsonData.WriteString(`"`)
-				jsonData.WriteString(encodeStringValue(sqlV))
+				jsonData.WriteString(sqlV)
 				jsonData.WriteString(`"`)
 			}else {
-				if sqlV == nil || len(sqlV) == 0 {
-					sqlV = []byte(`null`)
-				}
-				jsonData.Write(sqlV)
+				jsonData.WriteString(sqlV)
 			}
 		}else {
 			jsonData.WriteString(`null`)
@@ -906,21 +904,6 @@ func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Ty
 	}
 	jsonData.WriteString(`}`)
 	return jsonData.String()
-}
-func encodeStringValue(v []byte) string {
-	if v == nil {
-		return `null`
-	}
-	if len(v) == 0 {
-		return ""
-	}
-	s := string(v)
-	b, e := json.Marshal(s)
-	if e != nil || len(b) == 0 {
-		return `null`
-	}
-	s = string(b[1 : len(b)-1])
-	return s
 }
 func isArray(kind reflect.Kind) bool {
 	if kind == reflect.Slice || kind == reflect.Array {
