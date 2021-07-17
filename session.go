@@ -121,9 +121,10 @@ func (it *Session) ID(node int64) Id {
 	id, _ := newNode(node)
 	return id.Generate()
 }
-func (it *Session)Driver(driverType Convert)*Session{
+func (it *Session)Driver(masterDriver,slaveDriver Convert)*Session{
 	it.driver = make(map[string]Convert,0)
-	it.driver[it.driverName] = driverType
+	it.driver[it.driverName] = masterDriver
+	it.driver[it.slaveDriver] = slaveDriver
 	return it
 }
 func (it *Session) last() *sql.Tx {
