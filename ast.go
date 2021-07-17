@@ -777,6 +777,34 @@ func (it *Session)stmtConvert() Convert {
 	}
 	return nil
 }
+func (it *Session)slaveConvert() Convert {
+	switch it.slaveDriver {
+	case "mysql", "mymysql", "mssql", "sqlite3","sqlite","dm","gbase":
+		return &mysql{}
+	case "postgres","kingbase":
+		return &postgreSQL{
+			sync.RWMutex{},
+			0,
+		}
+	case "oci8":
+		return &oracle{sync.RWMutex{},
+			0}
+	case "shentong":
+		return &shenTong{
+			sync.RWMutex{},
+			0,
+		}
+	default:
+		driverType := it.driver[it.slaveDriver]
+		if driverType != nil {
+			return driverType
+		}else {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(`un support driverName :`+it.driverName+"only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
+		}
+	}
+	return nil
+}
 func newArg(tagArgs []tagArg,args []reflect.Value)proxyArg{
 	return proxyArg{
 		TagArgs:    tagArgs,
