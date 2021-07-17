@@ -401,7 +401,7 @@ func (it *Session)value2String(name string,rawValue *reflect.Value)(str string){
 			timeType = reflect.TypeOf(timeDefault)
 		)
 		if aa.ConvertibleTo(timeType) {
-			str = vv.Convert(timeType).Interface().(time.Time).Format(time.RFC3339)
+			str = vv.Convert(timeType).Interface().(time.Time).Format(time.RFC3339Nano)
 		} else {
 			err = fmt.Errorf(" Unsupported struct type %v", vv.Type().Name())
 		}
