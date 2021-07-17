@@ -37,8 +37,10 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 		return proxyFunc
 	})
 }
-func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*element,xmlName string) map[string]*returnValue {
-	returnMap := make(map[string]*returnValue)
+func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string]*returnValue {
+	mapperTree := it.parseXml(xmlName)
+	it.decodeTree(mapperTree,bean,xmlName)
+	returnMap := make(map[string]*returnValue,0)
 	name := bean.String()
 	for i := 0; i < bean.NumField(); i++ {
 		fieldItem := bean.Field(i)
@@ -47,7 +49,7 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,mapperTree map[string]*ele
 		funcKind := funcType.Kind()
 		if funcKind != reflect.Func {
 			if funcKind == reflect.Struct {
-				childMap := it.makeReturnTypeMap(funcType,mapperTree,xmlName)
+				childMap := it.makeReturnTypeMap(funcType,xmlName)
 				for k, v := range childMap {
 					returnMap[k] = v
 				}
@@ -707,7 +709,7 @@ func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []
 	array := make([]interface{},0)
 	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
 	if elementType == "select"{
-		var res []map[string][]byte
+		var res []map[string]string
 		if it.slave != nil {
 			list := make([]interface{},0)
 			res = it.slaveQuery(name,it.buildSql(proxyArg, nodes,&list, it.slaveConvert(),name), array...)
@@ -745,6 +747,10 @@ func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+" "+err.Error())
+	}
+	if sql == nil {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln(name+" Not Find SQL Statements")
 	}
 	return string(sql)
 }
@@ -810,16 +816,13 @@ func (it *Session)buildRemoteMethod(f reflect.Value, ft reflect.Type,sf reflect.
 	}
 	f.Set(reflect.MakeFunc(ft, fn))
 }
-func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interface{},name string){
-	if sqlResult == nil || result == nil {
-		return
-	}
+func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interface{},name string){
 	sqlResultLen := len(sqlResult)
 	if sqlResultLen == 0 {
 		return
 	}
 	resultV := reflect.ValueOf(result).Elem()
-	value := make([]byte,0)
+	value := ""
 	if isArray(resultV.Kind()) {
 		resultVItemType := resultV.Type().Elem()
 		structMap := makeStructMap(resultVItemType)
@@ -828,14 +831,14 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 		jsonData := strings.Builder{}
 		jsonData.WriteString(`[`)
 		for _, v := range sqlResult {
-			jsonData.Write(makeJsonObjByte(v, structMap))
+			jsonData.WriteString(makeJsonObjByte(v, structMap))
 			if index < done {
 				jsonData.WriteString(`,`)
 			}
 			index += 1
 		}
 		jsonData.WriteString(`]`)
-		value = []byte(jsonData.String())
+		value = jsonData.String()
 	}else {
 		if sqlResultLen > 1 {
 			it.log.SetPrefix("[Fatal] ")
@@ -846,12 +849,12 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 				b := strings.Builder{}
 				if resultV.Kind() == reflect.String || resultV.Kind() == reflect.Struct {
 					b.WriteString(`"`)
-					b.Write(s)
+					b.WriteString(s)
 					b.WriteString(`"`)
 				} else {
-					b.Write(s)
+					b.WriteString(s)
 				}
-				value = []byte(b.String())
+				value = b.String()
 				break
 			}
 		} else {
@@ -859,7 +862,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string][]byte, result interfac
 			value = makeJsonObjByte(sqlResult[0], structMap)
 		}
 	}
-	err := json.Unmarshal(value, result)
+	err := json.Unmarshal([]byte(value), result)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+err.Error())
@@ -880,7 +883,7 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	}
 	return structMap
 }
-func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Type) []byte {
+func makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Type) string {
 	jsonData := strings.Builder{}
 	jsonData.WriteString(`{`)
 	done := len(sqlData) - 1
@@ -891,18 +894,15 @@ func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Ty
 		jsonData.WriteString(`":`)
 		v := structMap[strings.ToLower(k)]
 		if v != nil {
-			if (*v).Kind() == reflect.String || (*v).String() == "time.Time" {
+			if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
 				jsonData.WriteString(`"`)
-				jsonData.WriteString(encodeStringValue(sqlV))
+				jsonData.WriteString(sqlV)
 				jsonData.WriteString(`"`)
 			}else {
-				if sqlV == nil || len(sqlV) == 0 {
-					sqlV = []byte("null")
-				}
-				jsonData.Write(sqlV)
+				jsonData.WriteString(sqlV)
 			}
 		}else {
-			jsonData.Write([]byte("null"))
+			jsonData.WriteString(`null`)
 		}
 		if index < done {
 			jsonData.WriteString(`,`)
@@ -910,22 +910,7 @@ func makeJsonObjByte(sqlData map[string][]byte, structMap map[string]*reflect.Ty
 		index += 1
 	}
 	jsonData.WriteString(`}`)
-	return []byte(jsonData.String())
-}
-func encodeStringValue(v []byte) string {
-	if v == nil {
-		return `null`
-	}
-	if len(v) == 0 {
-		return ""
-	}
-	s := string(v)
-	b, e := json.Marshal(s)
-	if e != nil || len(b) == 0 {
-		return `null`
-	}
-	s = string(b[1 : len(b)-1])
-	return s
+	return jsonData.String()
 }
 func isArray(kind reflect.Kind) bool {
 	if kind == reflect.Slice || kind == reflect.Array {
@@ -969,16 +954,16 @@ var (
     </resultMap>
 
 	<!--插入模板:默认id="insert" 支持批量插入 -->
-	<insert id="insert" resultMap="base"/>
+	<insert id="insert" resultMap="base" />
 
 	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
-	<delete id="delete" resultMap="base"/>
+	<delete id="delete" resultMap="base" where=""/>
 
 	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
-	<update id="update" resultMap="base"/>
+	<update id="update" set="" resultMap="base" where=""/>
 
 	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
-	<select id="select" resultMap="base"/>
+	<select id="select" column="" resultMap="base" where=""/>
 </mapper>
 `
 	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1090,11 +1075,8 @@ func (it *Session)register(mapperPtr,modelPtr interface{}){
 				}
 			}
 		}
-		tree := it.parseXml(s)
-		it.decodeTree(tree,bt,s)
-		it.data = make(map[reflect.Value]map[string]*returnValue,0)
-		it.data[obj.Elem()] = it.makeReturnTypeMap(bt, tree,s)
 	}
+	it.data[obj.Elem()] = it.makeReturnTypeMap(bt,s)
 }
 func expressSymbol(bytes *[]byte) {
 	byteStr := string(*bytes)

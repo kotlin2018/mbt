@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 type xmlNode int
 const (
@@ -56,9 +55,6 @@ type iiNode interface {
 	Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error)
 }
 func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]interface{}, stmtConvert Convert) ([]byte, error) {
-	if childNodes == nil {
-		return nil, nil
-	}
 	var sql bytes.Buffer
 	for _, v := range childNodes {
 		r, e := v.Eval(env, array, stmtConvert)
@@ -90,12 +86,11 @@ func replace(findStrS []string, data string, arg map[string]interface{}, engine 
 	}
 	return data, nil
 }
-func replaceRaw(findStrS []string, data string, typeConvert sqlArgTypeConv, arg map[string]interface{}, engine iExpression) (string, error) {
+func replaceRaw(findStrS []string, data string,arg map[string]interface{}, engine iExpression) (string, error) {
 	for _, findStr := range findStrS {
 		var (
 			evalData interface{}
 			argValue = arg[findStr]
-			resultStr string
 			err error
 		)
 		if argValue != nil {
@@ -106,25 +101,17 @@ func replaceRaw(findStrS []string, data string, typeConvert sqlArgTypeConv, arg 
 				return "", err
 			}
 		}
-		if typeConvert != nil {
-			resultStr = typeConvert.Convert(evalData)
-		} else {
-			resultStr = fmt.Sprint(evalData)
-		}
-		data = strings.Replace(data, "${"+findStr+"}", resultStr, -1)
+		data = strings.Replace(data, "${"+findStr+"}", fmt.Sprint(evalData), -1)
 	}
-	arg = nil
-	typeConvert = nil
 	return data, nil
 }
 func findExpress(str string) []string {
 	var (
-		item []byte
 		lastIndex = -1
 		startIndex = -1
+		item []byte
 		strBytes = []byte(str)
 		finds = make([]string,0)
-		strS = make([]string,0)
 	)
 	for index, v := range strBytes {
 		if v == 35 {
@@ -139,26 +126,19 @@ func findExpress(str string) []string {
 				item = bytes.Split(item, []byte(","))[0]
 			}
 			finds = append(finds, string(item))
-			item = nil
 			startIndex = -1
 			lastIndex = -1
 		}
 	}
-	item = nil
-	strBytes = nil
-	for _, k := range finds {
-		strS = append(strS, k)
-	}
-	return strS
+	return finds
 }
 func findRawExpressString(str string) []string {
 	var (
-		item []byte
 		lastIndex = -1
 		startIndex = -1
+		item []byte
 		strBytes = []byte(str)
 		finds = make([]string,0)
-		strS = make([]string,0)
 	)
 	for index, v := range str {
 		if v == 36 {
@@ -173,17 +153,11 @@ func findRawExpressString(str string) []string {
 				item = bytes.Split(item, []byte(","))[0]
 			}
 			finds = append(finds, string(item))
-			item = nil
 			startIndex = -1
 			lastIndex = -1
 		}
 	}
-	item = nil
-	strBytes = nil
-	for _, k := range finds {
-		strS = append(strS, k)
-	}
-	return strS
+	return finds
 }
 type nodeString struct {
 	value               string
@@ -192,10 +166,10 @@ type nodeString struct {
 	noConvertExpressMap []string
 	holder              express
 }
-func (it nodeString) Type() xmlNode {
+func (it *nodeString) Type() xmlNode {
 	return nStr
 }
-func (it nodeString) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeString) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	var (
 		data = it.value
 		err error
@@ -207,7 +181,7 @@ func (it nodeString) Eval(env map[string]interface{}, array *[]interface{}, stmt
 		}
 	}
 	if it.noConvertExpressMap != nil {
-		data, err = replaceRaw(it.noConvertExpressMap, data, nil, env, it.holder.Proxy)
+		data, err = replaceRaw(it.noConvertExpressMap, data, env, it.holder.Proxy)
 		if err != nil {
 			return nil, err
 		}
@@ -220,10 +194,10 @@ type nodeBind struct {
 	value  string
 	holder express
 }
-func (it nodeBind) Type() xmlNode {
+func (it *nodeBind) Type() xmlNode {
 	return nBind
 }
-func (it nodeBind) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeBind) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	if it.name == "" {
 		panic(`[Error] 元素 <bind name = ""> 名称不能为空!`)
 	}
@@ -243,10 +217,10 @@ type nodeChoose struct {
 	whenNodes     []iiNode
 	otherwiseNode iiNode
 }
-func (it nodeChoose) Type() xmlNode {
+func (it *nodeChoose) Type() xmlNode {
 	return nChoose
 }
-func (it nodeChoose) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeChoose) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	if it.whenNodes == nil && it.otherwiseNode == nil {
 		return nil, nil
 	}
@@ -272,10 +246,10 @@ type nodeForeach struct {
 	separator  string
 	holder     express
 }
-func (it nodeForeach) Type() xmlNode {
+func (it *nodeForeach) Type() xmlNode {
 	return nForeach
 }
-func (it nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	if it.collection == "" {
 		panic(`[Error] collection value can not be "" in <foreach collection=""> !`)
 	}
@@ -374,10 +348,10 @@ type nodeIf struct {
 	test   string
 	holder express
 }
-func (it nodeIf) Type() xmlNode {
+func (it *nodeIf) Type() xmlNode {
 	return nIf
 }
-func (it nodeIf) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeIf) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	res, err := it.holder.Proxy.LexerAndEval(it.test, env)
 	if err != nil {
 		err = errors.New(fmt.Sprint("SqlBuilder", "[Error] <test `", it.test, `> fail,`, err.Error()))
@@ -391,10 +365,10 @@ type nodeInclude struct {
 	child []iiNode
 	t     xmlNode
 }
-func (it nodeInclude) Type() xmlNode {
+func (it *nodeInclude) Type() xmlNode {
 	return nInclude
 }
-func (it nodeInclude) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeInclude) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	return sql, err
 }
@@ -402,10 +376,10 @@ type nodeOtherwise struct {
 	child []iiNode
 	t     xmlNode
 }
-func (it nodeOtherwise) Type() xmlNode {
+func (it *nodeOtherwise) Type() xmlNode {
 	return nOtherwise
 }
-func (it nodeOtherwise) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeOtherwise) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	r, e := doChildNodes(it.child, env, array, stmtConvert)
 	if e != nil {
 		return nil, e
@@ -420,10 +394,10 @@ type nodeTrim struct {
 	suffixOverrides []byte
 	prefixOverrides []byte
 }
-func (it nodeTrim) Type() xmlNode {
+func (it *nodeTrim) Type() xmlNode {
 	return nTrim
 }
-func (it nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	if err != nil {
 		return nil, err
@@ -471,10 +445,10 @@ type nodeWhen struct {
 	t      xmlNode
 	holder express
 }
-func (it nodeWhen) Type() xmlNode {
+func (it *nodeWhen) Type() xmlNode {
 	return nWhen
 }
-func (it nodeWhen) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeWhen) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	res, err := it.holder.Proxy.LexerAndEval(it.test, env)
 	if err != nil {
 		err = errors.New(fmt.Sprint("SqlBuilder", "[Error] <test `", it.test, `> fail,`, err.Error()))
@@ -488,10 +462,10 @@ type nodeWhere struct {
 	child []iiNode
 	t     xmlNode
 }
-func (it nodeWhere) Type() xmlNode {
+func (it *nodeWhere) Type() xmlNode {
 	return nWhere
 }
-func (it nodeWhere) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+func (it *nodeWhere) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	if err != nil {
 		return nil, err
@@ -525,110 +499,6 @@ func (it nodeWhere) Eval(env map[string]interface{}, array *[]interface{}, stmtC
 	newBuffer.Reset()
 	return newBufferBytes, nil
 }
-type sqlArgTypeConv interface {
-	Convert(arg interface{}) string
-}
-type sqlArgTypeConvert struct {}
-func (it sqlArgTypeConvert) Convert(argValue interface{}) string {
-	if argValue == nil {
-		return "''"
-	}
-	switch argValue.(type) {
-	case string:
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(argValue.(string))
-		argStr.WriteString(`'`)
-		return argStr.String()
-	case *string:
-		v := argValue.(*string)
-		if v == nil {
-			return "''"
-		}
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(*v)
-		argStr.WriteString(`'`)
-		return argStr.String()
-	case bool:
-		if argValue.(bool) {
-			return "true"
-		} else {
-			return "false"
-		}
-	case *bool:
-		v := argValue.(*bool)
-		if v == nil {
-			return "''"
-		}
-		if *v {
-			return "true"
-		} else {
-			return "false"
-		}
-	case time.Time:
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(argValue.(time.Time).Format(`2006-01-02 15:04:05`))
-		argStr.WriteString(`'`)
-		return argStr.String()
-	case *time.Time:
-		timePtr := argValue.(*time.Time)
-		if timePtr == nil {
-			return "''"
-		}
-		var argStr bytes.Buffer
-		argStr.WriteString(`'`)
-		argStr.WriteString(timePtr.Format(`2006-01-02 15:04:05`))
-		argStr.WriteString(`'`)
-		return argStr.String()
-	case int, int16, int32, int64, float32, float64:
-		return fmt.Sprint(argValue)
-	case *int:
-		v := argValue.(*int)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *int16:
-		v := argValue.(*int16)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *int32:
-		v := argValue.(*int32)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *int64:
-		v := argValue.(*int64)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *float32:
-		v := argValue.(*float32)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	case *float64:
-		v := argValue.(*float64)
-		if v == nil {
-			return ""
-		}
-		return fmt.Sprint(*v)
-	}
-	return it.toString(argValue)
-}
-func (it sqlArgTypeConvert) toString(argValue interface{}) string {
-	if argValue == nil {
-		return ""
-	}
-	return fmt.Sprint(argValue)
-}
 type iExpression interface {
 	Lexer(lexerArg string) (interface{}, error)
 	Eval(lexerResult interface{}, arg interface{}, operation int) (interface{}, error)
@@ -637,11 +507,7 @@ type iExpression interface {
 type express struct {
 	Proxy iExpression
 }
-func (it express) Parser(mapperXml []token) []iiNode {
-	if it.Proxy == nil {
-		panic("NodeParser need a *ExpressionEngineProxy{}!")
-	}
-	list := make([]iiNode,0)
+func (it express) Parser(mapperXml []token)(list []iiNode){
 	for _, item := range mapperXml {
 		var nod iiNode
 		typeString := reflect.TypeOf(item).String()
@@ -814,14 +680,10 @@ func (it express) Parser(mapperXml []token) []iiNode {
 		} else {
 			continue
 		}
-		if nod == nil {
-			panic("node ni;")
-		}
 		list = append(list, nod)
 	}
-	return list
+	return
 }
-
 type Convert interface {
 	Convert() string
 	Inc()
@@ -906,34 +768,6 @@ func (it *Session)stmtConvert() Convert {
 		}
 	default:
 		driverType := it.driver[it.driverName]
-		if driverType != nil {
-			return driverType
-		}else {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(`un support driverName :`+it.driverName+"only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
-		}
-	}
-	return nil
-}
-func (it *Session)slaveConvert() Convert {
-	switch it.slaveDriver {
-	case "mysql", "mymysql", "mssql", "sqlite3","sqlite","dm","gbase":
-		return &mysql{}
-	case "postgres","kingbase":
-		return &postgreSQL{
-			sync.RWMutex{},
-			0,
-		}
-	case "oci8":
-		return &oracle{sync.RWMutex{},
-			0}
-	case "shentong":
-		return &shenTong{
-			sync.RWMutex{},
-			0,
-		}
-	default:
-		driverType := it.driver[it.slaveDriver]
 		if driverType != nil {
 			return driverType
 		}else {
