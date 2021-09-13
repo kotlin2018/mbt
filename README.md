@@ -143,6 +143,9 @@ func initLogger (path string,maxAge,interval int)io.Writer{
 
 "oci8" ====> "github.com/mattn/go-oci8"
 
+
+"clickhouse" ====> "github.com/ClickHouse/clickhouse-go"
+
 ````
 
 * 自定义数据库驱动:
