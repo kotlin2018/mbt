@@ -15,7 +15,7 @@ import (
 
 var activity = ActivityDao{}
 
-// 这是数据库中表 biz_activity 的实体类,注意 json 的 tag 就是数据库中的具体字段
+// 这是数据库中表 biz_activity 的实体类,注意 json 的 tag 就是表 biz_activity 的具体字段
 type BizActivity struct {
 	Id         string    `json:"id"`
 	Name       string    `json:"name"`
