@@ -68,7 +68,6 @@ type (
 		printSql    bool
 		namespace   string
 		driver      map[string]Convert
-		data        map[reflect.Value]map[string]*returnValue
 	}
 )
 func New(cfg *Database)*Session{
@@ -107,13 +106,6 @@ func New(cfg *Database)*Session{
 }
 func (it *Session)SetOutPut(w io.Writer)*Session{
 	it.log.SetOutput(w)
-	return it
-}
-func (it *Session) Register(h H)*Session{
-	it.data = make(map[reflect.Value]map[string]*returnValue,0)
-	for i, v:= range h {
-		it.register(i,v)
-	}
 	return it
 }
 // 生成雪花算法的ID

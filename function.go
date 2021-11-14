@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 )
-func (it *Session)Run(){
-	for k,v := range it.data {
-		it.start(k,v)
+func (it *Session)Run(mapperPtr ...interface{}){
+	for _,v := range mapperPtr {
+		it.register(v)
 	}
 }
 func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
@@ -47,58 +47,51 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string
 		funcType := fieldItem.Type
 		funcName := fieldItem.Name
 		funcKind := funcType.Kind()
-		if funcKind != reflect.Func {
-			if funcKind == reflect.Struct {
-				childMap := it.makeReturnTypeMap(funcType,xmlName)
-				for k, v := range childMap {
-					returnMap[k] = v
-				}
-			}
-			continue
-		}
-		args,ok := fieldItem.Tag.Lookup(`arg`)
-		tagLen := len(strings.Split(args, `,`))
-		argsLen := funcType.NumIn()
-		customLen := 0
-		for j := 0; j < argsLen; j++ {
-			inType := funcType.In(j)
-			ftk := inType.Kind()
-			if ftk != reflect.Struct{
-				if ftk == reflect.Slice || ftk == reflect.Map{
-					if inType.Elem().Kind()!= reflect.Struct && !ok || tagLen != argsLen{
+		if funcKind == reflect.Func {
+			args,ok := fieldItem.Tag.Lookup(`arg`)
+			tagLen := len(strings.Split(args, `,`))
+			argsLen := funcType.NumIn()
+			customLen := 0
+			for j := 0; j < argsLen; j++ {
+				inType := funcType.In(j)
+				ftk := inType.Kind()
+				if ftk != reflect.Struct{
+					if ftk == reflect.Slice || ftk == reflect.Map{
+						if inType.Elem().Kind()!= reflect.Struct && !ok || tagLen != argsLen{
+							it.log.SetPrefix("[Fatal] ")
+							it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
+						}
+					}else if args == "" || tagLen != argsLen{
 						it.log.SetPrefix("[Fatal] ")
 						it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
 					}
-				}else if args == "" || tagLen != argsLen{
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
+				}
+				if isCustomStruct(inType) {
+					customLen++
 				}
 			}
-			if isCustomStruct(inType) {
-				customLen++
+			if argsLen > 1 && customLen > 1 {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)int64`)
 			}
+			if funcType.NumOut() != 1 {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(name + "." + funcName + "() return num out must = 1!")
+			}
+			outType := funcType.Out(0)
+			outTypeK := outType.Kind()
+			outTypeS := outType.String()
+			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
+			}
+			returnMap[funcName] = &returnValue{}
+			returnMap[funcName].value = &outType
+			mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
+			returnMap[funcName].xml = mapperXml
+			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
+			returnMap[funcName].name = name+"."+funcName+"() "
 		}
-		if argsLen > 1 && customLen > 1 {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)int64`)
-		}
-		if funcType.NumOut() != 1 {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name + "." + funcName + "() return num out must = 1!")
-		}
-		outType := funcType.Out(0)
-		outTypeK := outType.Kind()
-		outTypeS := outType.String()
-		if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
-		}
-		returnMap[funcName] = &returnValue{}
-		returnMap[funcName].value = &outType
-		mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
-		returnMap[funcName].xml = mapperXml
-		returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
-		returnMap[funcName].name = name+"."+funcName+"() "
 	}
 	return returnMap
 }
@@ -1011,72 +1004,76 @@ func (it *Session)createXml(name string,tv reflect.Type)[]byte{
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
 }
-func (it *Session)register(mapperPtr,modelPtr interface{}){
+func (it *Session)genXml(fileName string,body []byte)string {
 	var (
-		obj = reflect.ValueOf(mapperPtr)
-		bt = obj.Type().Elem()
-		name = bt.Name()
-		t reflect.Type
 		w strings.Builder
 		f *os.File
-		err error
 		s string
-		fileName string
+		err error
 		flag bool
-		body []byte
 	)
-	if bt.NumField() != 0 {
-		if xml,ok := modelPtr.(string);ok && xml !="" {
-			fileName = xml
-			body = []byte(strings.Replace(xmlDataS, "#{namespace}", it.namespace+"."+name, -1))
-		}else {
-			t = reflect.TypeOf(modelPtr)
-			if t.Kind() != reflect.Ptr {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(t.String()+"{} 必须是指针类型!!!")
+	if it.pkg == "" || it.pkg == "./" {
+		w.WriteString("./")
+		w.WriteString(fileName)
+		s = w.String()
+		flag = true
+	}else {
+		w.WriteString(it.pkg)
+		w.WriteString("/")
+		w.WriteString(fileName)
+		s = w.String()
+	}
+	_,err = os.Stat(s)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if !flag {
+				err = os.MkdirAll(it.pkg, os.ModePerm)
+				if err != nil {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln("create package "+it.pkg+" error:"+ err.Error())
+				}
 			}
-			t = t.Elem()
-			fileName = name+".xml"
-			body = it.createXml(name,t)
-		}
-		if it.pkg == "" || it.pkg == "./" {
-			w.WriteString("./")
-			w.WriteString(fileName)
-			s = w.String()
-			flag = true
-		}else {
-			w.WriteString(it.pkg)
-			w.WriteString("/")
-			w.WriteString(fileName)
-			s = w.String()
-		}
-		_,err = os.Stat(s)
-		if err != nil {
-			if os.IsNotExist(err) {
-				if !flag {
-					err = os.MkdirAll(it.pkg, os.ModePerm)
-					if err != nil {
-						it.log.SetPrefix("[Fatal] ")
-						it.log.Fatalln("create package "+it.pkg+" error:"+ err.Error())
-					}
-				}
-				f, err = os.Create(s)
-				if err != nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln("create file"+s+" error:"+ err.Error())
-				}
-				defer f.Close()
-				_, err = f.Write(body)
-				if err != nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
-				} else {
-					it.log.Println("写入文件成功："+s)
-				}
+			f, err = os.Create(s)
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("create file"+s+" error:"+ err.Error())
+			}
+			defer f.Close()
+			_, err = f.Write(body)
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
+			} else {
+				it.log.Println("写入文件成功："+s)
 			}
 		}
 	}
-	it.data[obj.Elem()] = it.makeReturnTypeMap(bt,s)
+	return s
+}
+func (it *Session)register(mapperPtr interface{})*Session{
+	var (
+		obj = reflect.ValueOf(mapperPtr)
+		bt = obj.Type().Elem()
+		num = bt.NumField()
+		s string
+	)
+	if num != 0 {
+		for i := 0; i < num; i++ {
+			fieldItem := bt.Field(i)
+			fieldKind := fieldItem.Type.Kind()
+			if fieldKind == reflect.Ptr {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(fieldItem.Name + " 不能是指针类型!")
+			}
+			if fieldKind == reflect.Struct {
+				body := it.createXml(bt.String(),fieldItem.Type)
+				s = it.genXml(bt.Name()+".xml",body)
+			}
+			continue
+		}
+	}
+	it.start(obj.Elem(),it.makeReturnTypeMap(bt,s))
+	return it
 }
 func expressSymbol(bytes *[]byte) {
 	byteStr := string(*bytes)
