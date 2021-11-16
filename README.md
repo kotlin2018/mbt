@@ -48,25 +48,16 @@ func main() {
 	// 第二步: 创建一个 session 对象,一个 session 对象操作一个 SQL数据库。
 	session := mbt.New(cfg)
 
-	// 第三步: 创建映射关系
-	// BizActivity{} 即:数据库中表biz_activity的实体类
-	// &activity 这个结构体指针中全是操作 biz_activity 表的方法
-	h := mbt.H{
-		&activity: &BizActivity{},
-	}
-
-	// 第四步: 配置日志输出
+	// 第三步: 配置日志输出（可选)
 	session.SetOutPut(initLogger(cfg.Logger.Path, cfg.Logger.MaxAge, cfg.Logger.Interval))
 
-	// 第五步: 将映射关系注册到 session 中
-	session.Register(h)
-
-	// 第六步: 启动服务
-	session.Run()
+	// 第四步: 启动服务
+	session.Run(&activity)
 }
 
 // 具体的 增、删、改、查 方法
 type ActivityDao struct {
+	BizActivity BizActivity
 	Insert func(arg BizActivity) int64
 	Delete func(arg BizActivity) int64
 	Update func(arg BizActivity) int64
