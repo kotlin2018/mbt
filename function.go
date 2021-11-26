@@ -29,7 +29,7 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 				returnV.Elem().Set(reflect.MakeSlice(*ret.value, 0, 0))
 			}
 			res = &returnV
-			it.exeMethodByXml(ret.xml.Tag, arg, ret.nodes,res,ret.name)
+			it.exeMethodByXml(ret,res,arg)
 			list := make([]reflect.Value, 1)
 			list[0] = (*res).Elem()
 			return list
@@ -81,19 +81,46 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string
 			outType := funcType.Out(0)
 			outTypeK := outType.Kind()
 			outTypeS := outType.String()
-			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
+			//if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
+			//	it.log.SetPrefix("[Fatal] ")
+			//	it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
+			//}
+
+			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeS == `error`{
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
 			}
+
+
+
 			returnMap[funcName] = &returnValue{}
 			returnMap[funcName].value = &outType
 			mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
 			returnMap[funcName].xml = mapperXml
 			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
 			returnMap[funcName].name = name+"."+funcName+"() "
+			returnMap[funcName].mapperTree = mapperTree
 		}
 	}
 	return returnMap
+}
+func (it *Session)makeResultMaps(mapperTree map[string]*element) map[string]map[string]*resultProperty {
+	resultMaps := make(map[string]map[string]*resultProperty)
+	for _, item := range mapperTree {
+		if item.Tag == "resultMap"{
+			resultPropertyMap := make(map[string]*resultProperty)
+			for _, elementItem :=range item.ChildElements() {
+				property := resultProperty{
+					XMLName:  elementItem.Tag,
+					Column:   elementItem.SelectAttrValue("column", ""),
+					LangType: elementItem.SelectAttrValue("langType", ""),
+				}
+				resultPropertyMap[property.Column] = &property
+			}
+			resultMaps[item.SelectAttrValue("id", "")] = resultPropertyMap
+		}
+	}
+	return resultMaps
 }
 func isCustomStruct(value reflect.Type) bool {
 	if value.Kind() == reflect.Struct && value.String() != `time.Time` && value.String() != `*time.Time` {
@@ -697,21 +724,21 @@ func decodeCollectionName(method *reflect.StructField) string {
 	}
 	return collection
 }
-func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
+func (it *Session)exeMethodByXml(ret *returnValue,returnValue *reflect.Value,proxyArg proxyArg){
 	convert := it.stmtConvert()
 	array := make([]interface{},0)
-	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
-	if elementType == "select"{
+	sql := it.buildSql(proxyArg, ret.nodes,&array, convert,ret.name)
+	if ret.xml.Tag == "select"{
 		var res []map[string]string
 		if it.slave != nil {
 			list := make([]interface{},0)
-			res = it.slaveQuery(name,it.buildSql(proxyArg, nodes,&list, it.slaveConvert(),name), array...)
+			res = it.slaveQuery(ret.name,it.buildSql(proxyArg, ret.nodes,&list, it.slaveConvert(),ret.name), array...)
 		}else {
-			res = it.queryPrepare(name,sql, array...)
+			res = it.queryPrepare(ret.name,sql, array...)
 		}
-		it.decodeSqlResult(res, returnValue.Interface(),name)
+		it.decodeSqlResult(ret,res,returnValue.Interface())
 	} else {
-		returnValue.Elem().SetInt(it.execPrepare(name,sql, array...).RowsAffected)
+		returnValue.Elem().SetInt(it.execPrepare(ret.name,sql, array...).RowsAffected)
 	}
 }
 func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert Convert,name string) string{
@@ -809,13 +836,18 @@ func (it *Session)buildRemoteMethod(f reflect.Value, ft reflect.Type,sf reflect.
 	}
 	f.Set(reflect.MakeFunc(ft, fn))
 }
-func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interface{},name string){
+func (it *Session)decodeSqlResult(ret *returnValue,sqlResult []map[string]string, result interface{}){
 	sqlResultLen := len(sqlResult)
 	if sqlResultLen == 0 {
 		return
 	}
 	resultV := reflect.ValueOf(result).Elem()
 	value := ""
+	var resultMap map[string]*resultProperty
+	resultMapId := ret.xml.SelectAttrValue("resultMap", "")
+	if resultMapId != "" {
+		resultMap = it.makeResultMaps(ret.mapperTree)[resultMapId]
+	}
 	if isArray(resultV.Kind()) {
 		resultVItemType := resultV.Type().Elem()
 		structMap := makeStructMap(resultVItemType)
@@ -823,19 +855,44 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 		index := 0
 		jsonData := strings.Builder{}
 		jsonData.WriteString(`[`)
+		if isBasicType(resultV.Type().Elem()){
+			b := strings.Builder{}
+			b.WriteString(`[`)
+			n := len(sqlResult) - 1
+			i := 0
+			for _, s := range sqlResult{
+				for _, v := range s{
+					if resultV.Type().Elem().Kind() == reflect.String{
+						b.WriteString(`"`)
+						b.WriteString(v)
+						b.WriteString(`"`)
+					} else {
+						b.WriteString(v)
+					}
+					if i < n {
+						b.WriteString(`,`)
+					}
+					i += 1
+					continue
+				}
+				continue
+			}
+			b.WriteString(`]`)
+			value = b.String()
+		}
 		for _, v := range sqlResult {
-			jsonData.WriteString(makeJsonObjByte(v, structMap))
+			jsonData.WriteString(makeJsonObjByte(resultMap,v, structMap))
 			if index < done {
 				jsonData.WriteString(`,`)
 			}
 			index += 1
 		}
 		jsonData.WriteString(`]`)
-		value = jsonData.String()
+		value = jsonData.String()//这里正常输出数据
 	}else {
 		if sqlResultLen > 1 {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" SqlResultDecoder Decode one result,but find database result size find > 1 !")
+			it.log.Fatalln(ret.name+" SqlResultDecoder Decode one result,but find database result size find > 1 !")
 		}
 		if isBasicType(resultV.Type()) {
 			for _, s := range sqlResult[0] {
@@ -852,16 +909,19 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 			}
 		} else {
 			structMap := makeStructMap(resultV.Type())
-			value = makeJsonObjByte(sqlResult[0], structMap)
+			value = makeJsonObjByte(resultMap,sqlResult[0], structMap)
 		}
 	}
 	err := json.Unmarshal([]byte(value), result)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+err.Error())
+		it.log.Fatalln(ret.name+err.Error())
 	}
 }
 func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
+	if itemType.Kind() != reflect.Struct {
+		return nil
+	}
 	structMap := map[string]*reflect.Type{}
 	for i := 0; i < itemType.NumField(); i++ {
 		item := itemType.Field(i)
@@ -876,23 +936,42 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 	}
 	return structMap
 }
-func makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Type) string {
+func makeJsonObjByte(resultMap map[string]*resultProperty,sqlData map[string]string, structMap map[string]*reflect.Type) string {
 	jsonData := strings.Builder{}
 	jsonData.WriteString(`{`)
 	done := len(sqlData) - 1
 	index := 0
-	for k, sqlV := range sqlData {
+	for k, sql := range sqlData {
 		jsonData.WriteString(`"`)
 		jsonData.WriteString(k)
 		jsonData.WriteString(`":`)
-		v := structMap[strings.ToLower(k)]
-		if v != nil {
-			if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
+		isStringType := false
+		fetched := true
+		if resultMap != nil {
+			resultMapItem := resultMap[k]
+			if resultMapItem != nil && (resultMapItem.LangType == "string" || resultMapItem.LangType == "time.Time") {
+				isStringType = true
+			}
+			if resultMapItem == nil {
+				fetched = false
+			}
+		}else if structMap != nil {
+			v := structMap[strings.ToLower(k)]
+			if v != nil {
+				if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
+					isStringType = true
+				}
+			}else {
+				fetched = false
+			}
+		}
+		if fetched {
+			if isStringType {
 				jsonData.WriteString(`"`)
-				jsonData.WriteString(sqlV)
+				jsonData.WriteString(sql)
 				jsonData.WriteString(`"`)
 			}else {
-				jsonData.WriteString(sqlV)
+				jsonData.WriteString(sql)
 			}
 		}else {
 			jsonData.WriteString(`null`)

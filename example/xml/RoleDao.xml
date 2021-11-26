@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+       "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+<mapper namespace="com.macro.mall.mapper.RoleDao">
+    <!--logic_enable 逻辑删除字段-->
+    <!--logic_deleted 逻辑删除已删除字段-->
+    <!--logic_undelete 逻辑删除 未删除字段-->
+    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
+	<resultMap id="base" table="ums_role">
+    	<result column="id" property="Id" langType="int64"  />
+		<result column="pid" property="Pid" langType="int"  />
+	<result column="name" property="Name" langType="string"  />
+	<result column="description" property="Description" langType="string"  />
+	<result column="admin_count" property="AdminCount" langType="int32"  />
+	<result column="create_time" property="CreateTime" langType="time.Time"  />
+	<result column="status" property="Status" langType="int32"  />
+	<result column="sort" property="Sort" langType="int32"  />
+    </resultMap>
+	<insert id="Insert" resultMap="base"/>
+	<update id="Update"/>
+	<delete id="Delete" resultMap="base"/>
+	<select id="getItem" column="*" resultMap="base" where="id?id =#{id}"/>
+
+	<delete id="deleteAll">delete from ums_role</delete>
+
+<!--	<select id="getItem"/>-->
+
+</mapper>

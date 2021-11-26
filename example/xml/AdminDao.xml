@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+       "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+<mapper namespace="com.macro.mall.mapper.AdminDao">
+    <!--logic_enable 逻辑删除字段-->
+    <!--logic_deleted 逻辑删除已删除字段-->
+    <!--logic_undelete 逻辑删除 未删除字段-->
+    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
+	<resultMap id="example.UmsAdmin" table="ums_admin">
+    	<result column="id" property="Id" langType="int64"  />
+	<result column="parent_id" property="ParentId" langType="int64"  />
+	<result column="username" property="Username" langType="string"  />
+	<result column="password" property="Password" langType="string"  />
+	<result column="icon" property="Icon" langType="string"  />
+	<result column="email" property="Email" langType="string"  />
+	<result column="nick_name" property="NickName" langType="string"  />
+	<result column="note" property="Note" langType="string"  />
+	<result column="create_time" property="CreateTime" langType="time.Time"  />
+	<result column="login_time" property="LoginTime" langType="time.Time"  />
+	<result column="status" property="Status" langType="int32"  />
+    </resultMap>
+
+	<!--插入模板:默认id="insert" 支持批量插入 -->
+	<insert id="insertTemplate" resultMap="example.UmsAdmin"/>
+
+	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
+	<delete id="delete" resultMap="example.UmsAdmin"/>
+
+	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
+	<update id="update" resultMap="example.UmsAdmin"/>
+
+	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
+	<select id="select" resultMap="example.UmsAdmin"/>
+
+	<select id="getBase">
+		select id,username,password,icon from ums_admin
+	</select>
+
+	<select id="usernameEqualTo" >
+		select * from ums_admin where username = #{username} order by id desc;
+	</select>
+
+	<insert id="insert">
+		insert into ums_admin
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="id != nil">id,</if>
+			<if test="username != nil">username,</if>
+			<if test="password != nil">password,</if>
+			<if test="icon != nil">icon,</if>
+			<if test="email != nil">email,</if>
+			<if test="nick_name != nil">nick_name,</if>
+			<if test="note != nil">note,</if>
+			<if test="create_time != nil">create_time,</if>
+			<if test="login_time != nil">login_time,</if>
+			<if test="status != nil">status,</if>
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+			<if test="id != nil">#{id},</if>
+			<if test="username != nil">#{username},</if>
+			<if test="password != nil">#{password},</if>
+			<if test="icon != nil">#{icon},</if>
+			<if test="email != nil">#{email},</if>
+			<if test="nick_name != nil">#{nick_name},</if>
+			<if test="note != nil">#{note},</if>
+			<if test="create_time != nil">#{create_time},</if>
+			<if test="login_time != nil">#{login_time},</if>
+			<if test="status != nil">#{status},</if>
+		</trim>
+	</insert>
+
+	<sql id="column">
+		id,username,password,icon,email,nick_name,note,create_time,login_time,status
+	</sql>
+
+	<select id="selectByPrimaryKey">
+		select
+		<include refid="column"/>
+		from ums_admin
+		where id = #{id}
+	</select>
+
+	<select id="userExist">
+		select
+		<include refid="column"/>
+		from ums_admin
+		<where>
+			<if test="username!=''">username = #{username}</if>
+			<if test="password!=''">and password = #{password}</if>
+		</where>
+	</select>
+
+	<update id="updateColumn">update ums_admin set login_time = #{loginTime}</update>
+
+	<select id="list">
+		select
+		<include refid="column"/>
+		from ums_admin
+		<where>
+			<if test="keyword!=''">username like #{'%'+keyword+'%'} or nick_name like #{'%'+keyword+'%'}</if>
+		</where>
+		limit #{pageNum},#{pageSize}
+	</select>
+
+	<update id="updateByPrimaryKeySelective" resultMap="example.UmsAdmin" where="id = #{id}"/>
+
+	<select id="getAdmin">
+		select * from ums_admin
+		<where>
+			<if test="username!=''">username = #{username}</if>
+			<if test="password!=''">and password = #{password}</if>
+		</where>
+		order by id desc;
+	</select>
+
+	<update id="updatePassword">
+		update ums_admin
+		set password = #{password}
+		where id = #{id}
+	</update>
+
+	<update id="updateByPrimaryKey">
+		update ums_admin
+		set username = #{username},
+			password = #{password},
+			icon = #{icon},
+			email = #{email},
+			nick_name = #{nickName},
+			note = #{note},
+			status = #{status}
+		where id = #{id}
+	</update>
+
+	<delete id="deleteByPrimaryKey">delete from ums_admin where id=#{id}</delete>
+
+	<select id="listWithChildren">
+		select a1.* ,
+			   a2.*
+		from ums_admin as a1
+				 left join ums_admin as a2 on a1.id = a2.parent_id
+		where a1.parent_id=0
+	</select>
+
+	<delete id="deleteByIds">
+		delete from ums_admin where id in
+		<foreach collection="ids" open="(" close=")" index="index" item="item" separator=",">
+			#{item}
+		</foreach>
+	</delete>
+
+	<select id="selectUnion">
+		select u.*,
+		       r.id r_id, r.pid, r.name, r.description, r.admin_count, r.create_time r_create_time, r.status r_status, r.sort
+		from ums_admin as u
+				 inner join ums_role as r on r.pid = u.id
+	</select>
+
+	<update id="createUmsRole">
+		create table ums_role(
+			id          serial not null primary key,
+			pid         int,
+			name        varchar(100),
+			description varchar(500),
+			admin_count int,
+			create_time timestamptz default CURRENT_TIMESTAMP,
+			status      int,
+			sort        int
+		);
+	</update>
+
+	<update id="createUmsAdmin">
+		create table ums_admin(
+			id          serial not null primary key,
+			parent_id   int,
+			username    varchar(64),
+			password    varchar(64),
+			icon        varchar(500),
+			email       varchar(100),
+			nick_name   varchar(200),
+			note        varchar(500),
+			create_time timestamp default CURRENT_TIMESTAMP,
+			login_time  timestamp default CURRENT_TIMESTAMP,
+			status      int
+		);
+	</update>
+
+	<update id="createBizActivity">
+		CREATE TABLE biz_activity(
+			id          serial         not null primary key,
+			name        varchar(255)   NOT NULL             default '',
+			pc_link     varchar(255)                        DEFAULT NULL,
+			sort        int            NOT NULL             default 0,
+			status      int            NOT NULL             default 0,
+			version     int            NOT NULL             default 0,
+			create_time timestamp                           default CURRENT_TIMESTAMP,
+			delete_flag int            NOT NULL             default 0,
+			salary      decimal(10, 2) NOT NULL             DEFAULT 0.00
+		);
+	</update>
+
+	<select id="GetDB">
+		select tablename from pg_tables where schemaname='public'
+	</select>
+
+</mapper>

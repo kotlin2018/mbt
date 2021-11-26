@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+       "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+<mapper namespace="com.macro.mall.mapper.ActivityDao">
+    <!--logic_enable 逻辑删除字段-->
+    <!--logic_deleted 逻辑删除已删除字段-->
+    <!--logic_undelete 逻辑删除 未删除字段-->
+    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
+<!--	<resultMap id="base" table="activity">-->
+<!--    	<result column="id" property="Id" langType="string"  />-->
+<!--		<result column="uuid" property="uuid" langType="string"  />-->
+<!--	<result column="name" property="Name" langType="string"  />-->
+<!--	<result column="pc_link" property="PcLink" langType="string"  />-->
+<!--	<result column="h5_link" property="H5Link" langType="string"  />-->
+<!--	<result column="remark" property="Remark" langType="string"  />-->
+<!--	<result column="sort" property="Sort" langType="int"  />-->
+<!--	<result column="status" property="Status" langType="int"  />-->
+<!--	<result column="version" property="Version" langType="int"  />-->
+<!--	<result column="create_time" property="CreateTime" langType="time.Time"  />-->
+<!--	<result column="delete_flag" property="DeleteFlag" langType="int"  />-->
+<!--	<result column="salary" property="salary" langType="float64"  />-->
+<!--    </resultMap>-->
+
+<!--	<resultMap id="base" table="biz_activity">-->
+<!--		<result column="id" property="Id" langType="string"  />-->
+<!--		<result column="name" property="Name" langType="string"  />-->
+<!--		<result column="pc_link" property="PcLink" langType="string"  />-->
+<!--		<result column="sort" property="Sort" langType="int"  />-->
+<!--		<result column="status" property="Status" langType="int"  />-->
+<!--		<result column="version" property="Version" langType="int"  />-->
+<!--		<result column="create_time" property="CreateTime" langType="time.Time"  />-->
+<!--		<result column="delete_flag" property="DeleteFlag" langType="int"  />-->
+<!--		<result column="salary" property="salary" langType="float64"  />-->
+<!--	</resultMap>-->
+
+
+		<resultMap id="base" table="biz_activity">
+			<result column="id" property="" langType="string"  />
+			<result column="name" property="" langType="string"  />
+			<result column="pc_link" property="" langType="string"  />
+			<result column="sort" property="" langType="int"  />
+			<result column="status" property="" langType="int"  />
+			<result column="version" property="" langType="int"  />
+			<result column="create_time" property="" langType="time.Time"  />
+			<result column="delete_flag" property="" langType="int"  />
+			<result column="salary" property="" langType="float64"  />
+		</resultMap>
+
+	<!--标签的 resultMap 属性不为空，并且其对应的值也不为空，则它为模版标签 (注意: <select> 标签只有 column 、resultMap 这两个属性都不为空时，它才是模版标签)-->
+
+	<!--插入模板:默认id="insert" 支持批量插入 -->
+	<insert id="insertTemplate" resultMap="base"/>
+
+	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
+	<delete id="deleteTemplate" resultMap="base" where="name?name = #{name}"/>
+
+	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
+	<update id="updateTemplate" resultMap="base" set="name?name = #{name},pc_link?pc_link=#{pc_link}" where="id?id = #{id}"/>
+
+	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
+	<select id="selectTemplate" column="*" table="biz_activity" resultMap="base" where="name?name=#{name},pc_link?pc_link=#{pc_link}"/>
+
+	<!--统计模板例子:-->
+	<select id="selectCountTemplate" column="count(*)" resultMap="base" where="name?name = #{name}"/>
+
+	<insert id="insertCollection" resultMap="base"/>
+
+	<insert id="insertTemplateBatch" resultMap="base"/>
+
+	<!--自定义的函数对应的 SQL语句	-->
+	<sql id="column">
+		id,name,pc_link,sort,status,version,create_time,delete_flag,salary
+	</sql>
+
+	<select id="selectByName">
+		select
+		<include refid="column"/>
+		from biz_activity where name = #{name} and pc_link = #{pc_link}
+	</select>
+
+	<select id="selectTpl">select * from biz_activity where name = #{name}</select>
+
+	<select id="selectTpl2">select * from biz_activity where name = #{name}</select>
+
+	<select id="selectTpl3">select * from biz_activity where name = #{name}</select>
+
+	<select id="SelectOneColumn">select  create_time from biz_activity where id = #{id}</select>
+
+	<select id="selectByCondition" resultMap="BaseResultMap">
+		<bind name="pattern" value="'%' + name + '%'"/>
+		select * from biz_activity
+		<where>
+			<if test="name != null">and name like #{pattern}</if>
+			<if test="start_time != null">and create_time >= #{start_time}</if>
+			<if test="end_time != null">and create_time &lt;= #{end_time}</if>
+		</where>
+		order by create_time desc
+		<if test="page != null and size != null">limit #{page} OFFSET #{size}</if>
+	</select>
+
+	<!-- if 标签中对于参数的判空，统一使用 nil -->
+	<select id="selectByCondition2" resultMap="BaseResultMap">
+		<bind name="pattern" value="'%' + Name + '%'"/>
+		select * from biz_activity
+		<where>
+			<if test="Name != nil">and name like #{pattern}</if>
+			<if test="StartTime != nil">and create_time >= #{StartTime}</if>
+			<if test="EndTime != nil">and create_time &lt;= #{EndTime}</if>
+		</where>
+		order by create_time desc
+		<if test="Page != nil and Size != nil">limit #{Page} OFFSET #{Size}</if>
+	</select>
+
+	<select id="countByCondition">
+		select count(id) from biz_activity where delete_flag = 1
+		<if test="name != null">and name like concat('%',#{name},'%')</if>
+		<if test="start_time !=nil">and create_time >= #{start_time}</if>
+		<if test="end_time != nil">and create_time &lt;= #{end_time}</if>
+	</select>
+
+	<select id="selectAll">
+		select * from biz_activity where delete_flag = 1 order by create_time desc
+	</select>
+
+	<select id="selectByUUID">
+		select * from biz_activity where uuid = #{uuid} and delete_flag = 1
+	</select>
+
+	<select id="selectById">
+		select * from biz_activity where id = #{id} and delete_flag = 1
+	</select>
+
+	<select id="selectByIds">
+		select * from biz_activity where delete_flag = 1
+		<foreach collection="ids" index="index" item="item"  open=" and id in(" close=")" separator=",">
+			#{item}
+		</foreach>
+	</select>
+
+	<!-- 这个SQL语句与上面的一样，只是写法不同 -->
+	<select id="selectByIds2">
+		select * from biz_activity where delete_flag = 1 and id in
+		<foreach collection="ids" index="index" item="item"  open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+	</select>
+
+	<select id="selectByIdMaps">
+		select * from biz_activity where delete_flag = 1
+		<foreach collection="ids" open=" and id in(" close=")" index="index" item="item" separator=",">
+			#{item}
+		</foreach>
+		<foreach collection="ids" open=" and delete_flag in(" close=")" index="index" item="item" separator=",">
+			#{index}
+		</foreach>
+	</select>
+
+	<!-- 软删除 resultMap == "" 则SQL语句不走模版-->
+	<update id="removeById" resultMap="" where="id=#{id}">
+		update biz_activity set delete_flag = 0 where id=#{id}
+	</update>
+
+	<!-- 物理删除 -->
+	<delete id="deleteById">
+		delete from biz_activity where id = #{id}
+	</delete>
+
+	<delete id="DeleteByIds">
+		delete from biz_activity where id in
+		<foreach collection="ids" close=")" open="(" index="index" item="item" separator=",">
+			#{item}
+		</foreach>
+	</delete>
+
+	<update id="updateById">
+		update biz_activity
+		<set>
+			<if test="name !=nil">name = #{name},</if>
+			<if test="pc_link !=nil">pc_link = #{pc_link},</if>
+			<if test="create_time !=nil">create_time = #{create_time},</if>
+			<if test="delete_flag !=nil">delete_flag = #{delete_flag},</if>
+		</set>
+		where id = #{id} and delete_flag = 1
+	</update>
+
+	<insert id="insert">
+		insert into biz_activity
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="id != nil">id,</if>
+			<if test="name != nil">name,</if>
+			<if test="pc_link != nil">pc_link,</if>
+			<if test="create_time != nil">create_time,</if>
+			<if test="delete_flag != nil">delete_flag,</if>
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+			<if test="id != nil">#{id},</if>
+			<if test="name != nil">#{name},</if>
+			<if test="pc_link != nil">#{pc_link},</if>
+			<if test="create_time != nil">#{create_time},</if>
+			<if test="delete_flag != nil">#{delete_flag},</if>
+		</trim>
+	</insert>
+
+	<insert id="insert2">
+		insert into biz_activity
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="id != nil">id,</if>
+			<if test="name != nil">name,</if>
+			<if test="pc_link != nil">pc_link,</if>
+			<if test="create_time != nil">create_time,</if>
+			<if test="delete_flag != nil">delete_flag,</if>
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+			<if test="id != nil">#{id},</if>
+			<if test="name != nil">#{name},</if>
+			<if test="pc_link != nil">#{pc_link},</if>
+			<if test="create_time != nil">#{create_time},</if>
+			<if test="delete_flag != nil">#{delete_flag},</if>
+		</trim>
+	</insert>
+
+	<select id="choose">
+		select * from biz_activity
+		<choose>
+			<when test="delete_flag >1">where delete_flag > 1</when>
+			<when test="delete_flag ==1">where delete_flag = 1</when>
+			<otherwise>where delete_flag &lt; 1</otherwise>
+		</choose>
+	</select>
+
+	<sql id="link">
+		pc_link
+		<!--不启用TypeConvert的话，使用${} 而不是 #{}-->
+		<if test="column != nil">,${column}</if>
+	</sql>
+
+	<select id="selectLinks">
+		select
+		<include refid="link" />
+		from biz_activity where delete_flag = 1
+	</select>
+
+	<sql id="choose02">
+		select * from biz_activity
+	</sql>
+
+	<select id="Choose2">
+		select * from biz_activity
+		<where>
+			<if test="name!=null">name = #{name}</if>
+			<if test="pc_link!=null">or pc_link = #{pc_link}</if>
+			and delete_flag = 1
+		</where>
+	</select>
+
+	<select id="getSalary">select sum(salary) sum_val from biz_activity where create_time >= #{start_time} and create_time &lt;= #{end_time}</select>
+
+	<select id="getId">
+		select orders.id from orders where project_id = #{project_id} AND repository_id = #{repository_id}
+	</select>
+
+	<select id="getIdsByName">
+		select biz_activity.name from biz_activity where biz_activity.name = #{name}
+	</select>
+
+	<select id="getName">
+		select users.name from users where users.id = 3
+	</select>
+
+	<select id="getCreatedAt">
+		select users.created_at from users where users.id = 3
+	</select>
+</mapper>

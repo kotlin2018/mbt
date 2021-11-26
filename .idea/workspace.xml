@@ -2,20 +2,21 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="ed714e60-db2f-4d83-8537-2411da9b5daa" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/example/ActivityDao.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/README.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/config.toml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/example.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/example_test.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/test.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/test1.sql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/xml/ActivityDao.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/xml/AdminDao.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/example/xml/RoleDao.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/mbt.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/mbt.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ast.go" beforeDir="false" afterPath="$PROJECT_DIR$/ast.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/etree.go" beforeDir="false" afterPath="$PROJECT_DIR$/etree.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/function.go" beforeDir="false" afterPath="$PROJECT_DIR$/function.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mybatis.dtd" beforeDir="false" afterPath="$PROJECT_DIR$/mybatis.dtd" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/session.go" beforeDir="false" afterPath="$PROJECT_DIR$/session.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/snow.go" beforeDir="false" afterPath="$PROJECT_DIR$/snow.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -51,7 +52,7 @@
     <property name="configurable.GoLibrariesConfigurable.is.expanded" value="true" />
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/example" />
+    <property name="last_opened_file_path" value="$USER_HOME$" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.detected.package.tslint" value="true" />
     <property name="node.js.path.for.package.eslint" value="project" />
@@ -66,8 +67,11 @@
       <recent name="$PROJECT_DIR$/example" />
       <recent name="$PROJECT_DIR$" />
     </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestAdminDaoFind in github.com/kotlin2018/mbt/example">
+  <component name="RunManager" selected="Go Test.TestGetId in github.com/kotlin2018/mbt/example">
     <configuration default="true" type="ArquillianJUnit" factoryName="" nameIsGenerated="true">
       <option name="arquillianRunConfiguration">
         <value>
@@ -89,7 +93,7 @@
       <directory value="$PROJECT_DIR$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestAdminDao in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestChoose2 in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="mbt" />
       <working_directory value="$PROJECT_DIR$/example" />
       <framework value="gotest" />
@@ -97,10 +101,10 @@
       <package value="github.com/kotlin2018/mbt/example" />
       <directory value="$PROJECT_DIR$" />
       <filePath value="$PROJECT_DIR$" />
-      <pattern value="^\QTestAdminDao\E$" />
+      <pattern value="^\QTestChoose2\E$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestAdminDaoFind in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestGetId in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="mbt" />
       <working_directory value="$PROJECT_DIR$/example" />
       <framework value="gotest" />
@@ -108,7 +112,7 @@
       <package value="github.com/kotlin2018/mbt/example" />
       <directory value="$PROJECT_DIR$" />
       <filePath value="$PROJECT_DIR$" />
-      <pattern value="^\QTestAdminDaoFind\E$" />
+      <pattern value="^\QTestGetId\E$" />
       <method v="2" />
     </configuration>
     <configuration name="TestGetSalary in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
@@ -122,7 +126,7 @@
       <pattern value="^\QTestGetSalary\E$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestRoleDaoInsert in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestSelectByName in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="mbt" />
       <working_directory value="$PROJECT_DIR$/example" />
       <framework value="gotest" />
@@ -130,10 +134,10 @@
       <package value="github.com/kotlin2018/mbt/example" />
       <directory value="$PROJECT_DIR$" />
       <filePath value="$PROJECT_DIR$" />
-      <pattern value="^\QTestRoleDaoInsert\E$" />
+      <pattern value="^\QTestSelectByName\E$" />
       <method v="2" />
     </configuration>
-    <configuration name="TestUmsAdminInsertTemplate in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+    <configuration name="TestSelectColumn in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="mbt" />
       <working_directory value="$PROJECT_DIR$/example" />
       <framework value="gotest" />
@@ -141,7 +145,7 @@
       <package value="github.com/kotlin2018/mbt/example" />
       <directory value="$PROJECT_DIR$" />
       <filePath value="$PROJECT_DIR$" />
-      <pattern value="^\QTestUmsAdminInsertTemplate\E$" />
+      <pattern value="^\QTestSelectColumn\E$" />
       <method v="2" />
     </configuration>
     <configuration default="true" type="GoTestRunConfiguration" factoryName="Go Test">
@@ -157,11 +161,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go Test.TestAdminDaoFind in github.com/kotlin2018/mbt/example" />
+        <item itemvalue="Go Test.TestGetId in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestGetSalary in github.com/kotlin2018/mbt/example" />
-        <item itemvalue="Go Test.TestRoleDaoInsert in github.com/kotlin2018/mbt/example" />
-        <item itemvalue="Go Test.TestAdminDao in github.com/kotlin2018/mbt/example" />
-        <item itemvalue="Go Test.TestUmsAdminInsertTemplate in github.com/kotlin2018/mbt/example" />
+        <item itemvalue="Go Test.TestSelectByName in github.com/kotlin2018/mbt/example" />
+        <item itemvalue="Go Test.TestChoose2 in github.com/kotlin2018/mbt/example" />
+        <item itemvalue="Go Test.TestSelectColumn in github.com/kotlin2018/mbt/example" />
       </list>
     </recent_temporary>
   </component>

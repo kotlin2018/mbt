@@ -44,6 +44,11 @@ type (
 		Args       []reflect.Value
 		ArgsLen    int
 	}
+	resultProperty struct {
+		XMLName  string
+		Column   string
+		LangType string
+	}
 	tagArg struct {
 		Name  string
 		Index int
@@ -52,6 +57,7 @@ type (
 		value *reflect.Type
 		xml   *element
 		nodes []iiNode
+		mapperTree map[string]*element
 		name  string
 	}
 	Session struct {
