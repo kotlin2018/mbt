@@ -3,6 +3,7 @@ package mbt
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -857,6 +858,12 @@ func (it *Session)decodeSqlResult(ret *returnValue,sqlResult []map[string]string
 		jsonData.WriteString(`[`)
 		if isBasicType(resultV.Type().Elem()){
 			b := strings.Builder{}
+			b.WriteString(`{"`)
+			for k,_ := range sqlResult[0]{
+				b.WriteString(k)
+				break
+			}
+			b.WriteString(`":`)
 			b.WriteString(`[`)
 			n := len(sqlResult) - 1
 			i := 0
@@ -877,8 +884,9 @@ func (it *Session)decodeSqlResult(ret *returnValue,sqlResult []map[string]string
 				}
 				continue
 			}
-			b.WriteString(`]`)
+			b.WriteString(`]}`)
 			value = b.String()
+			fmt.Println(value)
 		}
 		for _, v := range sqlResult {
 			jsonData.WriteString(makeJsonObjByte(resultMap,v, structMap))

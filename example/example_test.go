@@ -141,7 +141,7 @@ type ActivityDao struct {
 
 	GetId   func(projectId, repositoryId int64)[]int  `arg:"project_id,repository_id"`
 	GetName func() string
-	GetIdsByName func(name string)[]string `arg:"name"`
+	GetIdsByName func(name string)(arg[]string) `arg:"name"`
 
 	GetCreatedAt func()time.Time
 

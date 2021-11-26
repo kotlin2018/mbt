@@ -2,21 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="ed714e60-db2f-4d83-8537-2411da9b5daa" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/mbt.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/mbt.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ast.go" beforeDir="false" afterPath="$PROJECT_DIR$/ast.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/etree.go" beforeDir="false" afterPath="$PROJECT_DIR$/etree.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/example/example_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/example/example_test.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/function.go" beforeDir="false" afterPath="$PROJECT_DIR$/function.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mybatis.dtd" beforeDir="false" afterPath="$PROJECT_DIR$/mybatis.dtd" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/session.go" beforeDir="false" afterPath="$PROJECT_DIR$/session.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/snow.go" beforeDir="false" afterPath="$PROJECT_DIR$/snow.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,6 +16,11 @@
   </component>
   <component name="GOROOT" url="file:///usr/local/Cellar/go@1.16.4/libexec" />
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MacroExpansionManager">
@@ -71,7 +64,7 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestGetId in github.com/kotlin2018/mbt/example">
+  <component name="RunManager" selected="Go Test.TestChoose2 in github.com/kotlin2018/mbt/example">
     <configuration default="true" type="ArquillianJUnit" factoryName="" nameIsGenerated="true">
       <option name="arquillianRunConfiguration">
         <value>
@@ -161,10 +154,10 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Go Test.TestChoose2 in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestGetId in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestGetSalary in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestSelectByName in github.com/kotlin2018/mbt/example" />
-        <item itemvalue="Go Test.TestChoose2 in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestSelectColumn in github.com/kotlin2018/mbt/example" />
       </list>
     </recent_temporary>

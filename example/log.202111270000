@@ -1,0 +1,98 @@
+[INFO] 2021/11/27 00:19:08 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:19:08 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:19:08 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:19:08 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:20:24 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:20:24 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:20:24 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:20:24 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:20:41 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:20:41 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:20:41 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:20:41 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:20:54 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:20:54 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:20:54 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:20:54 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:21:16 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:21:16 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:21:16 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:21:16 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:22:29 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:22:29 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:22:29 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:22:29 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:23:19 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:23:19 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 00:23:19 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 00:23:19 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:23:19 example.ActivityDao.Choose2()  Args  ==> [,鲁班]
+[INFO] 2021/11/27 00:23:19 example.ActivityDao.Choose2()  RowsAffected == 1
+[INFO] 2021/11/27 00:24:28 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:24:28 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 00:24:28 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 00:24:28 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:24:28 example.ActivityDao.Choose2()  Args  ==> [,鲁班]
+[INFO] 2021/11/27 00:24:28 example.ActivityDao.Choose2()  RowsAffected == 1
+[INFO] 2021/11/27 00:24:48 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:24:48 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 00:24:48 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 00:24:48 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:24:48 example.ActivityDao.Choose2()  Args  ==> [,鲁班]
+[INFO] 2021/11/27 00:24:48 example.ActivityDao.Choose2()  RowsAffected == 1
+[INFO] 2021/11/27 00:35:02 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:35:02 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:35:02 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:35:02 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:35:28 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:35:28 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:35:28 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:35:28 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:35:48 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:35:48 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:35:48 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:35:48 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:36:25 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:36:25 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:36:25 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:36:25 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:37:52 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:37:52 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:37:52 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:37:52 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:38:00 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:38:00 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:38:00 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:38:00 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:38:35 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:38:35 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:38:35 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:38:35 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:39:08 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:39:08 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:39:08 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:39:08 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:40:20 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:40:20 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:40:20 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:40:20 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:40:50 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:40:50 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:40:50 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:40:50 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:41:04 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:41:04 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:41:04 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:41:04 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:41:30 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:41:30 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:41:30 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:41:30 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:43:26 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:43:26 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:43:26 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:43:26 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:44:32 example.ActivityDao.GetIdsByName()  Query ==>  select biz_activity.name from biz_activity where biz_activity.name =  ? 
+[INFO] 2021/11/27 00:44:32 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
+[INFO] 2021/11/27 00:44:32 example.ActivityDao.GetIdsByName()  RowsAffected == 3
+[Fatal] 2021/11/27 00:44:32 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
