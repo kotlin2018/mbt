@@ -758,15 +758,7 @@ func (it *Session)scanStructArgFields(v reflect.Value) map[string]interface{} {
 		if field.CanInterface() {
 			obj = field.Interface()
 		}
-		tagValue := typeValue.Tag.Get(`json`)
-		if strings.Index(tagValue, `,`) != -1 {
-			tagValue = strings.Split(tagValue, `,`)[0]
-		}
-		if tagValue != "" {
-			structArg[tagValue] = obj
-		} else {
-			structArg[typeValue.Name] = obj
-		}
+		structArg[typeValue.Name] = obj
 	}
 	return structArg
 }
@@ -825,7 +817,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 		jsonData := strings.Builder{}
 		jsonData.WriteString(`[`)
 		for _, v := range sqlResult {
-			jsonData.WriteString(makeJsonObjByte(v, structMap))
+			jsonData.WriteString(it.makeJsonObjByte(v, structMap,name))
 			if index < done {
 				jsonData.WriteString(`,`)
 			}
@@ -853,7 +845,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 			}
 		} else {
 			structMap := makeStructMap(resultV.Type())
-			value = makeJsonObjByte(sqlResult[0], structMap)
+			value = it.makeJsonObjByte(sqlResult[0], structMap,name)
 		}
 	}
 	err := json.Unmarshal([]byte(value), result)
@@ -870,14 +862,14 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 		if itemT.Kind() == reflect.Struct{
 			for j :=0; j < itemT.NumField();j++{
 				field := itemT.Field(j)
-				structMap[strings.ToLower(field.Tag.Get(`json`))] = &field.Type
+				structMap[strings.ToLower(field.Name)] = &field.Type
 			}
 		}
-		structMap[strings.ToLower(item.Tag.Get(`json`))] = &item.Type
+		structMap[strings.ToLower(item.Name)] = &item.Type
 	}
 	return structMap
 }
-func makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Type) string {
+func (it *Session)makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Type,name string) string {
 	jsonData := strings.Builder{}
 	jsonData.WriteString(`{`)
 	done := len(sqlData) - 1
@@ -886,7 +878,7 @@ func makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Ty
 		jsonData.WriteString(`"`)
 		jsonData.WriteString(k)
 		jsonData.WriteString(`":`)
-		v := structMap[strings.ToLower(k)]
+		v := structMap[k]
 		if v != nil {
 			if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
 				jsonData.WriteString(`"`)
@@ -896,7 +888,8 @@ func makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Ty
 				jsonData.WriteString(sqlV)
 			}
 		}else {
-			jsonData.WriteString(`null`)
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(name+"方法的返回值缺少一个结构体字段",k)
 		}
 		if index < done {
 			jsonData.WriteString(`,`)

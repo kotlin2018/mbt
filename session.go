@@ -355,6 +355,7 @@ func (it *Session)row2map(name string,rows *sql.Rows) (resultsSlice []map[string
 			it.log.Fatalln(name+" ",err.Error())
 		}
 		for j, v := range fields {
+			v = strings.ToLower(strings.ReplaceAll(v,"_",""))
 			rawValue := reflect.Indirect(reflect.ValueOf(list[j]))
 			if rawValue.Interface() == nil {
 				res[v] = `null`
