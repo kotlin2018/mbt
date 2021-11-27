@@ -51,7 +51,7 @@ func main() {
 	// 第三步: 配置日志输出（可选)
 	session.SetOutPut(initLogger(cfg.Logger.Path, cfg.Logger.MaxAge, cfg.Logger.Interval))
 
-	// 第四步: 启动服务
+	// 第四步: 将mapper结构体注册到服务中，并启动服务。
 	session.Run(&activity)
 }
 

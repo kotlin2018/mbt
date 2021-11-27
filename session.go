@@ -49,10 +49,11 @@ type (
 		Index int
 	}
 	returnValue struct {
-		value *reflect.Type
-		xml   *element
-		nodes []iiNode
-		name  string
+		value      *reflect.Type
+		xml        *element
+		nodes      []iiNode
+		mapperTree map[string]*element
+		name       string
 	}
 	Session struct {
 		db          *sql.DB

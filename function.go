@@ -29,7 +29,7 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 				returnV.Elem().Set(reflect.MakeSlice(*ret.value, 0, 0))
 			}
 			res = &returnV
-			it.exeMethodByXml(ret.xml.Tag, arg, ret.nodes,res,ret.name)
+			it.exeMethodByXml(ret,res,arg)
 			list := make([]reflect.Value, 1)
 			list[0] = (*res).Elem()
 			return list
@@ -91,6 +91,7 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string
 			returnMap[funcName].xml = mapperXml
 			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
 			returnMap[funcName].name = name+"."+funcName+"() "
+			returnMap[funcName].mapperTree = mapperTree
 		}
 	}
 	return returnMap
@@ -697,24 +698,24 @@ func decodeCollectionName(method *reflect.StructField) string {
 	}
 	return collection
 }
-func (it *Session)exeMethodByXml(elementType string, proxyArg proxyArg, nodes []iiNode, returnValue *reflect.Value,name string){
+func (it *Session)exeMethodByXml(ret *returnValue,returnValue *reflect.Value,proxyArg proxyArg){
 	convert := it.stmtConvert()
 	array := make([]interface{},0)
-	sql := it.buildSql(proxyArg, nodes,&array, convert,name)
-	if elementType == "select"{
+	sql := it.buildSql(proxyArg,ret,&array,convert)
+	if ret.xml.Tag == "select"{
 		var res []map[string]string
 		if it.slave != nil {
 			list := make([]interface{},0)
-			res = it.slaveQuery(name,it.buildSql(proxyArg, nodes,&list, it.slaveConvert(),name), array...)
+			res = it.slaveQuery(ret.name,it.buildSql(proxyArg,ret,&list, it.slaveConvert()), array...)
 		}else {
-			res = it.queryPrepare(name,sql, array...)
+			res = it.queryPrepare(ret.name,sql, array...)
 		}
-		it.decodeSqlResult(res, returnValue.Interface(),name)
+		it.decodeSqlResult(res,returnValue.Interface(),ret.name)
 	} else {
-		returnValue.Elem().SetInt(it.execPrepare(name,sql, array...).RowsAffected)
+		returnValue.Elem().SetInt(it.execPrepare(ret.name,sql, array...).RowsAffected)
 	}
 }
-func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface{}, stmtConvert Convert,name string) string{
+func (it *Session)buildSql(proxyArg proxyArg,ret *returnValue,array *[]interface{},stmtConvert Convert) string{
 	paramMap := make(map[string]interface{})
 	tagArgsLen := proxyArg.TagArgsLen
 	customIndex := -1
@@ -733,17 +734,17 @@ func (it *Session)buildSql(proxyArg proxyArg, nodes []iiNode, array *[]interface
 	if customIndex != -1 {
 		paramMap = it.scanStructArgFields(proxyArg.Args[customIndex])
 	}
-	return it.sqlBuild(paramMap, nodes, array, stmtConvert,name)
+	return it.sqlBuild(paramMap,ret,array,stmtConvert)
 }
-func (it *Session)sqlBuild(args map[string]interface{}, node []iiNode, array *[]interface{}, stmtConvert Convert,name string)string{
-	sql, err := doChildNodes(node, args, array, stmtConvert)
+func (it *Session)sqlBuild(args map[string]interface{},ret *returnValue,array *[]interface{},stmtConvert Convert)string{
+	sql, err := doChildNodes(ret.nodes, args, array, stmtConvert)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+" "+err.Error())
+		it.log.Fatalln(ret.name+" "+err.Error())
 	}
 	if sql == nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+" Not Find SQL Statements")
+		it.log.Fatalln(ret.name+" Not Find SQL Statements")
 	}
 	return string(sql)
 }
