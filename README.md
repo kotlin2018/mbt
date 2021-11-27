@@ -15,19 +15,19 @@ import (
 
 var activity = ActivityDao{}
 
-// 这是数据库中表 biz_activity 的实体类,注意 json 的 tag 就是表 biz_activity 的具体字段
+// 这是数据库中表 biz_activity 的实体类
 type BizActivity struct {
-	Id         string    `json:"id"`
-	Name       string    `json:"name"`
-	PcLink     string    `json:"pc_link"`
-	H5Link     string    `json:"h5_link"`
-	Remark     string    `json:"remark"`
-	Sort       int       `json:"sort"`
-	Status     int       `json:"status"`
-	Version    int       `json:"version"`
-	CreateTime time.Time `json:"create_time"`
-	DeleteFlag int       `json:"delete_flag"`
-	Salary     float64   `json:"salary"`
+	Id         string    
+	Name       string    
+	PcLink     string   
+	H5Link     string   
+	Remark     string   
+	Sort       int      
+	Status     int      
+	Version    int      
+	CreateTime time.Time 
+	DeleteFlag int       
+	Salary     float64   
 }
 
 func main() {
@@ -143,7 +143,5 @@ func initLogger (path string,maxAge,interval int)io.Writer{
 ````
 先实现 mbt.Convert 接口，再调用 Session.Driver()，将自定义的驱动注册到当前 Session 对象中即可。
 ````
-
-* [查询是否要使用事务](https://blog.csdn.net/weixin_34157892/article/details/114553584)
 
 * [具体使用example](https://github.com/kotlin2018/example.git)
