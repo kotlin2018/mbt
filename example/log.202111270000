@@ -96,3 +96,30 @@
 [INFO] 2021/11/27 00:44:32 example.ActivityDao.GetIdsByName()  Args  ==> [刺客]
 [INFO] 2021/11/27 00:44:32 example.ActivityDao.GetIdsByName()  RowsAffected == 3
 [Fatal] 2021/11/27 00:44:32 example.ActivityDao.GetIdsByName() invalid character 'å' looking for beginning of value
+[INFO] 2021/11/27 00:51:02 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:51:02 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 00:51:02 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 00:54:03 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:54:03 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 00:54:03 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 00:55:59 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:55:59 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 00:55:59 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 00:56:35 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 00:56:35 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 00:56:35 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 01:00:20 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 01:00:20 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 01:00:20 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 01:01:01 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 01:01:01 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 01:01:01 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 01:03:43 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 01:03:43 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 01:03:43 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 01:04:01 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 01:04:01 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 01:04:01 example.ActivityDao.Choose2()  RowsAffected == 3
+[INFO] 2021/11/27 01:05:34 example.ActivityDao.Choose2()  Query ==>  select * from biz_activity WHERE name =  ?   or pc_link =  ?  and delete_flag = 1  
+[INFO] 2021/11/27 01:05:34 example.ActivityDao.Choose2()  Args  ==> [刺客,]
+[INFO] 2021/11/27 01:05:34 example.ActivityDao.Choose2()  RowsAffected == 3

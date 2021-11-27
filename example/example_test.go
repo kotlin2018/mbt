@@ -247,8 +247,8 @@ func TestChoose2(t *testing.T){
 	for _, item := range res {
 		fmt.Println(item)
 	}
-	res2 := activity.Choose2(Choose{PcLink: "鲁班"})
-	fmt.Println(res2)
+	//res2 := activity.Choose2(Choose{PcLink: "鲁班"})
+	//fmt.Println(res2)
 }
 
 // 返回值的结构体字段类型可以都是 string 类型

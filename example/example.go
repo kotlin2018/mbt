@@ -27,16 +27,28 @@ type BizActivity struct {
 //	Salary     float64
 //}
 
+//type BizActivity2 struct {
+//	Id         string  `json:"id"`
+//	Name       string  `json:"name"`
+//	PcLink     string  `json:"pc_link"`
+//	Sort       int     `json:"sort"`
+//	Status     int     `json:"status"`
+//	Version    int     `json:"version"`
+//	CreateTime string  `json:"create_time"`
+//	DeleteFlag int     `json:"delete_flag"`
+//	Salary     float64 `json:"salary"`
+//}
+
 type BizActivity2 struct {
-	Id         string  `json:"id"`
-	Name       string  `json:"name"`
-	PcLink     string  `json:"pc_link"`
-	Sort       int     `json:"sort"`
-	Status     int     `json:"status"`
-	Version    int     `json:"version"`
-	CreateTime string  `json:"create_time"`
-	DeleteFlag int     `json:"delete_flag"`
-	Salary     float64 `json:"salary"`
+	Id         string  `db:"id"`
+	Name       string  `db:"name"`
+	PcLink     string  `db:"pc_link"`
+	Sort       int     `db:"sort"`
+	Status     int     `db:"status"`
+	Version    int     `db:"version"`
+	CreateTime string  `db:"create_time"`
+	DeleteFlag int     `db:"delete_flag"`
+	Salary     float64 `db:"salary"`
 }
 
 // 请求参数结构体

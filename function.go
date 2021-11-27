@@ -921,6 +921,7 @@ func (it *Session)decodeSqlResult(ret *returnValue,sqlResult []map[string]string
 		}
 	}
 	err := json.Unmarshal([]byte(value), result)
+	fmt.Println(value)
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(ret.name+err.Error())
@@ -937,10 +938,10 @@ func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
 		if itemT.Kind() == reflect.Struct{
 			for j :=0; j < itemT.NumField();j++{
 				field := itemT.Field(j)
-				structMap[strings.ToLower(field.Tag.Get(`json`))] = &field.Type
+				structMap[strings.ToLower(field.Tag.Get(`db`))] = &field.Type
 			}
 		}
-		structMap[strings.ToLower(item.Tag.Get(`json`))] = &item.Type
+		structMap[strings.ToLower(item.Tag.Get(`db`))] = &item.Type
 	}
 	return structMap
 }
@@ -951,7 +952,15 @@ func makeJsonObjByte(resultMap map[string]*resultProperty,sqlData map[string]str
 	index := 0
 	for k, sql := range sqlData {
 		jsonData.WriteString(`"`)
-		jsonData.WriteString(k)
+		if strings.Contains(k,"_"){
+
+			strings.ReplaceAll(k,"_","")
+			fmt.Println(k)
+		}
+
+		//fmt.Println(strings.Trim(k,"_"))
+		jsonData.WriteString(strings.Trim(k,"_"))
+
 		jsonData.WriteString(`":`)
 		isStringType := false
 		fetched := true
