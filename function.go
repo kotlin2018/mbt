@@ -961,8 +961,7 @@ func (it *Session)createXml(name string,tv reflect.Type)[]byte{
 	content := ""
 	for i := 0; i < tv.NumField(); i++ {
 		item := tv.Field(i)
-		tagValue := item.Tag.Get("json")
-		itemStr := strings.Replace(resultItem, "#{column}", tagValue, -1) // tagValue将去替换 ResultItem这个字符串中的 #{column}。
+		itemStr := strings.Replace(resultItem, "#{column}", snake(item.Name), -1) // tagValue将去替换 ResultItem这个字符串中的 #{column}。
 		if item.Type.Name() == "Time" {
 			itemStr = strings.Replace(itemStr, "#{langType}", "time." + item.Type.Name(), -1)
 		}else {
