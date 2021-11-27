@@ -960,16 +960,6 @@ var (
 	<select id="select" column="" resultMap="base" where=""/>
 </mapper>
 `
-	xmlDataS = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
-<mapper namespace="#{namespace}">
-	<insert id="insert"/>
-	<update id="update"/>
-	<delete id="delete"/>
-	<select id="select"/>
-</mapper>
-`
 	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`
