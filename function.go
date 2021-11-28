@@ -744,7 +744,14 @@ func (it *Session)scanStructArgFields(v reflect.Value) map[string]interface{} {
 	t := v.Type()
 	structArg := make(map[string]interface{})
 	for i := 0; i < t.NumField(); i++ {
-		structArg[snake(t.Field(i).Name)] = v.Field(i).Interface()
+		typeValue := t.Field(i)
+		obj := v.Field(i).Interface()
+		tagValue := typeValue.Tag.Get(`db`)
+		if tagValue !="" {
+			structArg[tagValue] = obj
+		}else {
+			structArg[typeValue.Name] = obj
+		}
 	}
 	return structArg
 }
@@ -795,7 +802,8 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 	}
 	resultV := reflect.ValueOf(result).Elem()
 	value := ""
-	if isArray(resultV.Kind()) {
+	resultK := resultV.Kind()
+	if resultK == reflect.Slice || resultK == reflect.Array {
 		resultVItemType := resultV.Type().Elem()
 		structMap := makeStructMap(resultVItemType)
 		done := len(sqlResult) - 1
@@ -884,12 +892,6 @@ func (it *Session)makeJsonObjByte(sqlData map[string]string, structMap map[strin
 	}
 	jsonData.WriteString(`}`)
 	return jsonData.String()
-}
-func isArray(kind reflect.Kind) bool {
-	if kind == reflect.Slice || kind == reflect.Array {
-		return true
-	}
-	return false
 }
 func isBasicType(arg reflect.Type) bool {
 	if arg.Kind() == reflect.Bool ||
