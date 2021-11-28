@@ -354,7 +354,7 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 						if argItem.Kind() == reflect.Struct {
 							for k := 0; k < argItem.NumField(); k++ {
 								arg := argItem.Field(k)
-								if strings.ToLower(strings.ReplaceAll(defProperty, "_", "")) == strings.ToLower(strings.ReplaceAll(arg.Name, "_", "")) {
+								if strings.ToLower(strings.ReplaceAll(defProperty, "_", "")) == strings.ToLower(arg.Name){
 									defProperty = arg.Name
 								}
 							}
@@ -718,7 +718,14 @@ func (it *Session)buildSql(proxyArg proxyArg,ret *returnValue,array *[]interface
 		v := proxyArg.Args[customIndex]
 		t := v.Type()
 		for i := 0; i < t.NumField(); i++ {
-			paramMap[t.Field(i).Name] = v.Field(i).Interface()
+			typeValue := t.Field(i)
+			obj := v.Field(i).Interface()
+			tagValue := typeValue.Tag.Get(`arg`)
+			if tagValue != "" {
+				paramMap[tagValue]=obj
+			}else {
+				paramMap[typeValue.Name]=obj
+			}
 		}
 	}
 	return it.sqlBuild(paramMap,ret,array,stmtConvert)
