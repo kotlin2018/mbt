@@ -48,7 +48,7 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string
 		funcName := fieldItem.Name
 		funcKind := funcType.Kind()
 		if funcKind == reflect.Func {
-			args,ok := fieldItem.Tag.Lookup(`db`)
+			args,ok := fieldItem.Tag.Lookup(`arg`)
 			tagLen := len(strings.Split(args, `,`))
 			argsLen := funcType.NumIn()
 			customLen := 0
@@ -347,24 +347,15 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 				defProperty := v.SelectAttrValue("column", "")
 				if method != nil {
 					for i := 0; i < method.Type.NumIn(); i++ {
-						var argItem = method.Type.In(i)
-						if argItem.Kind() == reflect.Ptr {
-							argItem = argItem.Elem()
-						}
+						argItem := method.Type.In(i)
 						if argItem.Kind() == reflect.Slice || argItem.Kind() == reflect.Array {
 							argItem = argItem.Elem()
 						}
 						if argItem.Kind() == reflect.Struct {
 							for k := 0; k < argItem.NumField(); k++ {
-								var argStructField = argItem.Field(k)
-								var js = argStructField.Tag.Get("db")
-								if strings.Index(js, ",") != -1 {
-									js = strings.Split(js, ",")[0]
-								}
-								if strings.ToLower(strings.Replace(defProperty, "_", "", -1)) ==
-									strings.ToLower(strings.Replace(argStructField.Name, "_", "", -1)) ||
-									js == defProperty {
-									defProperty = argStructField.Name
+								arg := argItem.Field(k)
+								if strings.ToLower(strings.ReplaceAll(defProperty, "_", "")) == strings.ToLower(strings.ReplaceAll(arg.Name, "_", "")) {
+									defProperty = arg.Name
 								}
 							}
 						}
@@ -671,13 +662,13 @@ func decodeCollectionName(method *reflect.StructField) string {
 		for i := 0; i < numIn; i++ {
 			var itemType = method.Type.In(i)
 			if itemType.Kind() == reflect.Slice || itemType.Kind() == reflect.Array {
-				var params = method.Tag.Get("db")
+				var params = method.Tag.Get("arg")
 				var args = strings.Split(params, ",")
 				if params == "" || args == nil || len(args) == 0 {
-					collection = `db` + strconv.Itoa(i)
+					collection = `arg` + strconv.Itoa(i)
 				} else {
 					if args[i] == "" {
-						collection = `db` + strconv.Itoa(i)
+						collection = `arg` + strconv.Itoa(i)
 					} else {
 						collection = args[i]
 					}
@@ -720,11 +711,15 @@ func (it *Session)buildSql(proxyArg proxyArg,ret *returnValue,array *[]interface
 		if tagArgsLen > 0 && proxyArg.TagArgs[argIndex].Name != ""{
 			paramMap[proxyArg.TagArgs[argIndex].Name] = argInterface
 		} else {
-			paramMap[`db`+strconv.Itoa(argIndex)] = argInterface
+			paramMap[`arg`+strconv.Itoa(argIndex)] = argInterface
 		}
 	}
 	if customIndex != -1 {
-		paramMap = it.scanStructArgFields(proxyArg.Args[customIndex])
+		v := proxyArg.Args[customIndex]
+		t := v.Type()
+		for i := 0; i < t.NumField(); i++ {
+			paramMap[t.Field(i).Name] = v.Field(i).Interface()
+		}
 	}
 	return it.sqlBuild(paramMap,ret,array,stmtConvert)
 }
@@ -739,21 +734,6 @@ func (it *Session)sqlBuild(args map[string]interface{},ret *returnValue,array *[
 		it.log.Fatalln(ret.name+" Not Find SQL Statements")
 	}
 	return string(sql)
-}
-func (it *Session)scanStructArgFields(v reflect.Value) map[string]interface{} {
-	t := v.Type()
-	structArg := make(map[string]interface{})
-	for i := 0; i < t.NumField(); i++ {
-		typeValue := t.Field(i)
-		obj := v.Field(i).Interface()
-		tagValue := typeValue.Tag.Get(`db`)
-		if tagValue !="" {
-			structArg[tagValue] = obj
-		}else {
-			structArg[typeValue.Name] = obj
-		}
-	}
-	return structArg
 }
 func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
@@ -777,7 +757,7 @@ func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.S
 }
 func (it *Session)buildRemoteMethod(f reflect.Value, ft reflect.Type,sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
 	tagArgs := make([]tagArg, 0)
-	args := sf.Tag.Get(`db`)
+	args := sf.Tag.Get(`arg`)
 	tagParams := strings.Split(args, `,`)
 	for index, v := range tagParams {
 		tag := tagArg{
