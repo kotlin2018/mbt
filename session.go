@@ -52,7 +52,6 @@ type (
 		value      *reflect.Type
 		xml        *element
 		nodes      []iiNode
-		mapperTree map[string]*element
 		name       string
 	}
 	Session struct {

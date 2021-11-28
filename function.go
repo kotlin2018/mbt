@@ -66,7 +66,7 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string
 						it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
 					}
 				}
-				if isCustomStruct(inType) {
+				if ftk == reflect.Struct && inType.String() != `time.Time` && inType.String() != `*time.Time`{
 					customLen++
 				}
 			}
@@ -91,17 +91,9 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string
 			returnMap[funcName].xml = mapperXml
 			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
 			returnMap[funcName].name = name+"."+funcName+"() "
-			returnMap[funcName].mapperTree = mapperTree
 		}
 	}
 	return returnMap
-}
-func isCustomStruct(value reflect.Type) bool {
-	if value.Kind() == reflect.Struct && value.String() != `time.Time` && value.String() != `*time.Time` {
-		return true
-	} else {
-		return false
-	}
 }
 func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
 	for _, mapperXml := range mapperTree {
@@ -722,7 +714,7 @@ func (it *Session)buildSql(proxyArg proxyArg,ret *returnValue,array *[]interface
 	for argIndex, arg := range proxyArg.Args {
 		argInterface := arg.Interface()
 		argT := arg.Type()
-		if isCustomStruct(argT) {
+		if argT.Kind() == reflect.Struct && argT.String() != `time.Time` && argT.String() != `*time.Time` {
 			customIndex = argIndex
 		}
 		if tagArgsLen > 0 && proxyArg.TagArgs[argIndex].Name != ""{
@@ -752,13 +744,7 @@ func (it *Session)scanStructArgFields(v reflect.Value) map[string]interface{} {
 	t := v.Type()
 	structArg := make(map[string]interface{})
 	for i := 0; i < t.NumField(); i++ {
-		typeValue := t.Field(i)
-		field := v.Field(i)
-		var obj interface{}
-		if field.CanInterface() {
-			obj = field.Interface()
-		}
-		structArg[typeValue.Name] = obj
+		structArg[snake(t.Field(i).Name)] = v.Field(i).Interface()
 	}
 	return structArg
 }
@@ -1038,6 +1024,7 @@ func (it *Session)register(mapperPtr interface{})*Session{
 		obj = reflect.ValueOf(mapperPtr)
 		bt = obj.Type().Elem()
 		num = bt.NumField()
+		body []byte
 		s string
 	)
 	if num != 0 {
@@ -1049,11 +1036,11 @@ func (it *Session)register(mapperPtr interface{})*Session{
 				it.log.Fatalln(fieldItem.Name + " 不能是指针类型!")
 			}
 			if fieldKind == reflect.Struct {
-				body := it.createXml(bt.String(),fieldItem.Type)
-				s = it.genXml(bt.Name()+".xml",body)
+				body = it.createXml(bt.String(),fieldItem.Type)
 			}
-			continue
+			break
 		}
+		s = it.genXml(bt.Name()+".xml",body)
 	}
 	it.start(obj.Elem(),it.makeReturnTypeMap(bt,s))
 	return it
