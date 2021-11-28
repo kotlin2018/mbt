@@ -48,7 +48,7 @@ func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string
 		funcName := fieldItem.Name
 		funcKind := funcType.Kind()
 		if funcKind == reflect.Func {
-			args,ok := fieldItem.Tag.Lookup(`arg`)
+			args,ok := fieldItem.Tag.Lookup(`db`)
 			tagLen := len(strings.Split(args, `,`))
 			argsLen := funcType.NumIn()
 			customLen := 0
@@ -357,7 +357,7 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 						if argItem.Kind() == reflect.Struct {
 							for k := 0; k < argItem.NumField(); k++ {
 								var argStructField = argItem.Field(k)
-								var js = argStructField.Tag.Get("json")
+								var js = argStructField.Tag.Get("db")
 								if strings.Index(js, ",") != -1 {
 									js = strings.Split(js, ",")[0]
 								}
@@ -671,13 +671,13 @@ func decodeCollectionName(method *reflect.StructField) string {
 		for i := 0; i < numIn; i++ {
 			var itemType = method.Type.In(i)
 			if itemType.Kind() == reflect.Slice || itemType.Kind() == reflect.Array {
-				var params = method.Tag.Get("arg")
+				var params = method.Tag.Get("db")
 				var args = strings.Split(params, ",")
 				if params == "" || args == nil || len(args) == 0 {
-					collection = `arg` + strconv.Itoa(i)
+					collection = `db` + strconv.Itoa(i)
 				} else {
 					if args[i] == "" {
-						collection = `arg` + strconv.Itoa(i)
+						collection = `db` + strconv.Itoa(i)
 					} else {
 						collection = args[i]
 					}
@@ -720,7 +720,7 @@ func (it *Session)buildSql(proxyArg proxyArg,ret *returnValue,array *[]interface
 		if tagArgsLen > 0 && proxyArg.TagArgs[argIndex].Name != ""{
 			paramMap[proxyArg.TagArgs[argIndex].Name] = argInterface
 		} else {
-			paramMap[`arg`+strconv.Itoa(argIndex)] = argInterface
+			paramMap[`db`+strconv.Itoa(argIndex)] = argInterface
 		}
 	}
 	if customIndex != -1 {
@@ -777,7 +777,7 @@ func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.S
 }
 func (it *Session)buildRemoteMethod(f reflect.Value, ft reflect.Type,sf reflect.StructField, proxyFunc func(arg proxyArg) []reflect.Value) {
 	tagArgs := make([]tagArg, 0)
-	args := sf.Tag.Get(`arg`)
+	args := sf.Tag.Get(`db`)
 	tagParams := strings.Split(args, `,`)
 	for index, v := range tagParams {
 		tag := tagArg{
