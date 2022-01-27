@@ -902,7 +902,6 @@ func isBasicType(arg reflect.Type) bool {
 	}
 	return false
 }
-
 func (it *Session)createXml(tv reflect.Type)[]byte{
 	content := ""
 	num := tv.NumField()
@@ -929,7 +928,7 @@ func (it *Session)createXml(tv reflect.Type)[]byte{
 			content += "\n"
 		}
 	}
-	res := strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
+	return []byte(strings.Replace(strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
@@ -953,9 +952,7 @@ func (it *Session)createXml(tv reflect.Type)[]byte{
 	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
 	<select id="select" column="" resultMap="base" where=""/>
 </mapper>
-`, "#{table}", snake(tv.Name()), -1)
-	res = strings.Replace(res, "#{resultMapBody}", content, -1)
-	return []byte(res)
+`, "#{table}", snake(tv.Name()), -1), "#{resultMapBody}", content, -1))
 }
 func (it *Session)genXml(bt reflect.Type)string {
 	var (
@@ -993,7 +990,7 @@ func (it *Session)genXml(bt reflect.Type)string {
 				}
 			}
 			if num == 0 {
-				res := strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
+				body = []byte(strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
@@ -1002,8 +999,7 @@ func (it *Session)genXml(bt reflect.Type)string {
 	<update id=""></update>
 	<select id=""></select>
 </mapper>
-`, "#{table}", snake(name), -1)
-				body = []byte(res)
+`, "#{table}", snake(name), -1))
 			}else {
 				fieldType := bt.Field(0).Type
 				if fieldType.Kind() != reflect.Struct || fieldType.String() == `time.Time`{
