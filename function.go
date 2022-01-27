@@ -1011,18 +1011,12 @@ func (it *Session)genXml(bt reflect.Type)string {
 `, "#{table}", snake(name), -1)
 				body = []byte(res)
 			}else {
-				for i := 0; i < num; i++ {
-					fieldItem := bt.Field(i)
-					fieldKind := fieldItem.Type.Kind()
-					if fieldKind == reflect.Ptr {
-						it.log.SetPrefix("[Fatal] ")
-						it.log.Fatalln(fieldItem.Name + " 不能是指针类型!")
-					}
-					if fieldKind == reflect.Struct {
-						body = it.createXml(fieldItem.Type)
-						break
-					}
+				fieldType := bt.Field(0).Type
+				if fieldType.Kind() != reflect.Struct {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln(name + " 结构体的第一个字段必须是结构体!")
 				}
+				body = it.createXml(fieldType)
 			}
 			_, err = f.Write(body)
 			if err != nil {
