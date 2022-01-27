@@ -902,8 +902,34 @@ func isBasicType(arg reflect.Type) bool {
 	}
 	return false
 }
-var (
-	xmlData = `<?xml version="1.0" encoding="UTF-8"?>
+
+func (it *Session)createXml(tv reflect.Type)[]byte{
+	content := ""
+	num := tv.NumField()
+	for i := 0; i < num; i++ {
+		item := tv.Field(i)
+		itemStr := strings.Replace(`<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`, "#{column}", snake(item.Name), -1)
+		if item.Type.Name() == "Time" {
+			itemStr = strings.Replace(itemStr, "#{langType}", "time." + item.Type.Name(), -1)
+		}else {
+			itemStr = strings.Replace(itemStr, "#{langType}", item.Type.Name(), -1)
+		}
+		itemStr = strings.Replace(itemStr, "#{property}", item.Name, -1)
+		gm := item.Tag.Get("gm")
+		if gm == "version" {
+			itemStr = strings.Replace(itemStr, "#{version}", `version_enable="true"`, -1)
+		}
+		if gm == "logic" {
+			itemStr = strings.Replace(itemStr, "#{logic}", `logic_enable="true" logic_undelete="1" logic_deleted="0"`, -1)
+		}
+		itemStr = strings.Replace(itemStr, "#{version}", "", -1)
+		itemStr = strings.Replace(itemStr, "#{logic}", "", -1)
+		content += "\t" + itemStr
+		if i+1 < num {
+			content += "\n"
+		}
+	}
+	res := strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
@@ -916,58 +942,29 @@ var (
     </resultMap>
 
 	<!--插入模板:默认id="insert" 支持批量插入 -->
-	<insert id="insert" resultMap="base" />
+	<!--<insert id="insert" resultMap="base" />-->
 
 	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
-	<delete id="delete" resultMap="base" where=""/>
+	<!--<delete id="delete" resultMap="base" where=""/>-->
 
 	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
-	<update id="update" set="" resultMap="base" where=""/>
+	<!--<update id="update" set="" resultMap="base" where=""/>-->
 
 	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
-	<select id="select" column="" resultMap="base" where=""/>
+	<!--<select id="select" column="" resultMap="base" where=""/>-->
 </mapper>
-`
-	xmlLogicEnable = `logic_enable="true" logic_undelete="1" logic_deleted="0"`
-	xmlVersionEnable = `version_enable="true"`
-	resultItem = `<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`
-)
-func (it *Session)createXml(tv reflect.Type)[]byte{
-	content := ""
-	for i := 0; i < tv.NumField(); i++ {
-		item := tv.Field(i)
-		itemStr := strings.Replace(resultItem, "#{column}", snake(item.Name), -1) // tagValue将去替换 ResultItem这个字符串中的 #{column}。
-		if item.Type.Name() == "Time" {
-			itemStr = strings.Replace(itemStr, "#{langType}", "time." + item.Type.Name(), -1)
-		}else {
-			itemStr = strings.Replace(itemStr, "#{langType}", item.Type.Name(), -1)
-		}
-		itemStr = strings.Replace(itemStr, "#{property}", item.Name, -1)
-		gm := item.Tag.Get("gm")
-		if gm == "version" {
-			itemStr = strings.Replace(itemStr, "#{version}", xmlVersionEnable, -1)
-		}
-		if gm == "logic" {
-			itemStr = strings.Replace(itemStr, "#{logic}", xmlLogicEnable, -1)
-		}
-		itemStr = strings.Replace(itemStr, "#{version}", "", -1)
-		itemStr = strings.Replace(itemStr, "#{logic}", "", -1)
-		content += "\t" + itemStr
-		if i+1 < tv.NumField() {
-			content += "\n"
-		}
-	}
-	res := strings.Replace(xmlData, "#{table}", snake(tv.Name()), -1)
+`, "#{table}", snake(tv.Name()), -1)
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
 }
-func (it *Session)genXml(fileName string,body []byte)string {
+func (it *Session)genXml(bt reflect.Type)string {
 	var (
 		w strings.Builder
-		f *os.File
 		s string
 		err error
 		flag bool
+		name = bt.Name()
+		fileName = name+".xml"
 	)
 	if it.pkg == "" || it.pkg == "./" {
 		w.WriteString("./")
@@ -983,6 +980,11 @@ func (it *Session)genXml(fileName string,body []byte)string {
 	_,err = os.Stat(s)
 	if err != nil {
 		if os.IsNotExist(err) {
+			var (
+				f *os.File
+				body []byte
+				num = bt.NumField()
+			)
 			if !flag {
 				err = os.MkdirAll(it.pkg, os.ModePerm)
 				if err != nil {
@@ -996,6 +998,32 @@ func (it *Session)genXml(fileName string,body []byte)string {
 				it.log.Fatalln("create file"+s+" error:"+ err.Error())
 			}
 			defer f.Close()
+			if num == 0 {
+				res := strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+       "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+<mapper>
+	<insert id=""></insert>
+	<delete id=""></delete>
+	<update id=""></update>
+	<select id=""></select>
+</mapper>
+`, "#{table}", snake(name), -1)
+				body = []byte(res)
+			}else {
+				for i := 0; i < num; i++ {
+					fieldItem := bt.Field(i)
+					fieldKind := fieldItem.Type.Kind()
+					if fieldKind == reflect.Ptr {
+						it.log.SetPrefix("[Fatal] ")
+						it.log.Fatalln(fieldItem.Name + " 不能是指针类型!")
+					}
+					if fieldKind == reflect.Struct {
+						body = it.createXml(fieldItem.Type)
+						break
+					}
+				}
+			}
 			_, err = f.Write(body)
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
@@ -1008,28 +1036,9 @@ func (it *Session)genXml(fileName string,body []byte)string {
 	return s
 }
 func (it *Session)register(mapperPtr interface{})*Session{
-	var (
-		obj = reflect.ValueOf(mapperPtr)
-		bt = obj.Type().Elem()
-		num = bt.NumField()
-		body []byte
-		s string
-	)
-	if num != 0 {
-		for i := 0; i < num; i++ {
-			fieldItem := bt.Field(i)
-			fieldKind := fieldItem.Type.Kind()
-			if fieldKind == reflect.Ptr {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(fieldItem.Name + " 不能是指针类型!")
-			}
-			if fieldKind == reflect.Struct {
-				body = it.createXml(fieldItem.Type)
-			}
-			break
-		}
-		s = it.genXml(bt.Name()+".xml",body)
-	}
+	obj := reflect.ValueOf(mapperPtr)
+	bt := obj.Type().Elem()
+	s := it.genXml(bt)
 	it.start(obj.Elem(),it.makeReturnTypeMap(bt,s))
 	return it
 }

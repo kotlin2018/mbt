@@ -2,10 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="32e49da7-2872-4bfc-9f2e-f79f0349e7d0" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/function.go" beforeDir="false" afterPath="$PROJECT_DIR$/function.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/session.go" beforeDir="false" afterPath="$PROJECT_DIR$/session.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,7 +46,7 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestGetId in github.com/kotlin2018/mbt/example">
+  <component name="RunManager" selected="Go Test.TestGetSalary in github.com/kotlin2018/mbt/example">
     <configuration default="true" type="GoApplicationRunConfiguration" factoryName="Go Application">
       <module name="mbt" />
       <working_directory value="$PROJECT_DIR$" />
@@ -80,6 +79,17 @@
       <pattern value="^\QTestGetId\E$" />
       <method v="2" />
     </configuration>
+    <configuration name="TestGetSalary in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="mbt" />
+      <working_directory value="$PROJECT_DIR$/example" />
+      <framework value="gotest" />
+      <kind value="PACKAGE" />
+      <package value="github.com/kotlin2018/mbt/example" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <pattern value="^\QTestGetSalary\E$" />
+      <method v="2" />
+    </configuration>
     <configuration name="TestSelectByCondition in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="mbt" />
       <working_directory value="$PROJECT_DIR$/example" />
@@ -89,17 +99,6 @@
       <directory value="$PROJECT_DIR$" />
       <filePath value="$PROJECT_DIR$" />
       <pattern value="^\QTestSelectByCondition\E$" />
-      <method v="2" />
-    </configuration>
-    <configuration name="TestSelectById in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
-      <module name="mbt" />
-      <working_directory value="$PROJECT_DIR$/example" />
-      <framework value="gotest" />
-      <kind value="PACKAGE" />
-      <package value="github.com/kotlin2018/mbt/example" />
-      <directory value="$PROJECT_DIR$" />
-      <filePath value="$PROJECT_DIR$" />
-      <pattern value="^\QTestSelectById\E$" />
       <method v="2" />
     </configuration>
     <configuration name="TestSelectEquipment in github.com/kotlin2018/mbt/example" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
@@ -126,11 +125,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Go Test.TestGetSalary in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestGetId in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestGetByName in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestSelectByCondition in github.com/kotlin2018/mbt/example" />
         <item itemvalue="Go Test.TestSelectEquipment in github.com/kotlin2018/mbt/example" />
-        <item itemvalue="Go Test.TestSelectById in github.com/kotlin2018/mbt/example" />
       </list>
     </recent_temporary>
   </component>
