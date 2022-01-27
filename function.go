@@ -906,7 +906,7 @@ var (
 	xmlData = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
-<mapper namespace="#{namespace}">
+<mapper>
     <!--logic_enable 逻辑删除字段-->
     <!--logic_deleted 逻辑删除已删除字段-->
     <!--logic_undelete 逻辑删除 未删除字段-->
@@ -932,7 +932,7 @@ var (
 	xmlVersionEnable = `version_enable="true"`
 	resultItem = `<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`
 )
-func (it *Session)createXml(name string,tv reflect.Type)[]byte{
+func (it *Session)createXml(tv reflect.Type)[]byte{
 	content := ""
 	for i := 0; i < tv.NumField(); i++ {
 		item := tv.Field(i)
@@ -957,8 +957,7 @@ func (it *Session)createXml(name string,tv reflect.Type)[]byte{
 			content += "\n"
 		}
 	}
-	res := strings.Replace(xmlData, "#{namespace}", it.namespace+"."+name, -1)
-	res = strings.Replace(res, "#{table}", snake(tv.Name()), -1)
+	res := strings.Replace(xmlData, "#{table}", snake(tv.Name()), -1)
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
 	return []byte(res)
 }
@@ -1025,7 +1024,7 @@ func (it *Session)register(mapperPtr interface{})*Session{
 				it.log.Fatalln(fieldItem.Name + " 不能是指针类型!")
 			}
 			if fieldKind == reflect.Struct {
-				body = it.createXml(bt.String(),fieldItem.Type)
+				body = it.createXml(fieldItem.Type)
 			}
 			break
 		}

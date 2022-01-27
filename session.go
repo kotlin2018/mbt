@@ -12,7 +12,6 @@ import (
 	"time"
 )
 type (
-	H map[interface{}]interface{}
 	Database struct {
 		Pkg             string    `yaml:"pkg" toml:"pkg"`                               // 生成的xml文件的包名
 		DriverName      string    `yaml:"driver_name" toml:"driver_name"`               // 驱动名称。例如: mysql,postgreSQL...
@@ -23,7 +22,6 @@ type (
 		ConnMaxIdleTime int       `yaml:"conn_max_idle_time" toml:"conn_max_idle_time"` // 单位 time.Minute
 		Logger          *Logger   `yaml:"logger" toml:"logger"`                         // logger日志记录器
 		Slave           *Database `yaml:"slave" toml:"slave"`
-		Namespace       string    `yaml:"namespace" toml:"namespace"` // dao 结构体具体的相对路径
 	}
 	Logger struct {
 		PrintSql bool   `yaml:"print_sql" toml:"print_sql"` // 设置是否打印SQL语句
@@ -66,7 +64,6 @@ type (
 		pkg         string
 		printXml    bool
 		printSql    bool
-		namespace   string
 		driver      map[string]Convert
 	}
 )
@@ -80,15 +77,14 @@ func New(cfg *Database)*Session{
 	db.SetMaxIdleConns(cfg.MaxIdleConn)
 	db.SetMaxOpenConns(cfg.MaxOpenConn)
 	it := &Session{
-		db: db,
+		db:         db,
 		driverName: cfg.DriverName,
-		dsn: cfg.DSN,
-		printSql: cfg.Logger.PrintSql,
-		printXml: cfg.Logger.PrintXml,
-		i: 0,
-		namespace: cfg.Namespace,
-		pkg: cfg.Pkg,
-		log: log.New(os.Stdout,"[INFO] ",log.LstdFlags),
+		dsn:        cfg.DSN,
+		printSql:   cfg.Logger.PrintSql,
+		printXml:   cfg.Logger.PrintXml,
+		i:          0,
+		pkg:        cfg.Pkg,
+		log:        log.New(os.Stdout, "[INFO] ", log.LstdFlags),
 	}
 	if cfg.Slave != nil && cfg.Slave.DriverName != "" && cfg.Slave.DSN != ""{
 		slave,e := sql.Open(cfg.Slave.DriverName,cfg.Slave.DSN)
