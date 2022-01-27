@@ -942,16 +942,16 @@ func (it *Session)createXml(tv reflect.Type)[]byte{
     </resultMap>
 
 	<!--插入模板:默认id="insert" 支持批量插入 -->
-	<!--<insert id="insert" resultMap="base" />-->
+	<insert id="insert" resultMap="base" />
 
 	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
-	<!--<delete id="delete" resultMap="base" where=""/>-->
+	<delete id="delete" resultMap="base" where=""/>
 
 	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
-	<!--<update id="update" set="" resultMap="base" where=""/>-->
+	<update id="update" set="" resultMap="base" where=""/>
 
 	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
-	<!--<select id="select" column="" resultMap="base" where=""/>-->
+	<select id="select" column="" resultMap="base" where=""/>
 </mapper>
 `, "#{table}", snake(tv.Name()), -1)
 	res = strings.Replace(res, "#{resultMapBody}", content, -1)
@@ -992,12 +992,6 @@ func (it *Session)genXml(bt reflect.Type)string {
 					it.log.Fatalln("create package "+it.pkg+" error:"+ err.Error())
 				}
 			}
-			f, err = os.Create(s)
-			if err != nil {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln("create file"+s+" error:"+ err.Error())
-			}
-			defer f.Close()
 			if num == 0 {
 				res := strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
@@ -1012,13 +1006,19 @@ func (it *Session)genXml(bt reflect.Type)string {
 				body = []byte(res)
 			}else {
 				fieldType := bt.Field(0).Type
-				if fieldType.Kind() != reflect.Struct {
+				if fieldType.Kind() != reflect.Struct || fieldType.String() == `time.Time`{
 					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(name + " 结构体的第一个字段必须是结构体!")
+					it.log.Fatalln(name + " 结构体的第一个字段必须是非 time.Time 结构体!")
 				}
 				body = it.createXml(fieldType)
 			}
+			f, err = os.Create(s)
+			if err != nil {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln("create file"+s+" error:"+ err.Error())
+			}
 			_, err = f.Write(body)
+			f.Close()
 			if err != nil {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln("写入文件失败："+s+"error:"+ err.Error())
