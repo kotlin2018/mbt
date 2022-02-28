@@ -65,6 +65,7 @@ type (
 		printXml    bool
 		printSql    bool
 		driver      map[string]Convert
+		data        map[interface{}]map[string]*returnValue
 	}
 )
 func New(cfg *Database)*Session{
@@ -84,6 +85,7 @@ func New(cfg *Database)*Session{
 		printXml:   cfg.Logger.PrintXml,
 		i:          0,
 		pkg:        cfg.Pkg,
+		data:       make(map[interface{}]map[string]*returnValue, 0),
 		log:        log.New(os.Stdout, "[INFO] ", log.LstdFlags),
 	}
 	if cfg.Slave != nil && cfg.Slave.DriverName != "" && cfg.Slave.DSN != ""{

@@ -11,11 +11,19 @@ import (
 	"strings"
 )
 func (it *Session)Run(mapperPtr ...interface{}){
-	for _,v := range mapperPtr {
-		it.register(v)
+	num := len(mapperPtr)
+	if len(it.data)!= num {
+		for i:=0;i<num;i++ {
+			it.genXml(mapperPtr[i])
+		}
+	}
+	for i:=0;i<num;i++ {
+		it.start(mapperPtr[i])
 	}
 }
-func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
+func (it *Session)start(mapperPtr interface{}) {
+	outPut := it.data[mapperPtr]
+	be := reflect.ValueOf(mapperPtr).Elem()
 	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		funcName := funcField.Name
 		ret := outPut[funcName]
@@ -36,64 +44,6 @@ func (it *Session)start(be reflect.Value,outPut map[string]*returnValue) {
 		}
 		return proxyFunc
 	})
-}
-func (it *Session)makeReturnTypeMap(bean reflect.Type,xmlName string) map[string]*returnValue {
-	mapperTree := it.parseXml(xmlName)
-	it.decodeTree(mapperTree,bean,xmlName)
-	returnMap := make(map[string]*returnValue,0)
-	name := bean.String()
-	for i := 0; i < bean.NumField(); i++ {
-		fieldItem := bean.Field(i)
-		funcType := fieldItem.Type
-		funcName := fieldItem.Name
-		funcKind := funcType.Kind()
-		if funcKind == reflect.Func {
-			args,ok := fieldItem.Tag.Lookup(`arg`)
-			tagLen := len(strings.Split(args, `,`))
-			argsLen := funcType.NumIn()
-			customLen := 0
-			for j := 0; j < argsLen; j++ {
-				inType := funcType.In(j)
-				ftk := inType.Kind()
-				if ftk != reflect.Struct{
-					if ftk == reflect.Slice || ftk == reflect.Map{
-						if inType.Elem().Kind()!= reflect.Struct && !ok || tagLen != argsLen{
-							it.log.SetPrefix("[Fatal] ")
-							it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
-						}
-					}else if args == "" || tagLen != argsLen{
-						it.log.SetPrefix("[Fatal] ")
-						it.log.Fatalln(name +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+name +"."+ funcName + `() 的输入参数的个数!`)
-					}
-				}
-				if ftk == reflect.Struct && inType.String() != `time.Time` && inType.String() != `*time.Time`{
-					customLen++
-				}
-			}
-			if argsLen > 1 && customLen > 1 {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)int64`)
-			}
-			if funcType.NumOut() != 1 {
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name + "." + funcName + "() return num out must = 1!")
-			}
-			outType := funcType.Out(0)
-			outTypeK := outType.Kind()
-			outTypeS := outType.String()
-			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
-				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(name + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
-			}
-			returnMap[funcName] = &returnValue{}
-			returnMap[funcName].value = &outType
-			mapperXml := it.findMapperXml(mapperTree, name,funcName,xmlName)
-			returnMap[funcName].xml = mapperXml
-			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
-			returnMap[funcName].name = name+"."+funcName+"() "
-		}
-	}
-	return returnMap
 }
 func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
 	for _, mapperXml := range mapperTree {
@@ -954,7 +904,9 @@ func (it *Session)createXml(tv reflect.Type)[]byte{
 </mapper>
 `, "#{table}", snake(tv.Name()), -1), "#{resultMapBody}", content, -1))
 }
-func (it *Session)genXml(bt reflect.Type)string {
+func (it *Session)genXml(mapperPtr interface{}){
+	obj := reflect.ValueOf(mapperPtr)
+	bt := obj.Type().Elem()
 	var (
 		w strings.Builder
 		s string
@@ -1023,14 +975,96 @@ func (it *Session)genXml(bt reflect.Type)string {
 			}
 		}
 	}
-	return s
-}
-func (it *Session)register(mapperPtr interface{})*Session{
-	obj := reflect.ValueOf(mapperPtr)
-	bt := obj.Type().Elem()
-	s := it.genXml(bt)
-	it.start(obj.Elem(),it.makeReturnTypeMap(bt,s))
-	return it
+	bytes, _ := ioutil.ReadFile(s)
+	expressSymbol(&bytes)
+	doc := newDocument()
+	if err = doc.ReadFromBytes(bytes); err != nil {
+		it.log.SetPrefix("[Fatal] ")
+		it.log.Fatalln("解析 "+s+" 文件错误,err=",err)
+	}
+	mapperTree := make(map[string]*element)
+	root := doc.SelectElement("mapper")
+	for _, e := range root.ChildElements() {
+		if e.Tag == "insert" ||
+			e.Tag == "delete" ||
+			e.Tag == "update" ||
+			e.Tag == "select" ||
+			e.Tag == "resultMap" ||
+			e.Tag == "sql"{
+			idValue := e.SelectAttrValue("id", "")
+			if idValue == "" {
+				idValue = e.Tag
+			}
+			if idValue != "" {
+				oldItem := mapperTree[idValue]
+				if oldItem != nil {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln(s+` 文件内的同一类 <` + e.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
+				}
+			}
+			mapperTree[idValue] = e
+		}
+	}
+	for _, mapperXml := range mapperTree {
+		for _, v := range mapperXml.ChildElements() {
+			it.includeElementReplace(v, &mapperTree,s)
+		}
+	}
+	it.decodeTree(mapperTree,bt,s)
+	returnMap := make(map[string]*returnValue,0)
+	names := bt.String()
+	for i := 0; i < bt.NumField(); i++ {
+		fieldItem := bt.Field(i)
+		funcType := fieldItem.Type
+		funcName := fieldItem.Name
+		funcKind := funcType.Kind()
+		if funcKind == reflect.Func {
+			args,ok := fieldItem.Tag.Lookup(`arg`)
+			tagLen := len(strings.Split(args, `,`))
+			argsLen := funcType.NumIn()
+			customLen := 0
+			for j := 0; j < argsLen; j++ {
+				inType := funcType.In(j)
+				ftk := inType.Kind()
+				if ftk != reflect.Struct{
+					if ftk == reflect.Slice || ftk == reflect.Map{
+						if inType.Elem().Kind()!= reflect.Struct && !ok || tagLen != argsLen{
+							it.log.SetPrefix("[Fatal] ")
+							it.log.Fatalln(names +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+names +"."+ funcName + `() 的输入参数的个数!`)
+						}
+					}else if args == "" || tagLen != argsLen{
+						it.log.SetPrefix("[Fatal] ")
+						it.log.Fatalln(names +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+names +"."+ funcName + `() 的输入参数的个数!`)
+					}
+				}
+				if ftk == reflect.Struct && inType.String() != `time.Time` && inType.String() != `*time.Time`{
+					customLen++
+				}
+			}
+			if argsLen > 1 && customLen > 1 {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(names +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)int64`)
+			}
+			if funcType.NumOut() != 1 {
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(names + "." + funcName + "() return num out must = 1!")
+			}
+			outType := funcType.Out(0)
+			outTypeK := outType.Kind()
+			outTypeS := outType.String()
+			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
+				it.log.SetPrefix("[Fatal] ")
+				it.log.Fatalln(names + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
+			}
+			returnMap[funcName] = &returnValue{}
+			returnMap[funcName].value = &outType
+			mapperXml := it.findMapperXml(mapperTree, names,funcName,s)
+			returnMap[funcName].xml = mapperXml
+			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
+			returnMap[funcName].name = names+"."+funcName+"() "
+		}
+	}
+	it.data[mapperPtr]=returnMap
 }
 func expressSymbol(bytes *[]byte) {
 	byteStr := string(*bytes)
@@ -1043,44 +1077,6 @@ func expressSymbol(bytes *[]byte) {
 		byteStr = strings.Replace(byteStr, findStr, newStr, -1)
 	}
 	*bytes = []byte(byteStr)
-}
-func (it *Session)parseXml(xmlName string) map[string]*element {
-	bytes, _ := ioutil.ReadFile(xmlName)
-	expressSymbol(&bytes)
-	doc := newDocument()
-	if err := doc.ReadFromBytes(bytes); err != nil {
-		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("解析 "+xmlName+" 文件错误,err=",err)
-	}
-	items := make(map[string]*element)
-	root := doc.SelectElement("mapper")
-	for _, s := range root.ChildElements() {
-		if s.Tag == "insert" ||
-			s.Tag == "delete" ||
-			s.Tag == "update" ||
-			s.Tag == "select" ||
-			s.Tag == "resultMap" ||
-			s.Tag == "sql"{
-			idValue := s.SelectAttrValue("id", "")
-			if idValue == "" {
-				idValue = s.Tag
-			}
-			if idValue != "" {
-				oldItem := items[idValue]
-				if oldItem != nil {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(xmlName+` 文件内的同一类 <` + s.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
-				}
-			}
-			items[idValue] = s
-		}
-	}
-	for _, mapperXml := range items {
-		for _, v := range mapperXml.ChildElements() {
-			it.includeElementReplace(v, &items,xmlName)
-		}
-	}
-	return items
 }
 func snake(s string) string {
 	num := len(s)
