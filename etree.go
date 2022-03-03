@@ -82,8 +82,9 @@ func (d *document) Copy() *document {
 	return &document{*(d.dup(nil).(*element)), d.ReadSettings, d.WriteSettings}
 }
 func (d *document) Root() *element {
-	for _, t := range d.Child {
-		if c, ok := t.(*element); ok {
+	num :=len(d.Child)
+	for i:=0;i<num;i++{
+		if c, ok := d.Child[i].(*element); ok {
 			return c
 		}
 	}
@@ -94,9 +95,10 @@ func (d *document) SetRoot(e *element) {
 		e.parent.RemoveChild(e)
 	}
 	e.setParent(&d.element)
-	for i, t := range d.Child {
-		if _, ok := t.(*element); ok {
-			t.setParent(nil)
+	num :=len(d.Child)
+	for i:=0;i<num;i++{
+		if _, ok := d.Child[i].(*element); ok {
+			d.Child[i].setParent(nil)
 			d.Child[i] = e
 			return
 		}
@@ -126,8 +128,9 @@ func (d *document) ReadFromString(s string) error {
 func (d *document) WriteTo(w io.Writer) (n int64, err error) {
 	cw := newCountWriter(w)
 	b := bufio.NewWriter(cw)
-	for _, c := range d.Child {
-		c.writeTo(b, &d.WriteSettings)
+	num :=len(d.Child)
+	for i:=0;i<num;i++{
+		d.Child[i].writeTo(b, &d.WriteSettings)
 	}
 	err, n = b.Flush(), cw.bytes
 	return
@@ -192,8 +195,9 @@ func (e *element) Text() string {
 		return ""
 	}
 	text := ""
-	for _, ch := range e.Child {
-		if cd, ok := ch.(*charData); ok {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if cd, ok := e.Child[i].(*charData); ok {
 			if text == "" {
 				text = cd.Data
 			} else {
@@ -232,8 +236,9 @@ func (e *element) InsertChild(ex token, t token) {
 		t.Parent().RemoveChild(t)
 	}
 	t.setParent(e)
-	for i, c := range e.Child {
-		if c == ex {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if e.Child[i]==ex {
 			e.Child = append(e.Child, nil)
 			copy(e.Child[i+1:], e.Child[i:])
 			e.Child[i] = t
@@ -243,10 +248,11 @@ func (e *element) InsertChild(ex token, t token) {
 	e.addChild(t)
 }
 func (e *element) RemoveChild(t token) token {
-	for i, c := range e.Child {
-		if c == t {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if e.Child[i]==t {
 			e.Child = append(e.Child[:i], e.Child[i+1:]...)
-			c.setParent(nil)
+			e.Child[i].setParent(nil)
 			return t
 		}
 	}
@@ -293,8 +299,9 @@ func (e *element) readFrom(ri io.Reader, settings readSettings) (n int64, err er
 }
 func (e *element) SelectAttr(key string) *attr {
 	space, skey := spaceDecompose(key)
-	for i, a := range e.Attr {
-		if spaceMatch(space, a.Space) && skey == a.Key {
+	num:=len(e.Attr)
+	for i:=0;i<num;i++{
+		if spaceMatch(space,e.Attr[i].Space) && skey == e.Attr[i].Key {
 			return &e.Attr[i]
 		}
 	}
@@ -302,17 +309,19 @@ func (e *element) SelectAttr(key string) *attr {
 }
 func (e *element) SelectAttrValue(key, dflt string) string {
 	space, skey := spaceDecompose(key)
-	for _, a := range e.Attr {
-		if spaceMatch(space, a.Space) && skey == a.Key {
-			return a.Value
+	num:=len(e.Attr)
+	for i:=0;i<num;i++{
+		if spaceMatch(space,e.Attr[i].Space) && skey == e.Attr[i].Key {
+			return e.Attr[i].Value
 		}
 	}
 	return dflt
 }
 func (e *element) ChildElements() []*element {
 	var elements []*element
-	for _, t := range e.Child {
-		if c, ok := t.(*element); ok {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if c, ok := e.Child[i].(*element);ok {
 			elements = append(elements, c)
 		}
 	}
@@ -320,8 +329,9 @@ func (e *element) ChildElements() []*element {
 }
 func (e *element) SelectElement(tag string) *element {
 	space, stag := spaceDecompose(tag)
-	for _, t := range e.Child {
-		if c, ok := t.(*element); ok && spaceMatch(space, c.Space) && stag == c.Tag {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if c, ok := e.Child[i].(*element); ok && spaceMatch(space, c.Space) && stag == c.Tag {
 			return c
 		}
 	}
@@ -330,8 +340,9 @@ func (e *element) SelectElement(tag string) *element {
 func (e *element) SelectElements(tag string) []*element {
 	space, stag := spaceDecompose(tag)
 	var elements []*element
-	for _, t := range e.Child {
-		if c, ok := t.(*element); ok && spaceMatch(space, c.Space) && stag == c.Tag {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if c, ok := e.Child[i].(*element); ok && spaceMatch(space, c.Space) && stag == c.Tag {
 			elements = append(elements, c)
 		}
 	}
@@ -389,8 +400,9 @@ func (e *element) GetRelativePath(source *element) string {
 		return "./" + strings.Join(parts, "/")
 	}
 	findPathIndex := func(e *element, path []*element) int {
-		for i, ee := range path {
-			if e == ee {
+		num:=len(path)
+		for i:=0;i<num;i++{
+			if e == path[i]{
 				return i
 			}
 		}
@@ -426,16 +438,17 @@ func (e *element) indent(depth int, indent indentFunc) {
 	oldChild := e.Child
 	e.Child = make([]token, 0, n*2+1)
 	isCharData, firstNonCharData := false, true
-	for _, c := range oldChild {
-		_, isCharData = c.(*charData)
+	num :=len(oldChild)
+	for i:=0;i<num;i++{
+		_, isCharData = oldChild[i].(*charData)
 		if !isCharData {
 			if !firstNonCharData || depth > 0 {
 				newCharData(indent(depth), true, e)
 			}
 			firstNonCharData = false
 		}
-		e.addChild(c)
-		if ce, ok := c.(*element); ok {
+		e.addChild(oldChild[i])
+		if ce, ok := oldChild[i].(*element); ok {
 			ce.indent(depth+1, indent)
 		}
 	}
@@ -447,8 +460,8 @@ func (e *element) indent(depth int, indent indentFunc) {
 }
 func (e *element) stripIndent() {
 	n := len(e.Child)
-	for _, c := range e.Child {
-		if cd, ok := c.(*charData); ok && cd.whitespace {
+	for i:=0;i<n;i++{
+		if cd, ok := e.Child[i].(*charData); ok && cd.whitespace {
 			n--
 		}
 	}
@@ -457,11 +470,12 @@ func (e *element) stripIndent() {
 	}
 	newChild := make([]token, n)
 	j := 0
-	for _, c := range e.Child {
-		if cd, ok := c.(*charData); ok && cd.whitespace {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if cd, ok := e.Child[i].(*charData); ok && cd.whitespace {
 			continue
 		}
-		newChild[j] = c
+		newChild[j] = e.Child[i]
 		j++
 	}
 	e.Child = newChild
@@ -474,11 +488,13 @@ func (e *element) dup(parent *element) token {
 		Child:  make([]token, len(e.Child)),
 		parent: parent,
 	}
-	for i, t := range e.Child {
-		ne.Child[i] = t.dup(ne)
+	num :=len(e.Child)
+	for i:=0;i<num;i++{
+		ne.Child[i] = e.Child[i].dup(ne)
 	}
-	for i, a := range e.Attr {
-		ne.Attr[i] = a
+	en:=len(e.Attr)
+	for i:=0;i<en;i++{
+		ne.Attr[i] = e.Attr[i]
 	}
 	return ne
 }

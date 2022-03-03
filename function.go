@@ -652,22 +652,24 @@ func (it *Session)buildSql(proxyArg proxyArg,ret *returnValue,array *[]interface
 	paramMap := make(map[string]interface{})
 	tagArgsLen := proxyArg.TagArgsLen
 	customIndex := -1
-	for argIndex, arg := range proxyArg.Args {
-		argInterface := arg.Interface()
-		argT := arg.Type()
+	num := len(proxyArg.Args)
+	for i:=0;i<num;i++ {
+		argInterface := proxyArg.Args[i].Interface()
+		argT := proxyArg.Args[i].Type()
 		if argT.Kind() == reflect.Struct && argT.String() != `time.Time` && argT.String() != `*time.Time` {
-			customIndex = argIndex
+			customIndex = i
 		}
-		if tagArgsLen > 0 && proxyArg.TagArgs[argIndex].Name != ""{
-			paramMap[proxyArg.TagArgs[argIndex].Name] = argInterface
+		if tagArgsLen > 0 && proxyArg.TagArgs[i].Name != ""{
+			paramMap[proxyArg.TagArgs[i].Name] = argInterface
 		} else {
-			paramMap[`arg`+strconv.Itoa(argIndex)] = argInterface
+			paramMap[`arg`+strconv.Itoa(i)] = argInterface
 		}
 	}
 	if customIndex != -1 {
 		v := proxyArg.Args[customIndex]
 		t := v.Type()
-		for i := 0; i < t.NumField(); i++ {
+		cou := t.NumField()
+		for i := 0; i <cou; i++ {
 			typeValue := t.Field(i)
 			obj := v.Field(i).Interface()
 			tagValue := typeValue.Tag.Get(`arg`)
@@ -693,21 +695,14 @@ func (it *Session)sqlBuild(args map[string]interface{},ret *returnValue,array *[
 	return string(sql)
 }
 func (it *Session)proxyValue(v reflect.Value, buildFunc func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value) {
-	for i := 0; i < v.NumField(); i++ {
+	num := v.NumField()
+	for i := 0; i < num;i++ {
 		f := v.Field(i)
 		ft := f.Type()
 		ftk := ft.Kind()
 		sf := v.Type().Field(i)
-		if ftk == reflect.Ptr{
-			ft = ft.Elem()
-		}
-		if f.CanSet() {
-			switch ftk {
-			case reflect.Struct:
-				it.proxyValue(f, buildFunc)
-			case reflect.Func:
-				it.buildRemoteMethod(f, ft, sf, buildFunc(sf, f))
-			}
+		if ftk == reflect.Func {
+			it.buildRemoteMethod(f, ft, sf, buildFunc(sf, f))
 		}
 	}
 	v.Set(v)
@@ -716,17 +711,26 @@ func (it *Session)buildRemoteMethod(f reflect.Value, ft reflect.Type,sf reflect.
 	tagArgs := make([]tagArg, 0)
 	args := sf.Tag.Get(`arg`)
 	tagParams := strings.Split(args, `,`)
-	for index, v := range tagParams {
+	num := len(tagParams)
+	for i:=0;i<num;i++ {
 		tag := tagArg{
-			Index: index,
-			Name:  v,
+			Index: i,
+			Name:  tagParams[i],
 		}
 		tagArgs = append(tagArgs, tag)
 	}
+	tagNum := len(tagArgs)
+	argNum := len(args)
 	fn := func(args []reflect.Value) (results []reflect.Value) {
-		proxyResults := proxyFunc(newArg(tagArgs, args))
-		for _, returnV := range proxyResults {
-			results = append(results, returnV)
+		proxyResults := proxyFunc(proxyArg{
+			TagArgs:    tagArgs,
+			Args:       args,
+			TagArgsLen: tagNum,
+			ArgsLen:    argNum,
+		})
+		count := len(proxyResults)
+		for i:=0;i<count;i++ {
+			results = append(results, proxyResults[i])
 		}
 		return results
 	}
@@ -741,14 +745,54 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 	value := ""
 	resultK := resultV.Kind()
 	if resultK == reflect.Slice || resultK == reflect.Array {
-		resultVItemType := resultV.Type().Elem()
-		structMap := makeStructMap(resultVItemType)
+		itemType := resultV.Type().Elem()
+		structMap := map[string]*reflect.Type{}
+		num := itemType.NumField()
+		for i := 0; i <num; i++ {
+			item := itemType.Field(i)
+			itemT := item.Type
+			if itemT.Kind() == reflect.Struct{
+				cou:=itemT.NumField()
+				for j :=0;j<cou;j++{
+					field := itemT.Field(j)
+					structMap[strings.ToLower(field.Name)] = &field.Type
+				}
+			}
+			structMap[strings.ToLower(item.Name)] = &item.Type
+		}
 		done := len(sqlResult) - 1
 		index := 0
 		jsonData := strings.Builder{}
 		jsonData.WriteString(`[`)
-		for _, v := range sqlResult {
-			jsonData.WriteString(it.makeJsonObjByte(v, structMap,name))
+		for i:=0;i<sqlResultLen;i++{
+			build := strings.Builder{}
+			build.WriteString(`{`)
+			b := len(sqlResult[i]) - 1
+			a := 0
+			for k, sqlV := range sqlResult[i] {
+				build.WriteString(`"`)
+				build.WriteString(k)
+				build.WriteString(`":`)
+				v := structMap[k]
+				if v != nil {
+					if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
+						build.WriteString(`"`)
+						build.WriteString(sqlV)
+						build.WriteString(`"`)
+					}else {
+						build.WriteString(sqlV)
+					}
+				}else {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln(name+"方法的返回值缺少一个结构体字段",k)
+				}
+				if a < b {
+					build.WriteString(`,`)
+				}
+				a += 1
+			}
+			build.WriteString(`}`)
+			jsonData.WriteString(build.String())
 			if index < done {
 				jsonData.WriteString(`,`)
 			}
@@ -775,8 +819,49 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 				break
 			}
 		} else {
-			structMap := makeStructMap(resultV.Type())
-			value = it.makeJsonObjByte(sqlResult[0], structMap,name)
+			structMap := map[string]*reflect.Type{}
+			itemType := resultV.Type()
+			num := itemType.NumField()
+			for i := 0; i <num; i++ {
+				item := itemType.Field(i)
+				itemT := item.Type
+				if itemT.Kind() == reflect.Struct{
+					cou:=itemT.NumField()
+					for j :=0;j<cou;j++{
+						field := itemT.Field(j)
+						structMap[strings.ToLower(field.Name)] = &field.Type
+					}
+				}
+				structMap[strings.ToLower(item.Name)] = &item.Type
+			}
+			jsonData := strings.Builder{}
+			jsonData.WriteString(`{`)
+			done := len(sqlResult[0]) - 1
+			index := 0
+			for k, sqlV := range sqlResult[0] {
+				jsonData.WriteString(`"`)
+				jsonData.WriteString(k)
+				jsonData.WriteString(`":`)
+				v := structMap[k]
+				if v != nil {
+					if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
+						jsonData.WriteString(`"`)
+						jsonData.WriteString(sqlV)
+						jsonData.WriteString(`"`)
+					}else {
+						jsonData.WriteString(sqlV)
+					}
+				}else {
+					it.log.SetPrefix("[Fatal] ")
+					it.log.Fatalln(name+"方法的返回值缺少一个结构体字段",k)
+				}
+				if index < done {
+					jsonData.WriteString(`,`)
+				}
+				index += 1
+			}
+			jsonData.WriteString(`}`)
+			value = jsonData.String()
 		}
 	}
 	err := json.Unmarshal([]byte(value), result)
@@ -784,51 +869,6 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 		it.log.SetPrefix("[Fatal] ")
 		it.log.Fatalln(name+err.Error())
 	}
-}
-func makeStructMap(itemType reflect.Type)map[string]*reflect.Type{
-	structMap := map[string]*reflect.Type{}
-	for i := 0; i < itemType.NumField(); i++ {
-		item := itemType.Field(i)
-		itemT := item.Type
-		if itemT.Kind() == reflect.Struct{
-			for j :=0; j < itemT.NumField();j++{
-				field := itemT.Field(j)
-				structMap[strings.ToLower(field.Name)] = &field.Type
-			}
-		}
-		structMap[strings.ToLower(item.Name)] = &item.Type
-	}
-	return structMap
-}
-func (it *Session)makeJsonObjByte(sqlData map[string]string, structMap map[string]*reflect.Type,name string) string {
-	jsonData := strings.Builder{}
-	jsonData.WriteString(`{`)
-	done := len(sqlData) - 1
-	index := 0
-	for k, sqlV := range sqlData {
-		jsonData.WriteString(`"`)
-		jsonData.WriteString(k)
-		jsonData.WriteString(`":`)
-		v := structMap[k]
-		if v != nil {
-			if (*v).Kind() == reflect.String || (*v).String() ==`time.Time`{
-				jsonData.WriteString(`"`)
-				jsonData.WriteString(sqlV)
-				jsonData.WriteString(`"`)
-			}else {
-				jsonData.WriteString(sqlV)
-			}
-		}else {
-			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+"方法的返回值缺少一个结构体字段",k)
-		}
-		if index < done {
-			jsonData.WriteString(`,`)
-		}
-		index += 1
-	}
-	jsonData.WriteString(`}`)
-	return jsonData.String()
 }
 func isBasicType(arg reflect.Type) bool {
 	if arg.Kind() == reflect.Bool ||
@@ -851,58 +891,6 @@ func isBasicType(arg reflect.Type) bool {
 		return true
 	}
 	return false
-}
-func (it *Session)createXml(tv reflect.Type)[]byte{
-	content := ""
-	num := tv.NumField()
-	for i := 0; i < num; i++ {
-		item := tv.Field(i)
-		itemStr := strings.Replace(`<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`, "#{column}", snake(item.Name), -1)
-		if item.Type.Name() == "Time" {
-			itemStr = strings.Replace(itemStr, "#{langType}", "time." + item.Type.Name(), -1)
-		}else {
-			itemStr = strings.Replace(itemStr, "#{langType}", item.Type.Name(), -1)
-		}
-		itemStr = strings.Replace(itemStr, "#{property}", item.Name, -1)
-		gm := item.Tag.Get("gm")
-		if gm == "version" {
-			itemStr = strings.Replace(itemStr, "#{version}", `version_enable="true"`, -1)
-		}
-		if gm == "logic" {
-			itemStr = strings.Replace(itemStr, "#{logic}", `logic_enable="true" logic_undelete="1" logic_deleted="0"`, -1)
-		}
-		itemStr = strings.Replace(itemStr, "#{version}", "", -1)
-		itemStr = strings.Replace(itemStr, "#{logic}", "", -1)
-		content += "\t" + itemStr
-		if i+1 < num {
-			content += "\n"
-		}
-	}
-	return []byte(strings.Replace(strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-       "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
-<mapper>
-    <!--logic_enable 逻辑删除字段-->
-    <!--logic_deleted 逻辑删除已删除字段-->
-    <!--logic_undelete 逻辑删除 未删除字段-->
-    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
-	<resultMap id="base" table="#{table}">
-    #{resultMapBody}
-    </resultMap>
-
-	<!--插入模板:默认id="insert" 支持批量插入 -->
-	<insert id="insert" resultMap="base" />
-
-	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
-	<delete id="delete" resultMap="base" where=""/>
-
-	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
-	<update id="update" set="" resultMap="base" where=""/>
-
-	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
-	<select id="select" column="" resultMap="base" where=""/>
-</mapper>
-`, "#{table}", snake(tv.Name()), -1), "#{resultMapBody}", content, -1))
 }
 func (it *Session)genXml(mapperPtr interface{}){
 	obj := reflect.ValueOf(mapperPtr)
@@ -954,11 +942,60 @@ func (it *Session)genXml(mapperPtr interface{}){
 `, "#{table}", snake(name), -1))
 			}else {
 				fieldType := bt.Field(0).Type
-				if fieldType.Kind() != reflect.Struct || fieldType.String() == `time.Time`{
+				if fieldType.Kind() != reflect.Struct || fieldType.String() == `time.Time` {
 					it.log.SetPrefix("[Fatal] ")
 					it.log.Fatalln(name + " 结构体的第一个字段必须是非 time.Time 结构体!")
 				}
-				body = it.createXml(fieldType)
+				content := ""
+				cou := fieldType.NumField()
+				for i := 0; i < cou; i++ {
+					item := fieldType.Field(i)
+					itemStr := strings.Replace(`<result column="#{column}" property="#{property}" langType="#{langType}" #{version} #{logic}/>`, "#{column}", snake(item.Name), -1)
+					if item.Type.Name() == "Time" {
+						itemStr = strings.Replace(itemStr, "#{langType}", "time."+item.Type.Name(), -1)
+					} else {
+						itemStr = strings.Replace(itemStr, "#{langType}", item.Type.Name(), -1)
+					}
+					itemStr = strings.Replace(itemStr, "#{property}", item.Name, -1)
+					gm := item.Tag.Get("gm")
+					if gm == "version" {
+						itemStr = strings.Replace(itemStr, "#{version}", `version_enable="true"`, -1)
+					}
+					if gm == "logic" {
+						itemStr = strings.Replace(itemStr, "#{logic}", `logic_enable="true" logic_undelete="1" logic_deleted="0"`, -1)
+					}
+					itemStr = strings.Replace(itemStr, "#{version}", "", -1)
+					itemStr = strings.Replace(itemStr, "#{logic}", "", -1)
+					content += "\t" + itemStr
+					if i+1 < cou {
+						content += "\n"
+					}
+				}
+				body = []byte(strings.Replace(strings.Replace(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+       "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
+<mapper>
+    <!--logic_enable 逻辑删除字段-->
+    <!--logic_deleted 逻辑删除已删除字段-->
+    <!--logic_undelete 逻辑删除 未删除字段-->
+    <!--version_enable 乐观锁版本字段,支持int,int8,int16,int32,int64-->
+	<resultMap id="base" table="#{table}">
+    #{resultMapBody}
+    </resultMap>
+
+	<!--插入模板:默认id="insert" 支持批量插入 -->
+	<insert id="insert" resultMap="base" />
+
+	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
+	<delete id="delete" resultMap="base" where=""/>
+
+	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
+	<update id="update" set="" resultMap="base" where=""/>
+
+	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
+	<select id="select" column="" resultMap="base" where=""/>
+</mapper>
+`, "#{table}", snake(fieldType.Name()), -1), "#{resultMapBody}", content, -1))
 			}
 			f, err = os.Create(s)
 			if err != nil {
@@ -984,40 +1021,53 @@ func (it *Session)genXml(mapperPtr interface{}){
 	}
 	mapperTree := make(map[string]*element)
 	root := doc.SelectElement("mapper")
-	for _, e := range root.ChildElements() {
-		if e.Tag == "insert" ||
-			e.Tag == "delete" ||
-			e.Tag == "update" ||
-			e.Tag == "select" ||
-			e.Tag == "resultMap" ||
-			e.Tag == "sql"{
-			idValue := e.SelectAttrValue("id", "")
+	e := root.ChildElements()
+	num := len(e)
+	for i:=0;i<num;i++ {
+		if  e[i].Tag == "insert" ||
+			e[i].Tag == "delete" ||
+			e[i].Tag == "update" ||
+			e[i].Tag == "select" ||
+			e[i].Tag == "resultMap" ||
+			e[i].Tag == "sql"{
+			idValue := e[i].SelectAttrValue("id", "")
 			if idValue == "" {
-				idValue = e.Tag
+				idValue = e[i].Tag
 			}
 			if idValue != "" {
 				oldItem := mapperTree[idValue]
 				if oldItem != nil {
 					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln(s+` 文件内的同一类 <` + e.Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
+					it.log.Fatalln(s+` 文件内的同一类 <` + e[i].Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
 				}
 			}
-			mapperTree[idValue] = e
+			mapperTree[idValue] = e[i]
 		}
 	}
 	for _, mapperXml := range mapperTree {
-		for _, v := range mapperXml.ChildElements() {
-			it.includeElementReplace(v, &mapperTree,s)
+		ele := mapperXml.ChildElements()
+		count := len(ele)
+		for i:=0;i<count;i++ {
+			it.includeElementReplace(ele[i], &mapperTree,s)
 		}
 	}
 	it.decodeTree(mapperTree,bt,s)
 	returnMap := make(map[string]*returnValue,0)
 	names := bt.String()
-	for i := 0; i < bt.NumField(); i++ {
+	count := bt.NumField()
+	for i := 0; i <count; i++ {
 		fieldItem := bt.Field(i)
 		funcType := fieldItem.Type
 		funcName := fieldItem.Name
 		funcKind := funcType.Kind()
+		if !fieldItem.IsExported(){
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(names +"."+ funcName + `() 该方法首字母必须大写!`)
+		}
+		if funcKind == reflect.Ptr {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(names +"."+ funcName + `() 该方法不能是指针类型!`)
+		}
 		if funcKind == reflect.Func {
 			args,ok := fieldItem.Tag.Lookup(`arg`)
 			tagLen := len(strings.Split(args, `,`))
@@ -1070,11 +1120,12 @@ func expressSymbol(bytes *[]byte) {
 	byteStr := string(*bytes)
 	testRegex, _ := regexp.Compile(`test=".*"`)
 	findList := testRegex.FindAllString(byteStr, -1)
-	for _, findStr := range findList {
-		newStr := findStr
+	num := len(findList)
+	for i:=0;i<num;i++ {
+		newStr := findList[i]
 		newStr = strings.Replace(newStr, "<", "&lt;", -1)
 		newStr = strings.Replace(newStr, ">", "&gt;", -1)
-		byteStr = strings.Replace(byteStr, findStr, newStr, -1)
+		byteStr = strings.Replace(byteStr, findList[i], newStr, -1)
 	}
 	*bytes = []byte(byteStr)
 }

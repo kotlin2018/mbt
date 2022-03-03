@@ -56,8 +56,9 @@ type iiNode interface {
 }
 func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	var sql bytes.Buffer
-	for _, v := range childNodes {
-		r, e := v.Eval(env, array, stmtConvert)
+	num := len(childNodes)
+	for i:=0;i<num;i++ {
+		r, e := childNodes[i].Eval(env, array, stmtConvert)
 		if e != nil {
 			return nil, e
 		}
@@ -70,38 +71,40 @@ func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]inter
 	return bytes, nil
 }
 func replace(findStrS []string, data string, arg map[string]interface{}, engine iExpression, array *[]interface{}, indexConvert Convert) (string, error) {
-	for _, findStr := range findStrS {
-		argValue := arg[findStr]
+	num := len(findStrS)
+	for i:=0;i<num;i++ {
+		argValue := arg[findStrS[i]]
 		if argValue != nil {
 			*array = append(*array, argValue)
 		} else {
-			evalData, err := engine.LexerAndEval(findStr, arg)
+			evalData, err := engine.LexerAndEval(findStrS[i], arg)
 			if err != nil {
 				return "", err
 			}
 			*array = append(*array, evalData)
 		}
 		indexConvert.Inc()
-		data = strings.Replace(data, "#{"+findStr+"}", indexConvert.Convert(), -1)
+		data = strings.Replace(data, "#{"+findStrS[i]+"}", indexConvert.Convert(), -1)
 	}
 	return data, nil
 }
 func replaceRaw(findStrS []string, data string,arg map[string]interface{}, engine iExpression) (string, error) {
-	for _, findStr := range findStrS {
+	num := len(findStrS)
+	for i:=0;i<num;i++{
 		var (
 			evalData interface{}
-			argValue = arg[findStr]
+			argValue = arg[findStrS[i]]
 			err error
 		)
 		if argValue != nil {
 			evalData = argValue
 		} else {
-			evalData, err = engine.LexerAndEval(findStr, arg)
+			evalData, err = engine.LexerAndEval(findStrS[i], arg)
 			if err != nil {
 				return "", err
 			}
 		}
-		data = strings.Replace(data, "${"+findStr+"}", fmt.Sprint(evalData), -1)
+		data = strings.Replace(data, "${"+findStrS[i]+"}", fmt.Sprint(evalData), -1)
 	}
 	return data, nil
 }
@@ -113,15 +116,16 @@ func findExpress(str string) []string {
 		strBytes = []byte(str)
 		finds = make([]string,0)
 	)
-	for index, v := range strBytes {
-		if v == 35 {
-			lastIndex = index
+	num := len(strBytes)
+	for i:=0;i<num;i++{
+		if strBytes[i] == 35 {
+			lastIndex = i
 		}
-		if v == 123 && lastIndex == (index-1) {
-			startIndex = index + 1
+		if strBytes[i] == 123 && lastIndex == (i-1) {
+			startIndex = i + 1
 		}
-		if v == 125 && startIndex != -1 {
-			item = strBytes[startIndex:index]
+		if strBytes[i] == 125 && startIndex != -1 {
+			item = strBytes[startIndex:i]
 			if bytes.Contains(item, []byte(",")) {
 				item = bytes.Split(item, []byte(","))[0]
 			}
@@ -139,16 +143,17 @@ func findRawExpressString(str string) []string {
 		item []byte
 		strBytes = []byte(str)
 		finds = make([]string,0)
+		num = len(str)
 	)
-	for index, v := range str {
-		if v == 36 {
-			lastIndex = index
+	for i:=0;i<num;i++ {
+		if str[i] == 36 {
+			lastIndex = i
 		}
-		if v == 123 && lastIndex == (index-1) {
-			startIndex = index + 1
+		if str[i] == 123 && lastIndex == (i-1) {
+			startIndex = i + 1
 		}
-		if v == 125 && startIndex != -1 {
-			item = strBytes[startIndex:index]
+		if str[i] == 125 && startIndex != -1 {
+			item = strBytes[startIndex:i]
 			if bytes.Contains(item, []byte(",")) {
 				item = bytes.Split(item, []byte(","))[0]
 			}
@@ -224,12 +229,13 @@ func (it *nodeChoose) Eval(env map[string]interface{}, array *[]interface{}, stm
 	if it.whenNodes == nil && it.otherwiseNode == nil {
 		return nil, nil
 	}
-	for _, v := range it.whenNodes {
-		var r, e = v.Eval(env, array, stmtConvert)
+	num := len(it.whenNodes)
+	for i:=0;i<num;i++{
+		var r, e = it.whenNodes[i].Eval(env, array, stmtConvert)
 		if e != nil {
 			return nil, e
 		}
-		if v.Type() == nWhen && r != nil {
+		if it.whenNodes[i].Type() == nWhen && r != nil {
 			return r, nil
 		}
 	}
@@ -258,11 +264,9 @@ func (it *nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, st
 	if err != nil {
 		return nil, err
 	}
-	var (
-		collectionValue = reflect.ValueOf(evalData)
-		kind = collectionValue.Kind()
-		collectionValueLen = collectionValue.Len()
-	)
+	collectionValue := reflect.ValueOf(evalData)
+	kind := collectionValue.Kind()
+	collectionValueLen := collectionValue.Len()
 	if kind == reflect.Invalid {
 		return nil, errors.New(" collection value is invalid value!")
 	}
@@ -280,19 +284,15 @@ func (it *nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, st
 	}
 	switch collectionValue.Kind() {
 	case reflect.Map:
-		var (
-			mapKeys = collectionValue.MapKeys()
-			collectionKeyLen = len(mapKeys)
-			tempArgMap = env
-		)
+		mapKeys := collectionValue.MapKeys()
+		collectionKeyLen := len(mapKeys)
+		tempArgMap := env
 		if collectionKeyLen == 0 {
 			return nil, nil
 		}
-		for _, keyValue := range mapKeys {
-			var (
-				key = keyValue.Interface()
-				collectionItem = collectionValue.MapIndex(keyValue)
-			)
+		for i:=0;i<collectionKeyLen;i++ {
+			key := mapKeys[i].Interface()
+			collectionItem := collectionValue.MapIndex(mapKeys[i])
 			if it.item != "" {
 				tempArgMap[it.item] = collectionItem.Interface()
 			}
@@ -330,10 +330,8 @@ func (it *nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, st
 		}
 		break
 	}
-	var (
-		newTempSql bytes.Buffer
-		tempSqlString = bytes.Trim(tempSql.Bytes(), it.separator)
-	)
+	var newTempSql bytes.Buffer
+	tempSqlString := bytes.Trim(tempSql.Bytes(), it.separator)
 	tempSql.Reset()
 	newTempSql.WriteString(it.open)
 	newTempSql.Write(tempSqlString)
@@ -415,16 +413,18 @@ func (it *nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtC
 	if it.prefixOverrides != nil {
 		prefixOverridesArray := bytes.Split(it.prefixOverrides, []byte("|"))
 		if len(prefixOverridesArray) > 0 {
-			for _, v := range prefixOverridesArray {
-				sql = bytes.TrimPrefix(sql, v)
+			num := len(prefixOverridesArray)
+			for i:=0;i<num;i++{
+				sql = bytes.TrimPrefix(sql, prefixOverridesArray[i])
 			}
 		}
 	}
 	if it.suffixOverrides != nil {
 		suffixOverrideArray := bytes.Split(it.suffixOverrides, []byte("|"))
 		if len(suffixOverrideArray) > 0 {
-			for _, v := range suffixOverrideArray {
-				sql = bytes.TrimSuffix(sql, v)
+			num := len(suffixOverrideArray)
+			for i:=0;i<num;i++{
+				sql = bytes.TrimSuffix(sql,suffixOverrideArray[i])
 			}
 		}
 	}
@@ -508,11 +508,12 @@ type express struct {
 	Proxy iExpression
 }
 func (it express) Parser(mapperXml []token)(list []iiNode){
-	for _, item := range mapperXml {
+	num := len(mapperXml)
+	for i:=0;i<num;i++{
 		var nod iiNode
-		typeString := reflect.TypeOf(item).String()
+		typeString := reflect.TypeOf(mapperXml[i]).String()
 		if typeString == "*mbt.charData" {
-			chard := item.(*charData)
+			chard := mapperXml[i].(*charData)
 			str := chard.Data
 			str = strings.Replace(str, "\n", " ", -1)
 			str = strings.Replace(str, "\t", " ", -1)
@@ -530,7 +531,7 @@ func (it express) Parser(mapperXml []token)(list []iiNode){
 			}
 			nod = &n
 		} else if typeString == "*mbt.element" {
-			v := item.(*element)
+			v := mapperXml[i].(*element)
 			childItems := v.Child
 			switch v.Tag {
 			case "if":
@@ -805,14 +806,6 @@ func (it *Session)slaveConvert() Convert {
 	}
 	return nil
 }
-func newArg(tagArgs []tagArg,args []reflect.Value)proxyArg{
-	return proxyArg{
-		TagArgs:    tagArgs,
-		Args:       args,
-		TagArgsLen: len(tagArgs),
-		ArgsLen:    len(args),
-	}
-}
 type nodeType int
 const (
 	nArg    nodeType = iota
@@ -884,15 +877,17 @@ var notSupportOptMap = map[string]bool{
 }
 var priorityMap = map[operator]int{}
 func init() {
-	for k, v := range priorityArray {
-		priorityMap[v] = k
+	num := len(priorityArray)
+	for i:=0;i<num;i++{
+		priorityMap[priorityArray[i]] = i
 	}
 }
 func parser(express string) (iNode, error) {
 	opts := parserOperators(express)
 	var list []iNode
-	for _, v := range opts {
-		item, err := parserNode(express, v)
+	num := len(opts)
+	for i:=0;i<num;i++{
+		item, err := parserNode(express,opts[i])
 		if err != nil {
 			return nil, err
 		}
@@ -902,8 +897,9 @@ func parser(express string) (iNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, v := range priorityArray {
-		e := findReplaceOpt(express, v, &list)
+	pnum:=len(priorityArray)
+	for i:=0;i<pnum;i++{
+		e := findReplaceOpt(express,priorityArray[i],&list)
 		if e != nil {
 			return nil, e
 		}
@@ -914,16 +910,18 @@ func parser(express string) (iNode, error) {
 	return list[0], nil
 }
 func checkNodes(express string, nodes []iNode) error {
-	var nodesLen = len(nodes)
-	for nIndex, n := range nodes {
-		if n.Type() == nOpt {
-			var after iNode
-			var befor iNode
-			if nIndex > 0 {
-				befor = nodes[nIndex-1]
+	nodesLen := len(nodes)
+	for i:=0;i<nodesLen;i++{
+		if nodes[i].Type() == nOpt {
+			var (
+				after iNode
+				befor iNode
+			)
+			if i > 0 {
+				befor = nodes[i-1]
 			}
-			if nIndex < (nodesLen - 1) {
-				after = nodes[nIndex+1]
+			if i < (nodesLen - 1) {
+				after = nodes[i+1]
 			}
 			if after != nil && after.Type() == nOpt {
 				return errors.New("express have more than 2 opt!express=" + express)
@@ -937,7 +935,7 @@ func checkNodes(express string, nodes []iNode) error {
 }
 func parserNode(express string, v operator) (iNode, error) {
 	if v == nils || v == null {
-		var inode = nilNode{
+		inode := nilNode{
 			t: nNil,
 		}
 		return inode, nil
@@ -946,7 +944,7 @@ func parserNode(express string, v operator) (iNode, error) {
 		return nil, errors.New("find not support opt = '" + v + "',express=" + express)
 	}
 	if isOperatorsAction(v) {
-		var opt = optNode{
+		opt := optNode{
 			value: v,
 			t:     nOpt,
 		}
@@ -955,7 +953,7 @@ func parserNode(express string, v operator) (iNode, error) {
 	if v == "true" || v == "false" {
 		b, e := strconv.ParseBool(v)
 		if e == nil {
-			var inode = boolNode{
+			inode := boolNode{
 				value: b,
 				t:     nBool,
 			}
@@ -963,14 +961,14 @@ func parserNode(express string, v operator) (iNode, error) {
 		}
 	}
 	if strings.Index(v, "'") == 0 && strings.LastIndex(v, "'") == (len(v)-1) {
-		var inode = stringNode{
+		inode := stringNode{
 			value: string([]byte(v)[1 : len(v)-1]),
 			t:     nString,
 		}
 		return inode, nil
 	}
 	if strings.Index(v, "`") == 0 && strings.LastIndex(v, "`") == (len(v)-1) {
-		var inode = stringNode{
+		inode := stringNode{
 			value: string([]byte(v)[1 : len(v)-1]),
 			t:     nString,
 		}
@@ -978,16 +976,16 @@ func parserNode(express string, v operator) (iNode, error) {
 	}
 	i, e := strconv.ParseInt(v, 0, 64)
 	if e == nil {
-		var inode = intNode{
+		inode := intNode{
 			express: v,
-			value:   int64(i),
+			value:   i,
 			t:       nInt,
 		}
 		return inode, nil
 	}
 	u, _ := strconv.ParseUint(v, 0, 64)
 	if e == nil {
-		var inode = uIntNode{
+		inode := uIntNode{
 			express: v,
 			value:   u,
 			t:       nUInt,
@@ -996,7 +994,7 @@ func parserNode(express string, v operator) (iNode, error) {
 	}
 	f, e := strconv.ParseFloat(v, 64)
 	if e == nil {
-		var inode = floatNode{
+		inode := floatNode{
 			express: v,
 			value:   f,
 			t:       nFloat,
@@ -1015,21 +1013,22 @@ func parserNode(express string, v operator) (iNode, error) {
 }
 func findReplaceOpt(express string, operator operator, list *[]iNode) error {
 	array := *list
-	for nIndex, n := range array {
-		if n.Type() == nOpt {
-			opt := n.(optNode)
+	num := len(array)
+	for i:=0;i<num;i++{
+		if array[i].Type() == nOpt {
+			opt := array[i].(optNode)
 			if opt.value != operator {
 				continue
 			}
 			nod := binaryNode{
-				left:  array[nIndex-1],
-				right: array[nIndex+1],
+				left:  array[i-1],
+				right: array[i+1],
 				opt:   opt.value,
 				t:     nBinary,
 			}
 			var newNodes []iNode
-			newNodes = append(array[:nIndex-1], nod)
-			newNodes = append(newNodes, array[nIndex+2:]...)
+			newNodes = append(array[:i-1], nod)
+			newNodes = append(newNodes, array[i+2:]...)
 			if haveOpt(newNodes) {
 				findReplaceOpt(express, operator, &newNodes)
 			}
@@ -1040,8 +1039,9 @@ func findReplaceOpt(express string, operator operator, list *[]iNode) error {
 	return nil
 }
 func haveOpt(nodes []iNode) bool {
-	for _, v := range nodes {
-		if v.Type() == nOpt {
+	num:=len(nodes)
+	for i:=0;i<num;i++{
+		if nodes[i].Type() == nOpt {
 			return true
 		}
 	}
@@ -1324,9 +1324,11 @@ func (it binaryNode) Express() string {
 	return s
 }
 func (it binaryNode) Eval(env interface{}) (interface{}, error) {
-	var left interface{}
-	var right interface{}
-	var e error
+	var (
+		left interface{}
+		right interface{}
+		e error
+	)
 	if it.left != nil {
 		left, e = it.left.Eval(env)
 		if e != nil {
@@ -1348,9 +1350,9 @@ func evalTake(argNode argNode, arg interface{}) (interface{}, error) {
 	if argNode.value == "" || argNode.length == 0 {
 		return arg, nil
 	}
-	var av = reflect.ValueOf(arg)
+	av := reflect.ValueOf(arg)
 	if av.Kind() == reflect.Map {
-		var m = arg.(map[string]interface{})
+		m := arg.(map[string]interface{})
 		if argNode.length == 1 {
 			return m[argNode.value], nil
 		}
@@ -1366,8 +1368,9 @@ func takeValue(key string, arg reflect.Value, field []string) (interface{}, erro
 	if arg.IsValid() == false {
 		return nil, nil
 	}
-	for _, v := range field {
-		argItem, e := getObj(key, v, arg)
+	num:=len(field)
+	for i:=0;i<num;i++{
+		argItem, e := getObj(key,field[i],arg)
 		if e != nil || argItem == nil {
 			return nil, e
 		}
@@ -1388,7 +1391,7 @@ func getObj(key string, operator operator, av reflect.Value) (*reflect.Value, er
 		av = getDeepPtr(av)
 	}
 	if av.Kind() == reflect.Map {
-		var mapV = av.MapIndex(reflect.ValueOf(operator))
+		mapV := av.MapIndex(reflect.ValueOf(operator))
 		return &mapV, nil
 	}
 	if av.Kind() != reflect.Struct {
@@ -1414,8 +1417,8 @@ func eval(express string, operator operator, a interface{}, b interface{}) (inte
 		}
 		a, av = getDeepValue(av, a)
 		b, bv = getDeepValue(bv, b)
-		var ab = a.(bool)
-		var bb = b.(bool)
+		ab := a.(bool)
+		bb := b.(bool)
 		return ab == true && bb == true, nil
 	case or:
 		if a == nil || b == nil {
@@ -1423,13 +1426,13 @@ func eval(express string, operator operator, a interface{}, b interface{}) (inte
 		}
 		a, av = getDeepValue(av, a)
 		b, bv = getDeepValue(bv, b)
-		var ab = a.(bool)
-		var bb = b.(bool)
+		ab := a.(bool)
+		bb := b.(bool)
 		return ab == true || bb == true, nil
 	case equal, moreEqual, more, less, lessEqual:
 		return doEqualAction(express, operator, a, b, av, bv)
 	case unEqual:
-		var r, e = doEqualAction(express, operator, a, b, av, bv)
+		r, e := doEqualAction(express, operator, a, b, av, bv)
 		if e != nil {
 			return nil, e
 		}
