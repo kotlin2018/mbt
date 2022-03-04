@@ -30,13 +30,11 @@ func (it *Session)start(mapperPtr interface{}) {
 		proxyFunc := func(arg proxyArg) []reflect.Value {
 			var res *reflect.Value = nil
 			returnV := reflect.New(*ret.value)
-			returnVE := returnV.Elem()
-			rvk := (*ret.value).Kind()
-			switch rvk {
+			switch (*ret.value).Kind() {
 			case reflect.Map:
-				returnVE.Set(reflect.MakeMap(*ret.value))
+				returnV.Elem().Set(reflect.MakeMap(*ret.value))
 			case reflect.Slice:
-				returnVE.Set(reflect.MakeSlice(*ret.value, 0, 0))
+				returnV.Elem().Set(reflect.MakeSlice(*ret.value, 0, 0))
 			}
 			res = &returnV
 			it.exeMethodByXml(ret,res,arg)
@@ -46,6 +44,17 @@ func (it *Session)start(mapperPtr interface{}) {
 		}
 		return proxyFunc
 	})
+}
+func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
+	for _, mapperXml := range mapperTree {
+		key := mapperXml.SelectAttrValue("id", "")
+		if strings.EqualFold(key, methodName) {
+			return mapperXml
+		}
+	}
+	it.log.SetPrefix("[Fatal] ")
+	it.log.Fatalln("在 "+ xmlName +" 文件中没有找到 "+ beanName + "." + methodName +"() 对应的 id 值 "+ methodName)
+	return nil
 }
 func (it *Session)includeElementReplace(xml *element, xmlMap *map[string]*element,xmlName string) {
 	if xml.Tag == "include" {
@@ -1095,16 +1104,21 @@ func (it *Session)genXml(mapperPtr interface{}){
 			}
 			returnMap[funcName] = &returnValue{}
 			returnMap[funcName].value = &outType
-			for _, v := range mapperTree {
-				key := v.SelectAttrValue("id", "")
-				if strings.EqualFold(key,funcName) {
-					returnMap[funcName].xml = v
-					returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(v.Child)
-				}else {
-					it.log.SetPrefix("[Fatal] ")
-					it.log.Fatalln("在 "+ s +" 文件中没有找到 "+ names + "." + funcName +"() 对应的 id 值 "+ funcName)
-				}
-			}
+			mapperXml := it.findMapperXml(mapperTree, names,funcName,s)
+
+			//for _, v := range mapperTree {
+			//	key := v.SelectAttrValue("id", "")
+			//	if strings.EqualFold(key,funcName) {
+			//		mapperXml = v
+			//	}else {
+			//		it.log.SetPrefix("[Fatal] ")
+			//		it.log.Fatalln("在 "+ s +" 文件中没有找到 "+ names + "." + funcName +"() 对应的 id 值 "+ funcName)
+			//	}
+			//}
+			//
+			//return nil
+			returnMap[funcName].xml = mapperXml
+			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
 			returnMap[funcName].name = names+"."+funcName+"() "
 		}
 	}
