@@ -105,17 +105,12 @@ func upperFirst(fieldStr string) string {
 	}
 	return fieldStr
 }
-func isMethodElement(tag string) bool {
-	switch tag {
-	case "insert", "delete", "update", "select":
-		return true
-	}
-	return false
-}
+
 func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xmlName string){
 	for _, v := range tree {
 		var method *reflect.StructField
-		if isMethodElement(v.Tag) {
+		switch v.Tag {
+		case "insert", "delete", "update", "select":
 			upperId := upperFirst(v.SelectAttrValue("id", ""))
 			if upperId == "" {
 				upperId = upperFirst(v.Tag)
