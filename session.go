@@ -153,9 +153,6 @@ func (it *Session) Begin(){
 	it.push(t)
 	it.log.Println("Begin Transaction Successfully")
 }
-func printArray(array []interface{}) string {
-	return strings.Replace(fmt.Sprint(array), " ", ",", -1)
-}
 func (it *Session) slaveQuery(name,sqlPrepare string, args ...interface{})(res []map[string]string){
 	var (
 		rows *sql.Rows
@@ -204,7 +201,7 @@ func (it *Session) slaveQuery(name,sqlPrepare string, args ...interface{})(res [
 	res = it.row2map(name,rows)
 	if it.printSql {
 		it.log.Println(name+" Query ==> "+sqlPrepare)
-		it.log.Println(name+" Args  ==> "+printArray(args))
+		it.log.Println(name+" Args  ==> "+strings.Replace(fmt.Sprint(args), " ", ",", -1))
 	}
 	defer func() {
 		if it.printSql {
@@ -261,7 +258,7 @@ func (it *Session) queryPrepare(name,sqlPrepare string, args ...interface{})(res
 	res = it.row2map(name,rows)
 	if it.printSql {
 		it.log.Println(name+" Query ==> "+sqlPrepare)
-		it.log.Println(name+" Args  ==> "+printArray(args))
+		it.log.Println(name+" Args  ==> "+strings.Replace(fmt.Sprint(args), " ", ",", -1))
 	}
 	defer func() {
 		if it.printSql {
@@ -320,7 +317,7 @@ func (it *Session) execPrepare(name,sqlPrepare string, args ...interface{})(ret 
 	}
 	if it.printSql {
 		it.log.Println(name+" Exec ==> "+sqlPrepare)
-		it.log.Println(name+" Args ==> "+printArray(args))
+		it.log.Println(name+" Args ==> "+strings.Replace(fmt.Sprint(args), " ", ",", -1))
 	}
 	defer func() {
 		if it.printSql {
@@ -351,14 +348,14 @@ func (it *Session)row2map(name string,rows *sql.Rows) (resultsSlice []map[string
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" ",err.Error())
 		}
-		for j, v := range fields {
-			v = strings.ToLower(strings.ReplaceAll(v,"_",""))
-			rawValue := reflect.Indirect(reflect.ValueOf(list[j]))
+		for i:=0;i<num;i++{
+			fields[i] = strings.ToLower(strings.ReplaceAll(fields[i],"_",""))
+			rawValue := reflect.Indirect(reflect.ValueOf(list[i]))
 			if rawValue.Interface() == nil {
-				res[v] = `null`
+				res[fields[i]] = `null`
 				continue
 			}
-			res[v] = it.value2String(name,&rawValue)
+			res[fields[i]] = it.value2String(name,&rawValue)
 		}
 		resultsSlice = append(resultsSlice, res)
 	}
