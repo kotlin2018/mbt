@@ -46,10 +46,10 @@ func (it *Session)start(mapperPtr interface{}) {
 	})
 }
 func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
-	for _, mapperXml := range mapperTree {
-		key := mapperXml.SelectAttrValue("id", "")
+	for _, v := range mapperTree {
+		key := v.SelectAttrValue("id", "")
 		if strings.EqualFold(key, methodName) {
-			return mapperXml
+			return v
 		}
 	}
 	it.log.SetPrefix("[Fatal] ")
@@ -73,13 +73,14 @@ func (it *Session)includeElementReplace(xml *element, xmlMap *map[string]*elemen
 		}
 	}
 	if xml.Child != nil {
-		for _, v := range xml.ChildElements() {
-			it.includeElementReplace(v, xmlMap,xmlName)
+		ele := xml.ChildElements()
+		num := len(ele)
+		for i:=0;i<num;i++{
+			it.includeElementReplace(ele[i], xmlMap,xmlName)
 		}
 	}
 }
 // ========================================== 解析 xml文件中的 <Template></Template> 模版标签 ================================================
-var equalOperator = []string{"/", "+", "-", "*", "**", "|", "^", "&", "%", "<", ">", ">=", "<=", " in ", " not in ", " or ", "||", " and ", "&&", "==", "!="}
 
 type (
 	logicDeleteData struct {
@@ -120,7 +121,7 @@ func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xml
 		}
 		oldChild := v.Child
 		v.Child = []token{}
-		it.decode(method, v, tree,xmlName)
+		it.decode(method, v,tree,xmlName)
 		v.Child = append(v.Child, oldChild...)
 		beanName := beanType.String()
 		if it.printXml {
@@ -221,43 +222,49 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 			Child: []token{},
 		}
 		if collectionName != "" {
-			for _, v := range resultMapData.ChildElements() {
+			ele := resultMapData.ChildElements()
+			num := len(ele)
+			for i:=0;i<num;i++{
 				if inserts == "*" || inserts == "*?*" {
 					trimColumn.Child = append(trimColumn.Child, &charData{
-						Data: v.SelectAttrValue("column", "") + ",",
+						Data: ele[i].SelectAttrValue("column", "") + ",",
 					})
 				}
 			}
 		} else {
-			for _, v := range resultMapData.ChildElements() {
+			ele := resultMapData.ChildElements()
+			num := len(ele)
+			for i := 0; i < num; i++ {
 				if collectionName == "" && inserts == "*?*" {
 					trimColumn.Child = append(trimColumn.Child, &element{
 						Tag: "if",
 						Attr: []attr{
-							{Key: "test", Value: makeIfNotNull(v.SelectAttrValue("column", ""))},
+							{Key: "test", Value: makeIfNotNull(ele[i].SelectAttrValue("column", ""))},
 						},
 						Child: []token{
 							&charData{
-								Data: v.SelectAttrValue("column", "") + ",",
+								Data: ele[i].SelectAttrValue("column", "") + ",",
 							},
 						},
 					})
 				} else if inserts == "*" {
 					trimColumn.Child = append(trimColumn.Child, &charData{
-						Data: v.SelectAttrValue("column", "") + ",",
+						Data: ele[i].SelectAttrValue("column", "") + ",",
 					})
 				}
 			}
 		}
 		mapper.Child = append(mapper.Child, &trimColumn)
-		var tempElement = element{
+		tempElement := element{
 			Tag:   "trim",
 			Attr:  []attr{{Key: "prefix", Value: "values ("}, {Key: "suffix", Value: ")"}, {Key: "suffixOverrides", Value: ","}},
 			Child: []token{},
 		}
 		if collectionName == "" {
-			for _, v := range resultMapData.ChildElements() {
-				if logic.Enable && v.SelectAttrValue("column", "") == logic.Property {
+			ele := resultMapData.ChildElements()
+			num := len(ele)
+			for i:=0;i<num;i++ {
+				if logic.Enable && ele[i].SelectAttrValue("column", "") == logic.Property {
 					tempElement.Child = append(tempElement.Child, &charData{
 						Data: logic.UndeleteValue + ",",
 					})
@@ -266,16 +273,16 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 				if inserts == "*?*" {
 					tempElement.Child = append(tempElement.Child, &element{
 						Tag:  "if",
-						Attr: []attr{{Key: "test", Value: makeIfNotNull(v.SelectAttrValue("column", ""))}},
+						Attr: []attr{{Key: "test", Value: makeIfNotNull(ele[i].SelectAttrValue("column", ""))}},
 						Child: []token{
 							&charData{
-								Data: "#{" + v.SelectAttrValue("column", "") + "},",
+								Data: "#{" + ele[i].SelectAttrValue("column", "") + "},",
 							},
 						},
 					})
 				} else if inserts == "*" {
 					tempElement.Child = append(tempElement.Child, &charData{
-						Data: "#{" + v.SelectAttrValue("column", "") + "},",
+						Data: "#{" + ele[i].SelectAttrValue("column", "") + "},",
 					})
 				}
 			}
@@ -284,20 +291,24 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 			tempElement.Tag = "foreach"
 			tempElement.Attr = []attr{{Key: "open", Value: "values "}, {Key: "close", Value: ""}, {Key: "separator", Value: ","}, {Key: "collection", Value: collectionName}}
 			tempElement.Child = []token{}
-			for index, v := range resultMapData.ChildElements() {
+			ele := resultMapData.ChildElements()
+			num := len(ele)
+			for a:=0;a<num;a++ {
 				prefix := ""
-				if index == 0 {
+				if a == 0 {
 					prefix = "("
 				}
-				defProperty := v.SelectAttrValue("column", "")
+				defProperty := ele[a].SelectAttrValue("column", "")
 				if method != nil {
-					for i := 0; i < method.Type.NumIn(); i++ {
+					co := method.Type.NumIn()
+					for i := 0;i<co;i++ {
 						argItem := method.Type.In(i)
 						if argItem.Kind() == reflect.Slice || argItem.Kind() == reflect.Array {
 							argItem = argItem.Elem()
 						}
 						if argItem.Kind() == reflect.Struct {
-							for k := 0; k < argItem.NumField(); k++ {
+							cou:=argItem.NumField()
+							for k := 0;k<cou;k++ {
 								arg := argItem.Field(k)
 								if strings.ToLower(strings.ReplaceAll(defProperty, "_", "")) == strings.ToLower(arg.Name){
 									defProperty = arg.Name
@@ -307,10 +318,10 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 					}
 				}
 				value := prefix + "#{" + "item." + defProperty + "}"
-				if logic.Enable && v.SelectAttrValue("column", "") == logic.Property {
+				if logic.Enable && ele[a].SelectAttrValue("column", "") == logic.Property {
 					value = `'` + logic.UndeleteValue + "'"
 				}
-				if index+1 == len(resultMapData.ChildElements()) {
+				if a+1 == len(resultMapData.ChildElements()) {
 					value += ")"
 				} else {
 					value += ","
@@ -351,14 +362,14 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 				Data: sql.String(),
 			})
 			sql.Reset()
-			for _, v := range resultMapData.ChildElements() {
-				if v.Tag == "id" {
-
-				} else {
-					if v.SelectAttrValue("version_enable", "") == "true" {
+			ele := resultMapData.ChildElements()
+			num:=len(ele)
+			for i:=0;i<num;i++ {
+				if ele[i].Tag != "id"{
+					if ele[i].SelectAttrValue("version_enable", "") == "true" {
 						continue
 					}
-					columns += v.SelectAttrValue("column", "") + "?" + v.SelectAttrValue("column", "") + " = #{" + v.SelectAttrValue("column", "") + "},"
+					columns += ele[i].SelectAttrValue("column", "") + "?" + ele[i].SelectAttrValue("column", "") + " = #{" + ele[i].SelectAttrValue("column", "") + "},"
 				}
 			}
 			columns = strings.Trim(columns, ",")
@@ -490,18 +501,19 @@ func decodeWheres(arg string, mapper *element, logic logicDeleteData, version *v
 }
 func decodeSets(arg string, mapper *element, logic logicDeleteData, version *versionData) {
 	sets := strings.Split(arg, ",")
-	for index, v := range sets {
-		if v == "" {
+	num := len(sets)
+	for i:=0;i<num;i++{
+		if sets[i] == "" {
 			continue
 		}
-		expressions := strings.Split(v, "?")
+		expressions := strings.Split(sets[i], "?")
 		if len(expressions) > 1 {
 			var newWheres bytes.Buffer
-			if index > 0 {
+			if i > 0 {
 				newWheres.WriteString(",")
 			}
 			newWheres.WriteString(expressions[1])
-				item := &element{
+			item := &element{
 				Tag:  "if",
 				Attr: []attr{{Key: "test", Value: makeIfNotNull(expressions[0])}},
 			}
@@ -509,11 +521,11 @@ func decodeSets(arg string, mapper *element, logic logicDeleteData, version *ver
 			mapper.Child = append(mapper.Child, item)
 		} else {
 			var newWheres bytes.Buffer
-			if index > 0 {
+			if i > 0 {
 				newWheres.WriteString(",")
 			}
-			newWheres.WriteString(v)
-				item := &charData{
+			newWheres.WriteString(sets[i])
+			item := &charData{
 				Data: newWheres.String(),
 			}
 			mapper.Child = append(mapper.Child, item)
@@ -541,11 +553,13 @@ func decodeSets(arg string, mapper *element, logic logicDeleteData, version *ver
 	}
 }
 func makeIfNotNull(arg string) string {
-	for _, v := range equalOperator {
-		if v == "" {
+	equalOperator := []string{"/", "+", "-", "*", "**", "|", "^", "&", "%", "<", ">", ">=", "<=", " in ", " not in ", " or ", "||", " and ", "&&", "==", "!="}
+	num := len(equalOperator)
+	for i:=0;i<num;i++{
+		if equalOperator[i] == "" {
 			continue
 		}
-		if strings.Contains(arg, v) {
+		if strings.Contains(arg,equalOperator[i]) {
 			return arg
 		}
 	}
@@ -556,14 +570,16 @@ func (it *Session)decodeLogicDelete(xml *element,xmlName string) logicDeleteData
 		return logicDeleteData{}
 	}
 	logicData := logicDeleteData{}
-	for _, v := range xml.ChildElements() {
-		if v.SelectAttrValue("logic_enable", "") == "true" {
+	ele := xml.ChildElements()
+	num :=len(ele)
+	for i:=0;i<num;i++{
+		if ele[i].SelectAttrValue("logic_enable", "") == "true" {
 			logicData.Enable = true
-			logicData.DeletedValue = v.SelectAttrValue("logic_deleted", "")
-			logicData.UndeleteValue = v.SelectAttrValue("logic_undelete", "")
-			logicData.Column = v.SelectAttrValue("column", "")
-			logicData.Property = v.SelectAttrValue("column", "")
-			logicData.LangType = v.SelectAttrValue("langType", "")
+			logicData.DeletedValue = ele[i].SelectAttrValue("logic_deleted", "")
+			logicData.UndeleteValue = ele[i].SelectAttrValue("logic_undelete", "")
+			logicData.Column = ele[i].SelectAttrValue("column", "")
+			logicData.Property = ele[i].SelectAttrValue("column", "")
+			logicData.LangType = ele[i].SelectAttrValue("langType", "")
 			if logicData.DeletedValue == "" {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(xmlName+"TemplateDecoder", `<resultMap> logic_deleted="" can't be empty !`)
@@ -585,12 +601,14 @@ func (it *Session)decodeVersionData(xml *element,xmlName string) *versionData {
 	if xml == nil || len(xml.Child) == 0 {
 		return nil
 	}
-	for _, v := range xml.ChildElements() {
-		if v.SelectAttrValue("version_enable", "") == "true" {
+	ele := xml.ChildElements()
+	num := len(ele)
+	for i:=0;i<num;i++{
+		if ele[i].SelectAttrValue("version_enable", "") == "true" {
 			version := versionData{}
-			version.Column = v.SelectAttrValue("column", "")
-			version.Property = v.SelectAttrValue("column", "")
-			version.LangType = v.SelectAttrValue("langType", "")
+			version.Column = ele[i].SelectAttrValue("column", "")
+			version.Property = ele[i].SelectAttrValue("column", "")
+			version.LangType = ele[i].SelectAttrValue("langType", "")
 			if !(strings.Contains(version.LangType, "int") || strings.Contains(version.LangType, "time.Time")) {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(xmlName+"TemplateDecoder", `version_enable only support int...,time.Time... number type!`)
@@ -605,10 +623,10 @@ func decodeCollectionName(method *reflect.StructField) string {
 	if method != nil {
 		numIn := method.Type.NumIn()
 		for i := 0; i < numIn; i++ {
-			var itemType = method.Type.In(i)
+			itemType := method.Type.In(i)
 			if itemType.Kind() == reflect.Slice || itemType.Kind() == reflect.Array {
-				var params = method.Tag.Get("arg")
-				var args = strings.Split(params, ",")
+				params := method.Tag.Get("arg")
+				args := strings.Split(params, ",")
 				if params == "" || args == nil || len(args) == 0 {
 					collection = `arg` + strconv.Itoa(i)
 				} else {
@@ -1065,31 +1083,31 @@ func (it *Session)genXml(mapperPtr interface{}){
 			it.log.Fatalln(names +"."+ funcName + `() 该方法不能是指针类型!`)
 		}
 		if funcKind == reflect.Func {
-			args,ok := fieldItem.Tag.Lookup(`arg`)
+			args, ok := fieldItem.Tag.Lookup(`arg`)
 			tagLen := len(strings.Split(args, `,`))
 			argsLen := funcType.NumIn()
 			customLen := 0
 			for j := 0; j < argsLen; j++ {
 				inType := funcType.In(j)
 				ftk := inType.Kind()
-				if ftk != reflect.Struct{
-					if ftk == reflect.Slice || ftk == reflect.Map{
-						if inType.Elem().Kind()!= reflect.Struct && !ok || tagLen != argsLen{
+				if ftk != reflect.Struct {
+					if ftk == reflect.Slice || ftk == reflect.Map {
+						if inType.Elem().Kind() != reflect.Struct && !ok || tagLen != argsLen {
 							it.log.SetPrefix("[Fatal] ")
-							it.log.Fatalln(names +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+names +"."+ funcName + `() 的输入参数的个数!`)
+							it.log.Fatalln(names + "." + funcName + `() 上的 tag "arg:" 的值的个数 != ` + names + "." + funcName + `() 的输入参数的个数!`)
 						}
-					}else if args == "" || tagLen != argsLen{
+					} else if args == "" || tagLen != argsLen {
 						it.log.SetPrefix("[Fatal] ")
-						it.log.Fatalln(names +"."+ funcName + `() 上的 tag "arg:" 的值的个数 != `+names +"."+ funcName + `() 的输入参数的个数!`)
+						it.log.Fatalln(names + "." + funcName + `() 上的 tag "arg:" 的值的个数 != ` + names + "." + funcName + `() 的输入参数的个数!`)
 					}
 				}
-				if ftk == reflect.Struct && inType.String() != `time.Time` && inType.String() != `*time.Time`{
+				if ftk == reflect.Struct && inType.String() != `time.Time` && inType.String() != `*time.Time` {
 					customLen++
 				}
 			}
 			if argsLen > 1 && customLen > 1 {
 				it.log.SetPrefix("[Fatal] ")
-				it.log.Fatalln(names +"."+ funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)int64`)
+				it.log.Fatalln(names + "." + funcName + `() 这个函数结构体类型的输入参数有且只能有 1 个,现在它已经 > 1 个了! ([]Student这种输入参数可以有,但不能出现这种 func(s Student,u User)int64`)
 			}
 			if funcType.NumOut() != 1 {
 				it.log.SetPrefix("[Fatal] ")
@@ -1098,28 +1116,16 @@ func (it *Session)genXml(mapperPtr interface{}){
 			outType := funcType.Out(0)
 			outTypeK := outType.Kind()
 			outTypeS := outType.String()
-			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error`{
+			if outTypeK == reflect.Ptr || outTypeK == reflect.Interface || outTypeK == reflect.Map || outTypeK == reflect.Slice && outType.Elem().Kind() != reflect.Struct || outTypeS == `error` {
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(names + "." + funcName + "()' return value can not be a 'pointer' or 'interface' or 'error' or 'map' or '[]map' !")
 			}
 			returnMap[funcName] = &returnValue{}
 			returnMap[funcName].value = &outType
-			mapperXml := it.findMapperXml(mapperTree, names,funcName,s)
-
-			//for _, v := range mapperTree {
-			//	key := v.SelectAttrValue("id", "")
-			//	if strings.EqualFold(key,funcName) {
-			//		mapperXml = v
-			//	}else {
-			//		it.log.SetPrefix("[Fatal] ")
-			//		it.log.Fatalln("在 "+ s +" 文件中没有找到 "+ names + "." + funcName +"() 对应的 id 值 "+ funcName)
-			//	}
-			//}
-			//
-			//return nil
+			mapperXml := it.findMapperXml(mapperTree, names, funcName, s)
 			returnMap[funcName].xml = mapperXml
 			returnMap[funcName].nodes = express{Proxy: &nodeExpress{}}.Parser(mapperXml.Child)
-			returnMap[funcName].name = names+"."+funcName+"() "
+			returnMap[funcName].name = names + "." + funcName + "() "
 		}
 	}
 	it.data[mapperPtr]=returnMap
