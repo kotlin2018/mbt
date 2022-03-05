@@ -12,7 +12,6 @@ import (
 	"strings"
 )
 
-var errXML = errors.New("etree: invalid XML format")
 type readSettings struct {
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 	Permissive bool
@@ -273,7 +272,7 @@ func (e *element) readFrom(ri io.Reader, settings readSettings) (n int64, err er
 		case err != nil:
 			return r.bytes, err
 		case sta.empty():
-			return r.bytes, errXML
+			return r.bytes, errors.New("etree: invalid XML format")
 		}
 		top := sta.peek().(*element)
 		switch t := t.(type) {
@@ -511,14 +510,16 @@ func (e *element) writeTo(w *bufio.Writer, s *writeSettings) {
 		w.WriteByte(':')
 	}
 	w.WriteString(e.Tag)
-	for _, a := range e.Attr {
+	num:=len(e.Attr)
+	for i:=0;i<num;i++{
 		w.WriteByte(' ')
-		a.writeTo(w, s)
+		e.Attr[i].writeTo(w, s)
 	}
-	if len(e.Child) > 0 {
+	enum := len(e.Child)
+	if enum > 0 {
 		w.WriteString(">")
-		for _, c := range e.Child {
-			c.writeTo(w, s)
+		for i:=0;i<enum;i++{
+			e.Child[i].writeTo(w, s)
 		}
 		w.Write([]byte{'<', '/'})
 		if e.Space != "" {
@@ -549,8 +550,9 @@ func (e *element) CreateAttr(key, value string) *attr {
 	return e.createAttr(space, skey, value)
 }
 func (e *element) createAttr(space, key, value string) *attr {
-	for i, a := range e.Attr {
-		if space == a.Space && key == a.Key {
+	num:=len(e.Attr)
+	for i:=0;i<num;i++{
+		if space == e.Attr[i].Space && key == e.Attr[i].Key {
 			e.Attr[i].Value = value
 			return &e.Attr[i]
 		}
@@ -561,10 +563,11 @@ func (e *element) createAttr(space, key, value string) *attr {
 }
 func (e *element) RemoveAttr(key string) *attr {
 	space, skey := spaceDecompose(key)
-	for i, a := range e.Attr {
-		if space == a.Space && skey == a.Key {
+	num:=len(e.Attr)
+	for i:=0;i<num;i++{
+		if space == e.Attr[i].Space && skey == e.Attr[i].Key {
 			e.Attr = append(e.Attr[0:i], e.Attr[i+1:]...)
-			return &a
+			return &e.Attr[i]
 		}
 	}
 	return nil
@@ -586,27 +589,6 @@ func (a byAttr) Less(i, j int) bool {
 	}
 	return sp < 0
 }
-var xmlReplacerNormal = strings.NewReplacer(
-	"&", "&amp;",
-	"<", "&lt;",
-	">", "&gt;",
-	"'", "&apos;",
-	`"`, "&quot;",
-)
-var xmlReplacerCanonicalText = strings.NewReplacer(
-	"&", "&amp;",
-	"<", "&lt;",
-	">", "&gt;",
-	"\r", "&#xD;",
-)
-var xmlReplacerCanonicalAttrVal = strings.NewReplacer(
-	"&", "&amp;",
-	"<", "&lt;",
-	`"`, "&quot;",
-	"\t", "&#x9;",
-	"\n", "&#xA;",
-	"\r", "&#xD;",
-)
 func (a *attr) writeTo(w *bufio.Writer, s *writeSettings) {
 	if a.Space != "" {
 		w.WriteString(a.Space)
@@ -616,9 +598,22 @@ func (a *attr) writeTo(w *bufio.Writer, s *writeSettings) {
 	w.WriteString(`="`)
 	var r *strings.Replacer
 	if s.CanonicalAttrVal {
-		r = xmlReplacerCanonicalAttrVal
+		r = strings.NewReplacer(
+			"&", "&amp;",
+			"<", "&lt;",
+			`"`, "&quot;",
+			"\t", "&#x9;",
+			"\n", "&#xA;",
+			"\r", "&#xD;",
+		)
 	} else {
-		r = xmlReplacerNormal
+		r = strings.NewReplacer(
+			"&", "&amp;",
+			"<", "&lt;",
+			">", "&gt;",
+			"'", "&apos;",
+			`"`, "&quot;",
+		)
 	}
 	w.WriteString(r.Replace(a.Value))
 	w.WriteByte('"')
@@ -653,9 +648,20 @@ func (c *charData) setParent(parent *element) {
 func (c *charData) writeTo(w *bufio.Writer, s *writeSettings) {
 	var r *strings.Replacer
 	if s.CanonicalText {
-		r = xmlReplacerCanonicalText
+		r = strings.NewReplacer(
+			"&", "&amp;",
+			"<", "&lt;",
+			">", "&gt;",
+			"\r", "&#xD;",
+		)
 	} else {
-		r = xmlReplacerNormal
+		r = strings.NewReplacer(
+			"&", "&amp;",
+			"<", "&lt;",
+			">", "&gt;",
+			"'", "&apos;",
+			`"`, "&quot;",
+		)
 	}
 	w.WriteString(r.Replace(c.Data))
 }
@@ -689,7 +695,6 @@ func (c *comment) writeTo(w *bufio.Writer, s *writeSettings) {
 	w.WriteString(c.Data)
 	w.WriteString("-->")
 }
-
 func newDirective(data string, parent *element) *directive {
 	d := &directive{
 		Data:   data,
@@ -766,7 +771,7 @@ func (err errPath) Error() string {
 func compilePath(str string) (path, error) {
 	var comp compiler
 	segments := comp.parsePath(str)
-	if comp.err != errPath("") {
+	if comp.err != "" {
 		return path{nil}, comp.err
 	}
 	return path{segments}, nil
@@ -784,8 +789,9 @@ type segment struct {
 }
 func (seg *segment) apply(e *element, p *pather) {
 	seg.sel.apply(e, p)
-	for _, f := range seg.filters {
-		f.apply(p)
+	num:=len(seg.filters)
+	for i:=0;i<num;i++{
+		seg.filters[i].apply(p)
 	}
 }
 type selector interface {
@@ -823,17 +829,18 @@ func (p *pather) eval(n nodes) {
 	p.candidates = p.candidates[0:0]
 	seg, remain := n.segments[0], n.segments[1:]
 	seg.apply(n.e, p)
-
 	if len(remain) == 0 {
-		for _, c := range p.candidates {
-			if in := p.inResults[c]; !in {
-				p.inResults[c] = true
-				p.results = append(p.results, c)
+		num:=len(p.candidates)
+		for i:=0;i<num;i++{
+			if in := p.inResults[p.candidates[i]]; !in {
+				p.inResults[p.candidates[i]] = true
+				p.results = append(p.results,p.candidates[i])
 			}
 		}
 	} else {
-		for _, c := range p.candidates {
-			p.queue.add(nodes{c, remain})
+		num:=len(p.candidates)
+		for i:=0;i<num;i++ {
+			p.queue.add(nodes{p.candidates[i], remain})
 		}
 	}
 }
@@ -849,9 +856,11 @@ func (c *compiler) parsePath(path string) []segment {
 		segments = append(segments, segment{new(selectRoot), []filter{}})
 		path = path[1:]
 	}
-	for _, s := range splitPath(path) {
-		segments = append(segments, c.parseSegment(s))
-		if c.err != errPath("") {
+	ele:=splitPath(path)
+	num:=len(ele)
+	for i:=0;i<num;i++{
+		segments = append(segments, c.parseSegment(ele[i]))
+		if c.err != "" {
 			break
 		}
 	}
@@ -959,8 +968,9 @@ func (s *selectParent) apply(e *element, p *pather) {
 }
 type selectChildren struct{}
 func (s *selectChildren) apply(e *element, p *pather) {
-	for _, c := range e.Child {
-		if c, ok := c.(*element); ok {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if c, ok := e.Child[i].(*element);ok {
 			p.candidates = append(p.candidates, c)
 		}
 	}
@@ -970,9 +980,10 @@ func (s *selectDescendants) apply(e *element, p *pather) {
 	var queue fifo
 	for queue.add(e); queue.len() > 0; {
 		e := queue.remove().(*element)
-		p.candidates = append(p.candidates, e)
-		for _, c := range e.Child {
-			if c, ok := c.(*element); ok {
+		p.candidates = append(p.candidates,e)
+		num:=len(e.Child)
+		for i:=0;i<num;i++{
+			if c, ok := e.Child[i].(*element); ok {
 				queue.add(c)
 			}
 		}
@@ -986,8 +997,9 @@ func newSelectChildrenByTag(path string) *selectChildrenByTag {
 	return &selectChildrenByTag{s, l}
 }
 func (s *selectChildrenByTag) apply(e *element, p *pather) {
-	for _, c := range e.Child {
-		if c, ok := c.(*element); ok && spaceMatch(s.space, c.Space) && s.tag == c.Tag {
+	num:=len(e.Child)
+	for i:=0;i<num;i++{
+		if c, ok := e.Child[i].(*element); ok && spaceMatch(s.space, c.Space) && s.tag == c.Tag {
 			p.candidates = append(p.candidates, c)
 		}
 	}
@@ -1018,10 +1030,12 @@ func newFilterAttr(str string) *filterAttr {
 	return &filterAttr{s, l}
 }
 func (f *filterAttr) apply(p *pather) {
-	for _, c := range p.candidates {
-		for _, a := range c.Attr {
-			if spaceMatch(f.space, a.Space) && f.key == a.Key {
-				p.scratch = append(p.scratch, c)
+	num:=len(p.candidates)
+	for i:=0;i<num;i++{
+		cou:=len(p.candidates[i].Attr)
+		for k:=0;k<cou;k++{
+			if spaceMatch(f.space,p.candidates[i].Attr[k].Space) && f.key == p.candidates[i].Attr[k].Key{
+				p.scratch = append(p.scratch,p.candidates[i])
 				break
 			}
 		}
@@ -1036,10 +1050,12 @@ func newFilterAttrVal(str, value string) *filterAttrVal {
 	return &filterAttrVal{s, l, value}
 }
 func (f *filterAttrVal) apply(p *pather) {
-	for _, c := range p.candidates {
-		for _, a := range c.Attr {
-			if spaceMatch(f.space, a.Space) && f.key == a.Key && f.val == a.Value {
-				p.scratch = append(p.scratch, c)
+	num:=len(p.candidates)
+	for i:=0;i<num;i++{
+		cou:=len(p.candidates[i].Attr)
+		for k:=0;k<cou;k++{
+			if spaceMatch(f.space,p.candidates[i].Attr[k].Space) && f.key == p.candidates[i].Attr[k].Key && f.val == p.candidates[i].Attr[k].Value {
+				p.scratch = append(p.scratch,p.candidates[i])
 				break
 			}
 		}
@@ -1051,9 +1067,10 @@ func newFilterText() *filterText {
 	return &filterText{}
 }
 func (f *filterText) apply(p *pather) {
-	for _, c := range p.candidates {
-		if c.Text() != "" {
-			p.scratch = append(p.scratch, c)
+	num:=len(p.candidates)
+	for i:=0;i<num;i++{
+		if p.candidates[i].Text() != "" {
+			p.scratch = append(p.scratch,p.candidates[i])
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
@@ -1066,9 +1083,10 @@ func newFilterTextVal(value string) *filterTextVal {
 	return &filterTextVal{value}
 }
 func (f *filterTextVal) apply(p *pather) {
-	for _, c := range p.candidates {
-		if c.Text() == f.val {
-			p.scratch = append(p.scratch, c)
+	num:=len(p.candidates)
+	for i:=0;i<num;i++{
+		if p.candidates[i].Text() == f.val {
+			p.scratch = append(p.scratch,p.candidates[i])
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
@@ -1081,12 +1099,14 @@ func newFilterChild(str string) *filterChild {
 	return &filterChild{s, l}
 }
 func (f *filterChild) apply(p *pather) {
-	for _, c := range p.candidates {
-		for _, cc := range c.Child {
-			if cc, ok := cc.(*element); ok &&
+	num:=len(p.candidates)
+	for i:=0;i<num;i++{
+		cou:=len(p.candidates[i].Child)
+		for k:=0;k<cou;k++{
+			if cc, ok := p.candidates[i].Child[k].(*element); ok &&
 				spaceMatch(f.space, cc.Space) &&
 				f.tag == cc.Tag {
-				p.scratch = append(p.scratch, c)
+				p.scratch = append(p.scratch,p.candidates[i])
 			}
 		}
 	}
@@ -1100,13 +1120,15 @@ func newFilterChildText(str, text string) *filterChildText {
 	return &filterChildText{s, l, text}
 }
 func (f *filterChildText) apply(p *pather) {
-	for _, c := range p.candidates {
-		for _, cc := range c.Child {
-			if cc, ok := cc.(*element); ok &&
+	num:=len(p.candidates)
+	for i:=0;i<num;i++{
+		cou:=len(p.candidates[i].Child)
+		for k:=0;k<cou;k++{
+			if cc, ok := p.candidates[i].Child[k].(*element); ok &&
 				spaceMatch(f.space, cc.Space) &&
 				f.tag == cc.Tag &&
 				f.text == cc.Text() {
-				p.scratch = append(p.scratch, c)
+				p.scratch = append(p.scratch,p.candidates[i])
 			}
 		}
 	}

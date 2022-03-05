@@ -13,7 +13,7 @@ import (
 )
 type xmlNode int
 const (
-	nArg2 xmlNode = iota
+	nArg2 = iota
 	nStr
 	nIf
 	nTrim
@@ -858,33 +858,14 @@ const (
 	nils  operator = "nil"
 	null operator = "null"
 )
-
-var priorityArray = []operator{ride, divide, add, reduce,
-	lessEqual, less, moreEqual, more,
-	unEqual, equal, and, or}
-
-var notSupportOptMap = map[string]bool{
-	"=": true,
-	"!": true,
-	"@": true,
-	"#": true,
-	"$": true,
-	"^": true,
-	"&": true,
-	"(": true,
-	")": true,
-	"`": true,
-}
-var priorityMap = map[operator]int{}
-func init() {
-	num := len(priorityArray)
-	for i:=0;i<num;i++{
-		priorityMap[priorityArray[i]] = i
-	}
-}
 func parser(express string) (iNode, error) {
 	opts := parserOperators(express)
-	var list []iNode
+	var (
+		list []iNode
+		priorityArray = []operator{ride, divide, add, reduce,
+			lessEqual, less, moreEqual, more,
+			unEqual, equal, and, or}
+	)
 	num := len(opts)
 	for i:=0;i<num;i++{
 		item, err := parserNode(express,opts[i])
@@ -939,6 +920,18 @@ func parserNode(express string, v operator) (iNode, error) {
 			t: nNil,
 		}
 		return inode, nil
+	}
+	notSupportOptMap := map[string]bool{
+		"=": true,
+		"!": true,
+		"@": true,
+		"#": true,
+		"$": true,
+		"^": true,
+		"&": true,
+		"(": true,
+		")": true,
+		"`": true,
 	}
 	if notSupportOptMap[v] {
 		return nil, errors.New("find not support opt = '" + v + "',express=" + express)
@@ -1063,7 +1056,12 @@ func parserOperators(express string) []operator {
 		if tok == tk.EOF || lit == "\n" {
 			break
 		}
-		s := toStr(lit, tok)
+		var s string
+		if lit == "" {
+			s = tok.String()
+		} else {
+			s = lit
+		}
 		if lit == "" && tok != tk.ILLEGAL {
 			lastToken = tok
 		}
@@ -1119,13 +1117,6 @@ func isNumber(s string) bool {
 		}
 	}
 	return true
-}
-func toStr(lit string, tok tk.Token) string {
-	if lit == "" {
-		return tok.String()
-	} else {
-		return lit
-	}
 }
 func isOperatorsAction(arg string) bool {
 	if arg == add ||
