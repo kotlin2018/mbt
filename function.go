@@ -45,15 +45,14 @@ func (it *Session)start(mapperPtr interface{}) {
 		return proxyFunc
 	})
 }
-func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,methodName,xmlName string) *element {
+func (it *Session)findMapperXml(mapperTree map[string]*element, beanName,funcName,xmlName string) *element {
 	for _, v := range mapperTree {
-		key := v.SelectAttrValue("id", "")
-		if strings.EqualFold(key, methodName) {
+		if v.SelectAttrValue("id", "")==funcName{
 			return v
 		}
 	}
 	it.log.SetPrefix("[Fatal] ")
-	it.log.Fatalln("在 "+ xmlName +" 文件中没有找到 "+ beanName + "." + methodName +"() 对应的 id 值 "+ methodName)
+	it.log.Fatalln("在 "+xmlName+" 文件中没有找到 "+beanName + "." +funcName+"() 对应的 id 值 "+funcName)
 	return nil
 }
 func (it *Session)includeElementReplace(xml *element, xmlMap *map[string]*element,xmlName string) {
@@ -80,8 +79,6 @@ func (it *Session)includeElementReplace(xml *element, xmlMap *map[string]*elemen
 		}
 	}
 }
-// ========================================== 解析 xml文件中的 <Template></Template> 模版标签 ================================================
-
 type (
 	logicDeleteData struct {
 		Column        string
@@ -106,7 +103,6 @@ func upperFirst(fieldStr string) string {
 	}
 	return fieldStr
 }
-
 func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xmlName string){
 	for _, v := range tree {
 		var method *reflect.StructField
@@ -133,19 +129,21 @@ func (it *Session)decodeTree(tree map[string]*element, beanType reflect.Type,xml
 }
 func printElement(ele *element, v *string) {
 	*v += "<" + ele.Tag + " "
-	for _, item := range ele.Attr {
-		*v += item.Key + `="` + item.Value + `"`
+	enum:=len(ele.Attr)
+	for i:=0;i<enum;i++{
+		*v += ele.Attr[i].Key + `="` + ele.Attr[i].Value + `"`
 	}
 	*v += " >"
 	if ele.Child != nil && len(ele.Child) != 0 {
-		for _, item := range ele.Child {
-			var typeString = reflect.TypeOf(item).String()
+		num:=len(ele.Child)
+		for i:=0;i<num;i++{
+			var typeString = reflect.TypeOf(ele.Child[i]).String()
 			if typeString == "*mbt.element"{
 				str := ""
-				printElement(item.(*element), &str)
+				printElement(ele.Child[i].(*element), &str)
 				*v += str
 			} else if typeString == "*mbt.charData"{
-				*v += "" + item.(*charData).Data
+				*v += "" + ele.Child[i].(*charData).Data
 			}
 		}
 	}
@@ -154,20 +152,21 @@ func printElement(ele *element, v *string) {
 func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[string]*element,xmlName string){
 	switch mapper.Tag {
 	case "select":
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "select")
-		}
 		columns := mapper.SelectAttrValue("column", "")
 		if columns == ""{
 			break
+		}
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(xmlName+" The ID of the select label cannot be empty ")
 		}
 		resultMap := mapper.SelectAttrValue("resultMap", "")
 		resultMapData := tree[resultMap]
 		tables := mapper.SelectAttrValue("table", "")
 		if resultMapData == nil && tables == ""{
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+"TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+"TemplateDecoder resultMap not define! id = ", resultMap)
 		}
 		it.checkTablesValue(mapper, &tables, resultMapData,xmlName)
 		wheres := mapper.SelectAttrValue("where", "")
@@ -185,18 +184,19 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		}
 		break
 	case "insert":
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "insert")
-		}
 		resultMap := mapper.SelectAttrValue("resultMap", "")
 		if resultMap == "" {
 			break
 		}
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(xmlName+" The ID of the inserted label cannot be empty ")
+		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+"TemplateDecoder resultMap not define! id = ", resultMap)
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		inserts := mapper.SelectAttrValue("insert", "")
@@ -334,18 +334,19 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		mapper.Child = append(mapper.Child, &tempElement)
 		break
 	case "update":
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "update")
-		}
 		resultMap := mapper.SelectAttrValue("resultMap", "")
 		if resultMap == "" {
 			break
 		}
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(xmlName+" The ID of the update label cannot be empty ")
+		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+"TemplateDecoder resultMap not define! id = ",resultMap)
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		columns := mapper.SelectAttrValue("set", "")
@@ -389,18 +390,19 @@ func (it *Session)decode(method *reflect.StructField, mapper *element, tree map[
 		}
 		break
 	case "delete":
-		id := mapper.SelectAttrValue("id", "")
-		if id == "" {
-			mapper.CreateAttr("id", "delete")
-		}
 		resultMap := mapper.SelectAttrValue("resultMap", "")
 		if resultMap == "" {
 			break
 		}
+		id := mapper.SelectAttrValue("id", "")
+		if id == "" {
+			it.log.SetPrefix("[Fatal] ")
+			it.log.Fatalln(xmlName+" The ID of the deleted label cannot be empty ")
+		}
 		resultMapData := tree[resultMap]
 		if resultMapData == nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(xmlName+" TemplateDecoder", "resultMap not define! id = ", resultMap)
+			it.log.Fatalln(xmlName+"TemplateDecoder resultMap not define! id = ",resultMap)
 		}
 		tables := mapper.SelectAttrValue("table", "")
 		wheres := mapper.SelectAttrValue("where", "")
@@ -469,13 +471,14 @@ func decodeWheres(arg string, mapper *element, logic logicDeleteData, version *v
 		whereRoot.Child = append(whereRoot.Child, item)
 	}
 	wheres := strings.Split(arg, ",")
-	for index, v := range wheres {
-		if v == "" || strings.Trim(v, " ") == "" {
+	num:=len(wheres)
+	for i:=0;i<num;i++{
+		if wheres[i] == "" || strings.Trim(wheres[i], " ") == "" {
 			continue
 		}
-		expressions := strings.Split(v, "?")
+		expressions := strings.Split(wheres[i], "?")
 		appendAdd := ""
-		if index >= 1 || len(whereRoot.Child) > 0 {
+		if i >= 1 || len(whereRoot.Child) > 0 {
 			appendAdd = " and "
 		}
 		var item token
@@ -490,7 +493,7 @@ func decodeWheres(arg string, mapper *element, logic logicDeleteData, version *v
 		} else {
 			var newWheres bytes.Buffer
 			newWheres.WriteString(appendAdd)
-			newWheres.WriteString(v)
+			newWheres.WriteString(wheres[i])
 			item = &charData{
 				Data: newWheres.String(),
 			}
@@ -818,8 +821,7 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 			it.log.SetPrefix("[Fatal] ")
 			it.log.Fatalln(name+" SqlResultDecoder Decode one result,but find database result size find > 1 !")
 		}
-		rtk := resultV.Type().Kind()
-		if isBasicType(rtk) {
+		if isBasicType(resultV.Type()) {
 			for _, s := range sqlResult[0] {
 				b := strings.Builder{}
 				if resultV.Kind() == reflect.String || resultV.Kind() == reflect.Struct {
@@ -884,24 +886,24 @@ func (it *Session)decodeSqlResult(sqlResult []map[string]string, result interfac
 		it.log.Fatalln(name+err.Error())
 	}
 }
-func isBasicType(arg reflect.Kind) bool {
-	if 	arg == reflect.Bool ||
-		arg == reflect.Int ||
-		arg == reflect.Int8 ||
-		arg == reflect.Int16 ||
-		arg == reflect.Int32 ||
-		arg == reflect.Int64 ||
-		arg == reflect.Uint ||
-		arg == reflect.Uint8 ||
-		arg == reflect.Uint16 ||
-		arg == reflect.Uint32 ||
-		arg == reflect.Uint64 ||
-		arg == reflect.Float32 ||
-		arg == reflect.Float64 ||
-		arg == reflect.String {
+func isBasicType(arg reflect.Type) bool {
+	if arg.Kind() == reflect.Struct && arg.String() == `time.Time` {
 		return true
 	}
-	if arg == reflect.Struct && arg.String() == `time.Time` {
+	if arg.Kind() == reflect.Bool ||
+		arg.Kind() == reflect.Int ||
+		arg.Kind() == reflect.Int8 ||
+		arg.Kind() == reflect.Int16 ||
+		arg.Kind() == reflect.Int32 ||
+		arg.Kind() == reflect.Int64 ||
+		arg.Kind() == reflect.Uint ||
+		arg.Kind() == reflect.Uint8 ||
+		arg.Kind() == reflect.Uint16 ||
+		arg.Kind() == reflect.Uint32 ||
+		arg.Kind() == reflect.Uint64 ||
+		arg.Kind() == reflect.Float32 ||
+		arg.Kind() == reflect.Float64 ||
+		arg.Kind() == reflect.String {
 		return true
 	}
 	return false
@@ -1045,9 +1047,6 @@ func (it *Session)genXml(mapperPtr interface{}){
 			e[i].Tag == "resultMap" ||
 			e[i].Tag == "sql"{
 			idValue := e[i].SelectAttrValue("id", "")
-			if idValue == "" {
-				idValue = e[i].Tag
-			}
 			if idValue != "" {
 				oldItem := mapperTree[idValue]
 				if oldItem != nil {
@@ -1058,8 +1057,8 @@ func (it *Session)genXml(mapperPtr interface{}){
 			mapperTree[idValue] = e[i]
 		}
 	}
-	for _, mapperXml := range mapperTree {
-		ele := mapperXml.ChildElements()
+	for _, v := range mapperTree {
+		ele := v.ChildElements()
 		count := len(ele)
 		for i:=0;i<count;i++ {
 			it.includeElementReplace(ele[i], &mapperTree,s)
