@@ -1047,8 +1047,7 @@ func (it *Session)genXml(mapperPtr interface{}){
 			e[i].Tag == "resultMap" ||
 			e[i].Tag == "sql"{
 			idValue := e[i].SelectAttrValue("id", "")
-			oldItem := mapperTree[idValue]
-			if oldItem != nil {
+			if mapperTree[idValue]!=nil{
 				it.log.SetPrefix("[Fatal] ")
 				it.log.Fatalln(s+` 文件内的同一类 <` + e[i].Tag +`> 标签中，有且只能有一个 id = `+ idValue+ `! (即:id 的值在同一类标签中不能重复!)`)
 			}
