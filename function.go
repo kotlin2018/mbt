@@ -950,10 +950,10 @@ func (it *Session)genXml(mapperPtr interface{}){
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
-	<insert id=""></insert>
-	<delete id=""></delete>
-	<update id=""></update>
-	<select id=""></select>
+	<insert id="insert"></insert>
+	<delete id="delete"></delete>
+	<update id="update"></update>
+	<select id="select"></select>
 </mapper>
 `, "#{table}", snake(name), -1))
 			}else {
