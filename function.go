@@ -18,11 +18,11 @@ func (it *Session)Run(mapperPtr ...interface{}){
 		}
 	}
 	for i:=0;i<num;i++ {
-		it.Start(mapperPtr[i])
+		outPut := it.data[mapperPtr[i]]
+		it.start(mapperPtr[i],outPut)
 	}
 }
-func (it *Session)Start(mapperPtr interface{}) {
-	outPut := it.data[mapperPtr]
+func (it *Session)start(mapperPtr interface{},outPut map[string]*returnValue) {
 	be := reflect.ValueOf(mapperPtr).Elem()
 	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
 		funcName := funcField.Name
@@ -909,7 +909,9 @@ func isBasicType(arg reflect.Type) bool {
 	return false
 }
 func (it *Session)Register(mapperPtr interface{})*Session{
-	if it.data[mapperPtr]!=nil {
+	outPut := it.data[mapperPtr]
+	if outPut!=nil {
+		it.start(mapperPtr,outPut)
 		return it
 	}
 	obj := reflect.ValueOf(mapperPtr)
@@ -1128,6 +1130,7 @@ func (it *Session)Register(mapperPtr interface{})*Session{
 		}
 	}
 	it.data[mapperPtr]=returnMap
+	it.start(mapperPtr,returnMap)
 	return it
 }
 func expressSymbol(bytes *[]byte) {
