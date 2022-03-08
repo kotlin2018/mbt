@@ -909,6 +909,9 @@ func isBasicType(arg reflect.Type) bool {
 	return false
 }
 func (it *Session)Register(mapperPtr interface{}){
+	if it.data[mapperPtr]!=nil {
+		return
+	}
 	obj := reflect.ValueOf(mapperPtr)
 	bt := obj.Type().Elem()
 	var (
