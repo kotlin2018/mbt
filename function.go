@@ -908,9 +908,9 @@ func isBasicType(arg reflect.Type) bool {
 	}
 	return false
 }
-func (it *Session)Register(mapperPtr interface{}){
+func (it *Session)Register(mapperPtr interface{})*Session{
 	if it.data[mapperPtr]!=nil {
-		return
+		return it
 	}
 	obj := reflect.ValueOf(mapperPtr)
 	bt := obj.Type().Elem()
@@ -1128,6 +1128,7 @@ func (it *Session)Register(mapperPtr interface{}){
 		}
 	}
 	it.data[mapperPtr]=returnMap
+	return it
 }
 func expressSymbol(bytes *[]byte) {
 	byteStr := string(*bytes)
