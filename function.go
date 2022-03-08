@@ -14,14 +14,14 @@ func (it *Session)Run(mapperPtr ...interface{}){
 	num := len(mapperPtr)
 	if len(it.data)!= num {
 		for i:=0;i<num;i++ {
-			it.genXml(mapperPtr[i])
+			it.Register(mapperPtr[i])
 		}
 	}
 	for i:=0;i<num;i++ {
-		it.start(mapperPtr[i])
+		it.Start(mapperPtr[i])
 	}
 }
-func (it *Session)start(mapperPtr interface{}) {
+func (it *Session)Start(mapperPtr interface{}) {
 	outPut := it.data[mapperPtr]
 	be := reflect.ValueOf(mapperPtr).Elem()
 	it.proxyValue(be, func(funcField reflect.StructField, field reflect.Value) func(arg proxyArg) []reflect.Value {
@@ -908,7 +908,7 @@ func isBasicType(arg reflect.Type) bool {
 	}
 	return false
 }
-func (it *Session)genXml(mapperPtr interface{}){
+func (it *Session)Register(mapperPtr interface{}){
 	obj := reflect.ValueOf(mapperPtr)
 	bt := obj.Type().Elem()
 	var (
