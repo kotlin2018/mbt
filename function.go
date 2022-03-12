@@ -956,10 +956,10 @@ func (it *Session)Register(mapperPtr interface{})*Session{
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
-	<insert id="insert"></insert>
-	<delete id="delete"></delete>
-	<update id="update"></update>
-	<select id="select"></select>
+	<insert id="Insert"></insert>
+	<delete id="Delete"></delete>
+	<update id="Update"></update>
+	<select id="Select"></select>
 </mapper>
 `, "#{table}", snake(name), -1))
 			}else {
@@ -1006,16 +1006,16 @@ func (it *Session)Register(mapperPtr interface{})*Session{
     </resultMap>
 
 	<!--插入模板:默认id="insert" 支持批量插入 -->
-	<insert id="insert" resultMap="base" />
+	<insert id="Insert" resultMap="base" />
 
 	<!--删除模板:默认id="delete",where自动设置逻辑删除字段-->
-	<delete id="delete" resultMap="base" where=""/>
+	<delete id="Delete" resultMap="base" where=""/>
 
 	<!--更新模板:默认id="update",set自动设置乐观锁版本号-->
-	<update id="update" set="" resultMap="base" where=""/>
+	<update id="Update" set="" resultMap="base" where=""/>
 
 	<!--查询模板:默认id="select",where自动设置逻辑删除字段-->
-	<select id="select" column="" resultMap="base" where=""/>
+	<select id="Select" column="" resultMap="base" where=""/>
 </mapper>
 `, "#{table}", snake(fieldType.Name()), -1), "#{resultMapBody}", content, -1))
 			}
