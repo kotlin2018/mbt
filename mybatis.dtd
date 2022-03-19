@@ -16,7 +16,7 @@
                limitations under the License.
 
         -->
-        <!ELEMENT mapper (resultMap*  | sql* | insert* | update* | delete* | select* )+>
+        <!ELEMENT mapper (resultMap*  | sql* | insert* | update* | delete* | select* | execute*)+>
         <!ATTLIST mapper
                 namespace CDATA #IMPLIED
                 >
@@ -74,6 +74,18 @@
                 resultMap CDATA #IMPLIED
                 table CDATA #IMPLIED
                 column CDATA #IMPLIED
+                where CDATA #IMPLIED
+                >
+
+        <!ELEMENT execute (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
+        <!ATTLIST execute
+                id CDATA #REQUIRED
+                lang CDATA #IMPLIED
+                resultMap CDATA #IMPLIED
+                useGeneratedKeys (true|false) #IMPLIED
+                table CDATA #IMPLIED
+                insert CDATA #IMPLIED
+                set CDATA #IMPLIED
                 where CDATA #IMPLIED
                 >
 
