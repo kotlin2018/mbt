@@ -48,7 +48,15 @@ func (it *Session) start(be reflect.Value, outPut map[string]*returnValue) {
 }
 func (it *Session) findMapperXml(mapperTree map[string]*element, beanName, funcName, xmlName string) *element {
 	for _, v := range mapperTree {
-		if v.SelectAttrValue("id", "") == funcName {
+		key := v.SelectAttrValue("id", "")
+		if key == funcName {
+			return v
+		}
+		b := strings.Builder{}
+		c := funcName[0]
+		c += 32
+		b.WriteByte(c)
+		if key == b.String()+funcName[1:] {
 			return v
 		}
 	}
