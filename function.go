@@ -967,8 +967,10 @@ func (it *Session) Register(mapperPtr interface{}) *Session {
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
        "https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd">
 <mapper>
-	<select id="Select"></select>
-	<execute id="Execute"></select>
+	<insert id="insert"></insert>
+	<delete id="delete"></delete>
+	<update id="update"></update>
+	<select id="select"></select>
 </mapper>
 `, "#{table}", snake(name), -1))
 			} else {
