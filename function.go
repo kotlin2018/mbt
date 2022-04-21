@@ -662,8 +662,7 @@ func (it *Session) exeMethodByXml(ret *returnValue, returnValue *reflect.Value, 
 	convert := it.stmtConvert()
 	array := make([]interface{}, 0)
 	sql := it.buildSql(proxyArg, ret, &array, convert)
-	switch ret.xml.Tag {
-	case "select":
+	if ret.xml.Tag == "select" {
 		var res []map[string]string
 		if it.slave != nil {
 			list := make([]interface{}, 0)
@@ -672,7 +671,7 @@ func (it *Session) exeMethodByXml(ret *returnValue, returnValue *reflect.Value, 
 			res = it.queryPrepare(ret.name, sql, array...)
 		}
 		it.decodeSqlResult(res, returnValue.Interface(), ret.name)
-	case "execute":
+	} else {
 		returnValue.Elem().SetInt(it.execPrepare(ret.name, sql, array...).RowsAffected)
 	}
 }
