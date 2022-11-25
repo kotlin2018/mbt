@@ -1,3 +1,3 @@
 module github.com/kotlin2018/mbt
 
-go 1.18
+go 1.19

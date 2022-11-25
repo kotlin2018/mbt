@@ -14,16 +14,19 @@ import (
 
 type readSettings struct {
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
-	Permissive bool
+	Permissive    bool
 }
+
 func newReadSettings() readSettings {
 	return readSettings{}
 }
+
 type writeSettings struct {
 	CanonicalEndTags bool
-	CanonicalText bool
+	CanonicalText    bool
 	CanonicalAttrVal bool
 }
+
 func newWriteSettings() writeSettings {
 	return writeSettings{
 		CanonicalEndTags: false,
@@ -31,6 +34,7 @@ func newWriteSettings() writeSettings {
 		CanonicalAttrVal: false,
 	}
 }
+
 type token interface {
 	Parent() *element
 	dup(parent *element) token
@@ -70,6 +74,7 @@ type procInst struct {
 	Inst   string
 	parent *element
 }
+
 func newDocument() *document {
 	return &document{
 		element{Child: make([]token, 0)},
@@ -81,8 +86,8 @@ func (d *document) Copy() *document {
 	return &document{*(d.dup(nil).(*element)), d.ReadSettings, d.WriteSettings}
 }
 func (d *document) Root() *element {
-	num :=len(d.Child)
-	for i:=0;i<num;i++{
+	num := len(d.Child)
+	for i := 0; i < num; i++ {
 		if c, ok := d.Child[i].(*element); ok {
 			return c
 		}
@@ -94,8 +99,8 @@ func (d *document) SetRoot(e *element) {
 		e.parent.RemoveChild(e)
 	}
 	e.setParent(&d.element)
-	num :=len(d.Child)
-	for i:=0;i<num;i++{
+	num := len(d.Child)
+	for i := 0; i < num; i++ {
 		if _, ok := d.Child[i].(*element); ok {
 			d.Child[i].setParent(nil)
 			d.Child[i] = e
@@ -112,7 +117,7 @@ func (d *document) ReadFromFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	//defer f.Close()
 	_, err = d.ReadFrom(f)
 	return err
 }
@@ -127,8 +132,8 @@ func (d *document) ReadFromString(s string) error {
 func (d *document) WriteTo(w io.Writer) (n int64, err error) {
 	cw := newCountWriter(w)
 	b := bufio.NewWriter(cw)
-	num :=len(d.Child)
-	for i:=0;i<num;i++{
+	num := len(d.Child)
+	for i := 0; i < num; i++ {
 		d.Child[i].writeTo(b, &d.WriteSettings)
 	}
 	err, n = b.Flush(), cw.bytes
@@ -139,7 +144,7 @@ func (d *document) WriteToFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	//defer f.Close()
 	_, err = d.WriteTo(f)
 	return err
 }
@@ -157,7 +162,9 @@ func (d *document) WriteToString() (s string, err error) {
 	}
 	return string(b), nil
 }
+
 type indentFunc func(depth int) string
+
 func (d *document) Indent(spaces int) {
 	var indent indentFunc
 	switch {
@@ -194,8 +201,8 @@ func (e *element) Text() string {
 		return ""
 	}
 	text := ""
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
 		if cd, ok := e.Child[i].(*charData); ok {
 			if text == "" {
 				text = cd.Data
@@ -235,9 +242,9 @@ func (e *element) InsertChild(ex token, t token) {
 		t.Parent().RemoveChild(t)
 	}
 	t.setParent(e)
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
-		if e.Child[i]==ex {
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
+		if e.Child[i] == ex {
 			e.Child = append(e.Child, nil)
 			copy(e.Child[i+1:], e.Child[i:])
 			e.Child[i] = t
@@ -247,9 +254,9 @@ func (e *element) InsertChild(ex token, t token) {
 	e.addChild(t)
 }
 func (e *element) RemoveChild(t token) token {
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
-		if e.Child[i]==t {
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
+		if e.Child[i] == t {
 			e.Child = append(e.Child[:i], e.Child[i+1:]...)
 			e.Child[i].setParent(nil)
 			return t
@@ -298,9 +305,9 @@ func (e *element) readFrom(ri io.Reader, settings readSettings) (n int64, err er
 }
 func (e *element) SelectAttr(key string) *attr {
 	space, skey := spaceDecompose(key)
-	num:=len(e.Attr)
-	for i:=0;i<num;i++{
-		if spaceMatch(space,e.Attr[i].Space) && skey == e.Attr[i].Key {
+	num := len(e.Attr)
+	for i := 0; i < num; i++ {
+		if spaceMatch(space, e.Attr[i].Space) && skey == e.Attr[i].Key {
 			return &e.Attr[i]
 		}
 	}
@@ -308,9 +315,9 @@ func (e *element) SelectAttr(key string) *attr {
 }
 func (e *element) SelectAttrValue(key, dflt string) string {
 	space, skey := spaceDecompose(key)
-	num:=len(e.Attr)
-	for i:=0;i<num;i++{
-		if spaceMatch(space,e.Attr[i].Space) && skey == e.Attr[i].Key {
+	num := len(e.Attr)
+	for i := 0; i < num; i++ {
+		if spaceMatch(space, e.Attr[i].Space) && skey == e.Attr[i].Key {
 			return e.Attr[i].Value
 		}
 	}
@@ -318,9 +325,9 @@ func (e *element) SelectAttrValue(key, dflt string) string {
 }
 func (e *element) ChildElements() []*element {
 	var elements []*element
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
-		if c, ok := e.Child[i].(*element);ok {
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
+		if c, ok := e.Child[i].(*element); ok {
 			elements = append(elements, c)
 		}
 	}
@@ -328,8 +335,8 @@ func (e *element) ChildElements() []*element {
 }
 func (e *element) SelectElement(tag string) *element {
 	space, stag := spaceDecompose(tag)
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
 		if c, ok := e.Child[i].(*element); ok && spaceMatch(space, c.Space) && stag == c.Tag {
 			return c
 		}
@@ -339,8 +346,8 @@ func (e *element) SelectElement(tag string) *element {
 func (e *element) SelectElements(tag string) []*element {
 	space, stag := spaceDecompose(tag)
 	var elements []*element
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
 		if c, ok := e.Child[i].(*element); ok && spaceMatch(space, c.Space) && stag == c.Tag {
 			elements = append(elements, c)
 		}
@@ -368,7 +375,7 @@ func (e *element) FindElementsPath(pp path) []*element {
 	return p.traverse(e, pp)
 }
 func (e *element) GetPath() string {
-	list := make([]string,0)
+	list := make([]string, 0)
 	for seg := e; seg != nil; seg = seg.Parent() {
 		if seg.Tag != "" {
 			list = append(list, seg.Tag)
@@ -392,16 +399,16 @@ func (e *element) GetRelativePath(source *element) string {
 		if len(list) == 0 {
 			return "."
 		}
-		parts := make([]string,0)
+		parts := make([]string, 0)
 		for i := len(list) - 1; i >= 0; i-- {
 			parts = append(parts, list[i].Tag)
 		}
 		return "./" + strings.Join(parts, "/")
 	}
 	findPathIndex := func(e *element, path []*element) int {
-		num:=len(path)
-		for i:=0;i<num;i++{
-			if e == path[i]{
+		num := len(path)
+		for i := 0; i < num; i++ {
+			if e == path[i] {
 				return i
 			}
 		}
@@ -419,7 +426,7 @@ func (e *element) GetRelativePath(source *element) string {
 	if seg == nil {
 		return ""
 	}
-	parts := make([]string,0)
+	parts := make([]string, 0)
 	for i := 0; i < climb; i++ {
 		parts = append(parts, "..")
 	}
@@ -437,8 +444,8 @@ func (e *element) indent(depth int, indent indentFunc) {
 	oldChild := e.Child
 	e.Child = make([]token, 0, n*2+1)
 	isCharData, firstNonCharData := false, true
-	num :=len(oldChild)
-	for i:=0;i<num;i++{
+	num := len(oldChild)
+	for i := 0; i < num; i++ {
 		_, isCharData = oldChild[i].(*charData)
 		if !isCharData {
 			if !firstNonCharData || depth > 0 {
@@ -459,7 +466,7 @@ func (e *element) indent(depth int, indent indentFunc) {
 }
 func (e *element) stripIndent() {
 	n := len(e.Child)
-	for i:=0;i<n;i++{
+	for i := 0; i < n; i++ {
 		if cd, ok := e.Child[i].(*charData); ok && cd.whitespace {
 			n--
 		}
@@ -469,8 +476,8 @@ func (e *element) stripIndent() {
 	}
 	newChild := make([]token, n)
 	j := 0
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
 		if cd, ok := e.Child[i].(*charData); ok && cd.whitespace {
 			continue
 		}
@@ -487,12 +494,12 @@ func (e *element) dup(parent *element) token {
 		Child:  make([]token, len(e.Child)),
 		parent: parent,
 	}
-	num :=len(e.Child)
-	for i:=0;i<num;i++{
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
 		ne.Child[i] = e.Child[i].dup(ne)
 	}
-	en:=len(e.Attr)
-	for i:=0;i<en;i++{
+	en := len(e.Attr)
+	for i := 0; i < en; i++ {
 		ne.Attr[i] = e.Attr[i]
 	}
 	return ne
@@ -510,15 +517,15 @@ func (e *element) writeTo(w *bufio.Writer, s *writeSettings) {
 		w.WriteByte(':')
 	}
 	w.WriteString(e.Tag)
-	num:=len(e.Attr)
-	for i:=0;i<num;i++{
+	num := len(e.Attr)
+	for i := 0; i < num; i++ {
 		w.WriteByte(' ')
 		e.Attr[i].writeTo(w, s)
 	}
 	enum := len(e.Child)
 	if enum > 0 {
 		w.WriteString(">")
-		for i:=0;i<enum;i++{
+		for i := 0; i < enum; i++ {
 			e.Child[i].writeTo(w, s)
 		}
 		w.Write([]byte{'<', '/'})
@@ -550,8 +557,8 @@ func (e *element) CreateAttr(key, value string) *attr {
 	return e.createAttr(space, skey, value)
 }
 func (e *element) createAttr(space, key, value string) *attr {
-	num:=len(e.Attr)
-	for i:=0;i<num;i++{
+	num := len(e.Attr)
+	for i := 0; i < num; i++ {
 		if space == e.Attr[i].Space && key == e.Attr[i].Key {
 			e.Attr[i].Value = value
 			return &e.Attr[i]
@@ -563,8 +570,8 @@ func (e *element) createAttr(space, key, value string) *attr {
 }
 func (e *element) RemoveAttr(key string) *attr {
 	space, skey := spaceDecompose(key)
-	num:=len(e.Attr)
-	for i:=0;i<num;i++{
+	num := len(e.Attr)
+	for i := 0; i < num; i++ {
 		if space == e.Attr[i].Space && skey == e.Attr[i].Key {
 			e.Attr = append(e.Attr[0:i], e.Attr[i+1:]...)
 			return &e.Attr[i]
@@ -575,7 +582,9 @@ func (e *element) RemoveAttr(key string) *attr {
 func (e *element) SortAttrs() {
 	sort.Sort(byAttr(e.Attr))
 }
+
 type byAttr []attr
+
 func (a byAttr) Len() int {
 	return len(a)
 }
@@ -761,10 +770,12 @@ func (p *procInst) writeTo(w *bufio.Writer, s *writeSettings) {
 	}
 	w.WriteString("?>")
 }
+
 type path struct {
 	segments []segment
 }
 type errPath string
+
 func (err errPath) Error() string {
 	return "etree: " + string(err)
 }
@@ -783,17 +794,20 @@ func mustCompilePath(path string) path {
 	}
 	return p
 }
+
 type segment struct {
 	sel     selector
 	filters []filter
 }
+
 func (seg *segment) apply(e *element, p *pather) {
 	seg.sel.apply(e, p)
-	num:=len(seg.filters)
-	for i:=0;i<num;i++{
+	num := len(seg.filters)
+	for i := 0; i < num; i++ {
 		seg.filters[i].apply(p)
 	}
 }
+
 type selector interface {
 	apply(e *element, p *pather)
 }
@@ -811,6 +825,7 @@ type nodes struct {
 	e        *element
 	segments []segment
 }
+
 func newPather() *pather {
 	return &pather{
 		results:    make([]*element, 0),
@@ -830,23 +845,25 @@ func (p *pather) eval(n nodes) {
 	seg, remain := n.segments[0], n.segments[1:]
 	seg.apply(n.e, p)
 	if len(remain) == 0 {
-		num:=len(p.candidates)
-		for i:=0;i<num;i++{
+		num := len(p.candidates)
+		for i := 0; i < num; i++ {
 			if in := p.inResults[p.candidates[i]]; !in {
 				p.inResults[p.candidates[i]] = true
-				p.results = append(p.results,p.candidates[i])
+				p.results = append(p.results, p.candidates[i])
 			}
 		}
 	} else {
-		num:=len(p.candidates)
-		for i:=0;i<num;i++ {
+		num := len(p.candidates)
+		for i := 0; i < num; i++ {
 			p.queue.add(nodes{p.candidates[i], remain})
 		}
 	}
 }
+
 type compiler struct {
 	err errPath
 }
+
 func (c *compiler) parsePath(path string) []segment {
 	if strings.HasSuffix(path, "//") {
 		path = path + "*"
@@ -856,9 +873,9 @@ func (c *compiler) parsePath(path string) []segment {
 		segments = append(segments, segment{new(selectRoot), []filter{}})
 		path = path[1:]
 	}
-	ele:=splitPath(path)
-	num:=len(ele)
-	for i:=0;i<num;i++{
+	ele := splitPath(path)
+	num := len(ele)
+	for i := 0; i < num; i++ {
 		segments = append(segments, c.parseSegment(ele[i]))
 		if c.err != "" {
 			break
@@ -948,11 +965,15 @@ func (c *compiler) parseFilter(path string) filter {
 		return newFilterChild(path)
 	}
 }
+
 type selectSelf struct{}
+
 func (s *selectSelf) apply(e *element, p *pather) {
 	p.candidates = append(p.candidates, e)
 }
+
 type selectRoot struct{}
+
 func (s *selectRoot) apply(e *element, p *pather) {
 	root := e
 	for root.parent != nil {
@@ -960,53 +981,63 @@ func (s *selectRoot) apply(e *element, p *pather) {
 	}
 	p.candidates = append(p.candidates, root)
 }
+
 type selectParent struct{}
+
 func (s *selectParent) apply(e *element, p *pather) {
 	if e.parent != nil {
 		p.candidates = append(p.candidates, e.parent)
 	}
 }
+
 type selectChildren struct{}
+
 func (s *selectChildren) apply(e *element, p *pather) {
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
-		if c, ok := e.Child[i].(*element);ok {
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
+		if c, ok := e.Child[i].(*element); ok {
 			p.candidates = append(p.candidates, c)
 		}
 	}
 }
+
 type selectDescendants struct{}
+
 func (s *selectDescendants) apply(e *element, p *pather) {
 	var queue fifo
 	for queue.add(e); queue.len() > 0; {
 		e := queue.remove().(*element)
-		p.candidates = append(p.candidates,e)
-		num:=len(e.Child)
-		for i:=0;i<num;i++{
+		p.candidates = append(p.candidates, e)
+		num := len(e.Child)
+		for i := 0; i < num; i++ {
 			if c, ok := e.Child[i].(*element); ok {
 				queue.add(c)
 			}
 		}
 	}
 }
+
 type selectChildrenByTag struct {
 	space, tag string
 }
+
 func newSelectChildrenByTag(path string) *selectChildrenByTag {
 	s, l := spaceDecompose(path)
 	return &selectChildrenByTag{s, l}
 }
 func (s *selectChildrenByTag) apply(e *element, p *pather) {
-	num:=len(e.Child)
-	for i:=0;i<num;i++{
+	num := len(e.Child)
+	for i := 0; i < num; i++ {
 		if c, ok := e.Child[i].(*element); ok && spaceMatch(s.space, c.Space) && s.tag == c.Tag {
 			p.candidates = append(p.candidates, c)
 		}
 	}
 }
+
 type filterPos struct {
 	index int
 }
+
 func newFilterPos(pos int) *filterPos {
 	return &filterPos{pos}
 }
@@ -1022,59 +1053,66 @@ func (f *filterPos) apply(p *pather) {
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
 }
+
 type filterAttr struct {
 	space, key string
 }
+
 func newFilterAttr(str string) *filterAttr {
 	s, l := spaceDecompose(str)
 	return &filterAttr{s, l}
 }
 func (f *filterAttr) apply(p *pather) {
-	num:=len(p.candidates)
-	for i:=0;i<num;i++{
-		cou:=len(p.candidates[i].Attr)
-		for k:=0;k<cou;k++{
-			if spaceMatch(f.space,p.candidates[i].Attr[k].Space) && f.key == p.candidates[i].Attr[k].Key{
-				p.scratch = append(p.scratch,p.candidates[i])
+	num := len(p.candidates)
+	for i := 0; i < num; i++ {
+		cou := len(p.candidates[i].Attr)
+		for k := 0; k < cou; k++ {
+			if spaceMatch(f.space, p.candidates[i].Attr[k].Space) && f.key == p.candidates[i].Attr[k].Key {
+				p.scratch = append(p.scratch, p.candidates[i])
 				break
 			}
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
 }
+
 type filterAttrVal struct {
 	space, key, val string
 }
+
 func newFilterAttrVal(str, value string) *filterAttrVal {
 	s, l := spaceDecompose(str)
 	return &filterAttrVal{s, l, value}
 }
 func (f *filterAttrVal) apply(p *pather) {
-	num:=len(p.candidates)
-	for i:=0;i<num;i++{
-		cou:=len(p.candidates[i].Attr)
-		for k:=0;k<cou;k++{
-			if spaceMatch(f.space,p.candidates[i].Attr[k].Space) && f.key == p.candidates[i].Attr[k].Key && f.val == p.candidates[i].Attr[k].Value {
-				p.scratch = append(p.scratch,p.candidates[i])
+	num := len(p.candidates)
+	for i := 0; i < num; i++ {
+		cou := len(p.candidates[i].Attr)
+		for k := 0; k < cou; k++ {
+			if spaceMatch(f.space, p.candidates[i].Attr[k].Space) && f.key == p.candidates[i].Attr[k].Key && f.val == p.candidates[i].Attr[k].Value {
+				p.scratch = append(p.scratch, p.candidates[i])
 				break
 			}
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
 }
+
 type filterText struct{}
+
 func newFilterText() *filterText {
 	return &filterText{}
 }
 func (f *filterText) apply(p *pather) {
-	num:=len(p.candidates)
-	for i:=0;i<num;i++{
+	num := len(p.candidates)
+	for i := 0; i < num; i++ {
 		if p.candidates[i].Text() != "" {
-			p.scratch = append(p.scratch,p.candidates[i])
+			p.scratch = append(p.scratch, p.candidates[i])
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
 }
+
 type filterTextVal struct {
 	val string
 }
@@ -1083,60 +1121,66 @@ func newFilterTextVal(value string) *filterTextVal {
 	return &filterTextVal{value}
 }
 func (f *filterTextVal) apply(p *pather) {
-	num:=len(p.candidates)
-	for i:=0;i<num;i++{
+	num := len(p.candidates)
+	for i := 0; i < num; i++ {
 		if p.candidates[i].Text() == f.val {
-			p.scratch = append(p.scratch,p.candidates[i])
+			p.scratch = append(p.scratch, p.candidates[i])
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
 }
+
 type filterChild struct {
 	space, tag string
 }
+
 func newFilterChild(str string) *filterChild {
 	s, l := spaceDecompose(str)
 	return &filterChild{s, l}
 }
 func (f *filterChild) apply(p *pather) {
-	num:=len(p.candidates)
-	for i:=0;i<num;i++{
-		cou:=len(p.candidates[i].Child)
-		for k:=0;k<cou;k++{
+	num := len(p.candidates)
+	for i := 0; i < num; i++ {
+		cou := len(p.candidates[i].Child)
+		for k := 0; k < cou; k++ {
 			if cc, ok := p.candidates[i].Child[k].(*element); ok &&
 				spaceMatch(f.space, cc.Space) &&
 				f.tag == cc.Tag {
-				p.scratch = append(p.scratch,p.candidates[i])
+				p.scratch = append(p.scratch, p.candidates[i])
 			}
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
 }
+
 type filterChildText struct {
 	space, tag, text string
 }
+
 func newFilterChildText(str, text string) *filterChildText {
 	s, l := spaceDecompose(str)
 	return &filterChildText{s, l, text}
 }
 func (f *filterChildText) apply(p *pather) {
-	num:=len(p.candidates)
-	for i:=0;i<num;i++{
-		cou:=len(p.candidates[i].Child)
-		for k:=0;k<cou;k++{
+	num := len(p.candidates)
+	for i := 0; i < num; i++ {
+		cou := len(p.candidates[i].Child)
+		for k := 0; k < cou; k++ {
 			if cc, ok := p.candidates[i].Child[k].(*element); ok &&
 				spaceMatch(f.space, cc.Space) &&
 				f.tag == cc.Tag &&
 				f.text == cc.Text() {
-				p.scratch = append(p.scratch,p.candidates[i])
+				p.scratch = append(p.scratch, p.candidates[i])
 			}
 		}
 	}
 	p.candidates, p.scratch = p.scratch, p.candidates[0:0]
 }
+
 type stack struct {
 	data []interface{}
 }
+
 func (s *stack) empty() bool {
 	return len(s.data) == 0
 }
@@ -1152,10 +1196,12 @@ func (s *stack) pop() interface{} {
 func (s *stack) peek() interface{} {
 	return s.data[len(s.data)-1]
 }
+
 type fifo struct {
 	data       []interface{}
 	head, tail int
 }
+
 func (f *fifo) add(value interface{}) {
 	if f.len()+1 >= len(f.data) {
 		f.grow()
@@ -1194,10 +1240,12 @@ func (f *fifo) grow() {
 	}
 	f.data, f.head, f.tail = buf, 0, count
 }
+
 type countReader struct {
 	r     io.Reader
 	bytes int64
 }
+
 func newCountReader(r io.Reader) *countReader {
 	return &countReader{r: r}
 }
@@ -1206,10 +1254,12 @@ func (cr *countReader) Read(p []byte) (n int, err error) {
 	cr.bytes += int64(b)
 	return b, err
 }
+
 type countWriter struct {
 	w     io.Writer
 	bytes int64
 }
+
 func newCountWriter(w io.Writer) *countWriter {
 	return &countWriter{w: w}
 }
@@ -1241,10 +1291,12 @@ func spaceDecompose(str string) (space, key string) {
 	}
 	return str[:colon], str[colon+1:]
 }
+
 const (
 	crsp  = "\n                                                                "
 	crtab = "\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
 )
+
 func crIndent(n int, source string) string {
 	switch {
 	case n < 0:
@@ -1271,4 +1323,3 @@ func isInteger(s string) bool {
 	}
 	return true
 }
-

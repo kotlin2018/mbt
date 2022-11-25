@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GoLibraries">
+    <option name="indexEntireGoPath" value="false" />
+    <option name="useGoPathFromSystemEnvironment" value="false" />
+  </component>
+  <component name="ProjectResources">
+    <resource url="https://github.com/kotlin2018/mbt/blob/master/mybatis.dtd" location="$PROJECT_DIR$/../../pkg/mod/github.com/kotlin2018/mbt@v0.2.1/mybatis.dtd" />
+  </component>
+</project>

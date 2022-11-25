@@ -11,7 +11,9 @@ import (
 	"strings"
 	"sync"
 )
+
 type xmlNode int
+
 const (
 	nArg2 = iota
 	nStr
@@ -25,6 +27,7 @@ const (
 	nInclude
 	nWhere
 )
+
 func (it xmlNode) ToString() string {
 	switch it {
 	case nStr:
@@ -50,14 +53,16 @@ func (it xmlNode) ToString() string {
 	}
 	return "Unknown"
 }
+
 type iiNode interface {
 	Type() xmlNode
 	Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error)
 }
-func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]interface{}, stmtConvert Convert) ([]byte, error) {
+
+func doChildNodes(childNodes []iiNode, env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	var sql bytes.Buffer
 	num := len(childNodes)
-	for i:=0;i<num;i++ {
+	for i := 0; i < num; i++ {
 		r, e := childNodes[i].Eval(env, array, stmtConvert)
 		if e != nil {
 			return nil, e
@@ -72,7 +77,7 @@ func doChildNodes(childNodes []iiNode, env map[string]interface{},array *[]inter
 }
 func replace(findStrS []string, data string, arg map[string]interface{}, engine iExpression, array *[]interface{}, indexConvert Convert) (string, error) {
 	num := len(findStrS)
-	for i:=0;i<num;i++ {
+	for i := 0; i < num; i++ {
 		argValue := arg[findStrS[i]]
 		if argValue != nil {
 			*array = append(*array, argValue)
@@ -88,13 +93,13 @@ func replace(findStrS []string, data string, arg map[string]interface{}, engine 
 	}
 	return data, nil
 }
-func replaceRaw(findStrS []string, data string,arg map[string]interface{}, engine iExpression) (string, error) {
+func replaceRaw(findStrS []string, data string, arg map[string]interface{}, engine iExpression) (string, error) {
 	num := len(findStrS)
-	for i:=0;i<num;i++{
+	for i := 0; i < num; i++ {
 		var (
 			evalData interface{}
 			argValue = arg[findStrS[i]]
-			err error
+			err      error
 		)
 		if argValue != nil {
 			evalData = argValue
@@ -110,14 +115,14 @@ func replaceRaw(findStrS []string, data string,arg map[string]interface{}, engin
 }
 func findExpress(str string) []string {
 	var (
-		lastIndex = -1
+		lastIndex  = -1
 		startIndex = -1
-		item []byte
-		strBytes = []byte(str)
-		finds = make([]string,0)
+		item       []byte
+		strBytes   = []byte(str)
+		finds      = make([]string, 0)
 	)
 	num := len(strBytes)
-	for i:=0;i<num;i++{
+	for i := 0; i < num; i++ {
 		if strBytes[i] == 35 {
 			lastIndex = i
 		}
@@ -138,14 +143,14 @@ func findExpress(str string) []string {
 }
 func findRawExpressString(str string) []string {
 	var (
-		lastIndex = -1
+		lastIndex  = -1
 		startIndex = -1
-		item []byte
-		strBytes = []byte(str)
-		finds = make([]string,0)
-		num = len(str)
+		item       []byte
+		strBytes   = []byte(str)
+		finds      = make([]string, 0)
+		num        = len(str)
 	)
-	for i:=0;i<num;i++ {
+	for i := 0; i < num; i++ {
 		if str[i] == 36 {
 			lastIndex = i
 		}
@@ -164,6 +169,7 @@ func findRawExpressString(str string) []string {
 	}
 	return finds
 }
+
 type nodeString struct {
 	value               string
 	t                   xmlNode
@@ -171,13 +177,14 @@ type nodeString struct {
 	noConvertExpressMap []string
 	holder              express
 }
+
 func (it *nodeString) Type() xmlNode {
 	return nStr
 }
 func (it *nodeString) Eval(env map[string]interface{}, array *[]interface{}, stmtConvert Convert) ([]byte, error) {
 	var (
 		data = it.value
-		err error
+		err  error
 	)
 	if it.expressMap != nil {
 		data, err = replace(it.expressMap, data, env, it.holder.Proxy, array, stmtConvert)
@@ -193,12 +200,14 @@ func (it *nodeString) Eval(env map[string]interface{}, array *[]interface{}, stm
 	}
 	return []byte(data), nil
 }
+
 type nodeBind struct {
 	t      xmlNode
 	name   string
 	value  string
 	holder express
 }
+
 func (it *nodeBind) Type() xmlNode {
 	return nBind
 }
@@ -211,17 +220,19 @@ func (it *nodeBind) Eval(env map[string]interface{}, array *[]interface{}, stmtC
 		return nil, nil
 	}
 	res, err := it.holder.Proxy.LexerAndEval(it.value, env)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
 	env[it.name] = res
 	return nil, nil
 }
+
 type nodeChoose struct {
 	t             xmlNode
 	whenNodes     []iiNode
 	otherwiseNode iiNode
 }
+
 func (it *nodeChoose) Type() xmlNode {
 	return nChoose
 }
@@ -230,7 +241,7 @@ func (it *nodeChoose) Eval(env map[string]interface{}, array *[]interface{}, stm
 		return nil, nil
 	}
 	num := len(it.whenNodes)
-	for i:=0;i<num;i++{
+	for i := 0; i < num; i++ {
 		var r, e = it.whenNodes[i].Eval(env, array, stmtConvert)
 		if e != nil {
 			return nil, e
@@ -241,6 +252,7 @@ func (it *nodeChoose) Eval(env map[string]interface{}, array *[]interface{}, stm
 	}
 	return it.otherwiseNode.Eval(env, array, stmtConvert)
 }
+
 type nodeForeach struct {
 	child      []iiNode
 	t          xmlNode
@@ -252,6 +264,7 @@ type nodeForeach struct {
 	separator  string
 	holder     express
 }
+
 func (it *nodeForeach) Type() xmlNode {
 	return nForeach
 }
@@ -290,7 +303,7 @@ func (it *nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, st
 		if collectionKeyLen == 0 {
 			return nil, nil
 		}
-		for i:=0;i<collectionKeyLen;i++ {
+		for i := 0; i < collectionKeyLen; i++ {
 			key := mapKeys[i].Interface()
 			collectionItem := collectionValue.MapIndex(mapKeys[i])
 			if it.item != "" {
@@ -340,12 +353,14 @@ func (it *nodeForeach) Eval(env map[string]interface{}, array *[]interface{}, st
 	newTempSql.Reset()
 	return newTempSqlBytes, nil
 }
+
 type nodeIf struct {
 	child  []iiNode
 	t      xmlNode
 	test   string
 	holder express
 }
+
 func (it *nodeIf) Type() xmlNode {
 	return nIf
 }
@@ -359,10 +374,12 @@ func (it *nodeIf) Eval(env map[string]interface{}, array *[]interface{}, stmtCon
 	}
 	return nil, nil
 }
+
 type nodeInclude struct {
 	child []iiNode
 	t     xmlNode
 }
+
 func (it *nodeInclude) Type() xmlNode {
 	return nInclude
 }
@@ -370,10 +387,12 @@ func (it *nodeInclude) Eval(env map[string]interface{}, array *[]interface{}, st
 	sql, err := doChildNodes(it.child, env, array, stmtConvert)
 	return sql, err
 }
+
 type nodeOtherwise struct {
 	child []iiNode
 	t     xmlNode
 }
+
 func (it *nodeOtherwise) Type() xmlNode {
 	return nOtherwise
 }
@@ -384,6 +403,7 @@ func (it *nodeOtherwise) Eval(env map[string]interface{}, array *[]interface{}, 
 	}
 	return r, nil
 }
+
 type nodeTrim struct {
 	child           []iiNode
 	t               xmlNode
@@ -392,6 +412,7 @@ type nodeTrim struct {
 	suffixOverrides []byte
 	prefixOverrides []byte
 }
+
 func (it *nodeTrim) Type() xmlNode {
 	return nTrim
 }
@@ -414,7 +435,7 @@ func (it *nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtC
 		prefixOverridesArray := bytes.Split(it.prefixOverrides, []byte("|"))
 		if len(prefixOverridesArray) > 0 {
 			num := len(prefixOverridesArray)
-			for i:=0;i<num;i++{
+			for i := 0; i < num; i++ {
 				sql = bytes.TrimPrefix(sql, prefixOverridesArray[i])
 			}
 		}
@@ -423,8 +444,8 @@ func (it *nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtC
 		suffixOverrideArray := bytes.Split(it.suffixOverrides, []byte("|"))
 		if len(suffixOverrideArray) > 0 {
 			num := len(suffixOverrideArray)
-			for i:=0;i<num;i++{
-				sql = bytes.TrimSuffix(sql,suffixOverrideArray[i])
+			for i := 0; i < num; i++ {
+				sql = bytes.TrimSuffix(sql, suffixOverrideArray[i])
 			}
 		}
 	}
@@ -439,12 +460,14 @@ func (it *nodeTrim) Eval(env map[string]interface{}, array *[]interface{}, stmtC
 	newBuffer.Reset()
 	return newBufferBytes, nil
 }
+
 type nodeWhen struct {
 	child  []iiNode
 	test   string
 	t      xmlNode
 	holder express
 }
+
 func (it *nodeWhen) Type() xmlNode {
 	return nWhen
 }
@@ -458,10 +481,12 @@ func (it *nodeWhen) Eval(env map[string]interface{}, array *[]interface{}, stmtC
 	}
 	return nil, nil
 }
+
 type nodeWhere struct {
 	child []iiNode
 	t     xmlNode
 }
+
 func (it *nodeWhere) Type() xmlNode {
 	return nWhere
 }
@@ -499,17 +524,19 @@ func (it *nodeWhere) Eval(env map[string]interface{}, array *[]interface{}, stmt
 	newBuffer.Reset()
 	return newBufferBytes, nil
 }
+
 type iExpression interface {
 	Lexer(lexerArg string) (interface{}, error)
 	Eval(lexerResult interface{}, arg interface{}, operation int) (interface{}, error)
-	LexerAndEval(lexerArg string,arg interface{})  (interface{}, error)
+	LexerAndEval(lexerArg string, arg interface{}) (interface{}, error)
 }
 type express struct {
 	Proxy iExpression
 }
-func (it express) Parser(mapperXml []token)(list []iiNode){
+
+func (it express) Parser(mapperXml []token) (list []iiNode) {
 	num := len(mapperXml)
-	for i:=0;i<num;i++{
+	for i := 0; i < num; i++ {
 		var nod iiNode
 		typeString := reflect.TypeOf(mapperXml[i]).String()
 		if typeString == "*mbt.charData" {
@@ -564,8 +591,8 @@ func (it express) Parser(mapperXml []token)(list []iiNode){
 				break
 			case "set":
 				n := nodeTrim{
-					t:     nTrim,
-					child: []iiNode{},
+					t:               nTrim,
+					child:           []iiNode{},
 					prefix:          []byte(" set "),
 					suffix:          nil,
 					prefixOverrides: []byte(","),
@@ -685,24 +712,28 @@ func (it express) Parser(mapperXml []token)(list []iiNode){
 	}
 	return
 }
+
 type Convert interface {
 	Convert() string
 	Inc()
-	Get()int
+	Get() int
 }
-type mysql struct {}
+type mysql struct{}
+
 func (it *mysql) Convert() string {
 	return " ? "
 }
-func (it *mysql)Inc() {}
+func (it *mysql) Inc() {}
 
-func (it *mysql)Get()int  {
+func (it *mysql) Get() int {
 	return 0
 }
+
 type shenTong struct {
 	sync.RWMutex
 	counter int
 }
+
 func (s *shenTong) Convert() string {
 	return fmt.Sprint(" :", s.Get(), " ")
 }
@@ -716,10 +747,12 @@ func (s *shenTong) Get() int {
 	defer s.RUnlock()
 	return s.counter
 }
+
 type oracle struct {
 	sync.RWMutex
 	counter int
 }
+
 func (it *oracle) Inc() {
 	it.Lock()
 	defer it.Unlock()
@@ -733,10 +766,12 @@ func (it *oracle) Get() int {
 func (it *oracle) Convert() string {
 	return fmt.Sprint(" :val", it.Get(), " ")
 }
+
 type postgreSQL struct {
 	sync.RWMutex
 	counter int
 }
+
 func (p *postgreSQL) Inc() {
 	p.Lock()
 	defer p.Unlock()
@@ -750,11 +785,11 @@ func (p *postgreSQL) Get() int {
 func (p *postgreSQL) Convert() string {
 	return fmt.Sprint(" $", p.Get(), " ")
 }
-func (it *Session)stmtConvert() Convert {
+func (it *Session) stmtConvert() Convert {
 	switch it.driverName {
-	case "mysql", "mymysql", "mssql", "sqlite3","sqlite","dm","gbase":
+	case "mysql", "mymysql", "mssql", "sqlite3", "sqlite", "dm", "gbase":
 		return &mysql{}
-	case "postgres","kingbase":
+	case "postgres", "kingbase":
 		return &postgreSQL{
 			sync.RWMutex{},
 			0,
@@ -771,18 +806,18 @@ func (it *Session)stmtConvert() Convert {
 		driverType := it.driver[it.driverName]
 		if driverType != nil {
 			return driverType
-		}else {
+		} else {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(`un support driverName :`+it.driverName+"only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
+			it.log.Println(`un support driverName :` + it.driverName + "only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
 		}
 	}
 	return nil
 }
-func (it *Session)slaveConvert() Convert {
+func (it *Session) slaveConvert() Convert {
 	switch it.slaveDriver {
-	case "mysql", "mymysql", "mssql", "sqlite3","sqlite","dm","gbase":
+	case "mysql", "mymysql", "mssql", "sqlite3", "sqlite", "dm", "gbase":
 		return &mysql{}
-	case "postgres","kingbase":
+	case "postgres", "kingbase":
 		return &postgreSQL{
 			sync.RWMutex{},
 			0,
@@ -799,16 +834,18 @@ func (it *Session)slaveConvert() Convert {
 		driverType := it.driver[it.slaveDriver]
 		if driverType != nil {
 			return driverType
-		}else {
+		} else {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(`un support driverName :`+it.driverName+"only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
+			it.log.Println(`un support driverName :` + it.driverName + "only support (mysql、mymysql、mssql、sqlite3、postgres、oci8")
 		}
 	}
 	return nil
 }
+
 type nodeType int
+
 const (
-	nArg    nodeType = iota
+	nArg nodeType = iota
 	nString
 	nFloat
 	nInt
@@ -818,6 +855,7 @@ const (
 	nBinary
 	nOpt
 )
+
 func (it nodeType) ToString() string {
 	switch it {
 	case nArg:
@@ -841,12 +879,14 @@ func (it nodeType) ToString() string {
 	}
 	return "Unknown"
 }
+
 type operator = string
+
 const (
-	add    operator = "+"
-	reduce operator = "-"
-	ride   operator = "*"
-	divide operator = "/"
+	add       operator = "+"
+	reduce    operator = "-"
+	ride      operator = "*"
+	divide    operator = "/"
 	and       operator = "&&"
 	or        operator = "||"
 	equal     operator = "=="
@@ -855,20 +895,21 @@ const (
 	lessEqual operator = "<="
 	more      operator = ">"
 	moreEqual operator = ">="
-	nils  operator = "nil"
-	null operator = "null"
+	nils      operator = "nil"
+	null      operator = "null"
 )
+
 func parser(express string) (iNode, error) {
 	opts := parserOperators(express)
 	var (
-		list []iNode
+		list          []iNode
 		priorityArray = []operator{ride, divide, add, reduce,
 			lessEqual, less, moreEqual, more,
 			unEqual, equal, and, or}
 	)
 	num := len(opts)
-	for i:=0;i<num;i++{
-		item, err := parserNode(express,opts[i])
+	for i := 0; i < num; i++ {
+		item, err := parserNode(express, opts[i])
 		if err != nil {
 			return nil, err
 		}
@@ -878,9 +919,9 @@ func parser(express string) (iNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	pnum:=len(priorityArray)
-	for i:=0;i<pnum;i++{
-		e := findReplaceOpt(express,priorityArray[i],&list)
+	pnum := len(priorityArray)
+	for i := 0; i < pnum; i++ {
+		e := findReplaceOpt(express, priorityArray[i], &list)
 		if e != nil {
 			return nil, e
 		}
@@ -892,7 +933,7 @@ func parser(express string) (iNode, error) {
 }
 func checkNodes(express string, nodes []iNode) error {
 	nodesLen := len(nodes)
-	for i:=0;i<nodesLen;i++{
+	for i := 0; i < nodesLen; i++ {
 		if nodes[i].Type() == nOpt {
 			var (
 				after iNode
@@ -1007,7 +1048,7 @@ func parserNode(express string, v operator) (iNode, error) {
 func findReplaceOpt(express string, operator operator, list *[]iNode) error {
 	array := *list
 	num := len(array)
-	for i:=0;i<num;i++{
+	for i := 0; i < num; i++ {
 		if array[i].Type() == nOpt {
 			opt := array[i].(optNode)
 			if opt.value != operator {
@@ -1032,8 +1073,8 @@ func findReplaceOpt(express string, operator operator, list *[]iNode) error {
 	return nil
 }
 func haveOpt(nodes []iNode) bool {
-	num:=len(nodes)
-	for i:=0;i<num;i++{
+	num := len(nodes)
+	for i := 0; i < num; i++ {
 		if nodes[i].Type() == nOpt {
 			return true
 		}
@@ -1043,7 +1084,7 @@ func haveOpt(nodes []iNode) bool {
 func parserOperators(express string) []operator {
 	var (
 		newResult []string
-		ss scanner.Scanner
+		ss        scanner.Scanner
 		lastToken tk.Token
 	)
 	src := []byte(express)
@@ -1135,7 +1176,9 @@ func isOperatorsAction(arg string) bool {
 	}
 	return false
 }
-type nodeExpress struct {}
+
+type nodeExpress struct{}
+
 func (it *nodeExpress) Lexer(expression string) (interface{}, error) {
 	expression = it.replaceExpression(expression)
 	res, err := parser(expression)
@@ -1153,11 +1196,11 @@ func (it *nodeExpress) LexerAndEval(expression string, arg interface{}) (interfa
 	}
 	res, err := it.Lexer(expression)
 	if err != nil {
-		return false,err
+		return false, err
 	}
 	res1, err := it.Eval(res, arg, 0)
 	if err != nil {
-		return false,err
+		return false, err
 	}
 	return res1, nil
 }
@@ -1169,6 +1212,7 @@ func (it *nodeExpress) replaceExpression(expression string) string {
 	expression = strings.Replace(expression, ` or `, " || ", -1)
 	return expression
 }
+
 type iNode interface {
 	Type() nodeType
 	Eval(env interface{}) (interface{}, error)
@@ -1178,6 +1222,7 @@ type optNode struct {
 	value operator
 	t     nodeType
 }
+
 func (it optNode) Type() nodeType {
 	return nOpt
 }
@@ -1196,12 +1241,14 @@ func (it optNode) Express() string {
 func (it optNode) Eval(env interface{}) (interface{}, error) {
 	return it.value, nil
 }
+
 type argNode struct {
 	value  string
 	values []string
 	length int
 	t      nodeType
 }
+
 func (it argNode) Type() nodeType {
 	return nArg
 }
@@ -1211,10 +1258,12 @@ func (it argNode) Express() string {
 func (it argNode) Eval(env interface{}) (interface{}, error) {
 	return evalTake(it, env)
 }
+
 type stringNode struct {
 	value string
 	t     nodeType
 }
+
 func (it stringNode) Type() nodeType {
 	return nString
 }
@@ -1224,11 +1273,13 @@ func (it stringNode) Express() string {
 func (it stringNode) Eval(env interface{}) (interface{}, error) {
 	return it.value, nil
 }
+
 type floatNode struct {
 	express string
 	value   float64
 	t       nodeType
 }
+
 func (it floatNode) Express() string {
 	return it.express
 }
@@ -1238,11 +1289,13 @@ func (it floatNode) Type() nodeType {
 func (it floatNode) Eval(env interface{}) (interface{}, error) {
 	return it.value, nil
 }
+
 type intNode struct {
 	express string
 	value   int64
 	t       nodeType
 }
+
 func (it intNode) Express() string {
 	return it.express
 }
@@ -1252,11 +1305,13 @@ func (it intNode) Type() nodeType {
 func (it intNode) Eval(env interface{}) (interface{}, error) {
 	return it.value, nil
 }
+
 type uIntNode struct {
 	express string
 	value   uint64
 	t       nodeType
 }
+
 func (it uIntNode) Type() nodeType {
 	return nUInt
 }
@@ -1266,10 +1321,12 @@ func (it uIntNode) Express() string {
 func (it uIntNode) Eval(env interface{}) (interface{}, error) {
 	return it.value, nil
 }
+
 type boolNode struct {
 	value bool
 	t     nodeType
 }
+
 func (it boolNode) Type() nodeType {
 	return nBool
 }
@@ -1283,9 +1340,11 @@ func (it boolNode) Express() string {
 func (it boolNode) Eval(env interface{}) (interface{}, error) {
 	return it.value, nil
 }
+
 type nilNode struct {
 	t nodeType
 }
+
 func (it nilNode) Type() nodeType {
 	return nNil
 }
@@ -1295,12 +1354,14 @@ func (it nilNode) Express() string {
 func (nilNode) Eval(env interface{}) (interface{}, error) {
 	return nil, nil
 }
+
 type binaryNode struct {
 	left  iNode
 	right iNode
 	opt   operator
 	t     nodeType
 }
+
 func (it binaryNode) Type() nodeType {
 	return nBinary
 }
@@ -1316,9 +1377,9 @@ func (it binaryNode) Express() string {
 }
 func (it binaryNode) Eval(env interface{}) (interface{}, error) {
 	var (
-		left interface{}
+		left  interface{}
 		right interface{}
-		e error
+		e     error
 	)
 	if it.left != nil {
 		left, e = it.left.Eval(env)
@@ -1359,9 +1420,9 @@ func takeValue(key string, arg reflect.Value, field []string) (interface{}, erro
 	if arg.IsValid() == false {
 		return nil, nil
 	}
-	num:=len(field)
-	for i:=0;i<num;i++{
-		argItem, e := getObj(key,field[i],arg)
+	num := len(field)
+	for i := 0; i < num; i++ {
+		argItem, e := getObj(key, field[i], arg)
 		if e != nil || argItem == nil {
 			return nil, e
 		}
@@ -1609,8 +1670,3 @@ func castType(v reflect.Value) (float64, bool) {
 	}
 	return 0, false
 }
-
-
-
-
-

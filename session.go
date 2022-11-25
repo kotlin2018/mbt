@@ -149,7 +149,7 @@ func (it *Session) Commit() {
 	err := it.pop().Commit()
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("Commit Transaction Failed ", err.Error())
+		it.log.Println("Commit Transaction Failed ", err.Error())
 	}
 	it.log.Println("Commit Transaction Successfully")
 }
@@ -157,7 +157,7 @@ func (it *Session) Begin() {
 	t, err := it.db.Begin()
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln("Begin Transaction Failed ", err.Error())
+		it.log.Println("Begin Transaction Failed ", err.Error())
 	}
 	it.push(t)
 	it.log.Println("Begin Transaction Successfully")
@@ -172,23 +172,23 @@ func (it *Session) slaveQuery(name, sqlPrepare string, args ...interface{}) (res
 		stmt, err = it.slave.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" SQL Prepared Statements Failed ", err.Error())
+			it.log.Println(name+" SQL Prepared Statements Failed ", err.Error())
 		}
 		rows, err = stmt.Query(args...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Query SQL Failed ", err.Error())
+			it.log.Println(name+" Query SQL Failed ", err.Error())
 		}
 	} else {
 		t, er := it.slave.Begin()
 		if er != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Begin Transaction Failed ", er.Error())
+			it.log.Println(name+" Begin Transaction Failed ", er.Error())
 		}
 		stmt, err = t.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Transaction Prepared Statements Failed ", err.Error())
+			it.log.Println(name+" Transaction Prepared Statements Failed ", err.Error())
 		}
 		rows, err = stmt.Query(args...)
 		if err != nil {
@@ -198,7 +198,7 @@ func (it *Session) slaveQuery(name, sqlPrepare string, args ...interface{}) (res
 				it.log.Println(name+" Rollback Transaction Failed ", e.Error())
 			}
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Transaction Query SQL Failed ", err.Error())
+			it.log.Println(name+" Transaction Query SQL Failed ", err.Error())
 		}
 	}
 	if stmt != nil {
@@ -233,19 +233,19 @@ func (it *Session) queryPrepare(name, sqlPrepare string, args ...interface{}) (r
 		stmt, err = it.db.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" SQL Prepared Statements Failed ", err.Error())
+			it.log.Println(name+" SQL Prepared Statements Failed ", err.Error())
 		}
 		rows, err = stmt.Query(args...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Query SQL Failed ", err.Error())
+			it.log.Println(name+" Query SQL Failed ", err.Error())
 		}
 	} else {
 		t := it.last()
 		stmt, err = t.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Transaction Prepared Statements Failed ", err.Error())
+			it.log.Println(name+" Transaction Prepared Statements Failed ", err.Error())
 		}
 		rows, err = stmt.Query(args...)
 		if err != nil {
@@ -255,7 +255,7 @@ func (it *Session) queryPrepare(name, sqlPrepare string, args ...interface{}) (r
 				it.log.Println(name+" Rollback Transaction Failed ", e.Error())
 			}
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Transaction Query SQL Failed ", err.Error())
+			it.log.Println(name+" Transaction Query SQL Failed ", err.Error())
 		}
 	}
 	if stmt != nil {
@@ -290,19 +290,19 @@ func (it *Session) execPrepare(name, sqlPrepare string, args ...interface{}) (re
 		stmt, err = it.db.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" SQL Prepared Statements Failed ", err.Error())
+			it.log.Println(name+" SQL Prepared Statements Failed ", err.Error())
 		}
 		res, err = stmt.Exec(args...)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Execute SQL Failed ", err.Error())
+			it.log.Println(name+" Execute SQL Failed ", err.Error())
 		}
 	} else {
 		t := it.last()
 		stmt, err = t.Prepare(sqlPrepare)
 		if err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Transaction Prepared Statements Failed ", err.Error())
+			it.log.Println(name+" Transaction Prepared Statements Failed ", err.Error())
 		}
 		res, err = stmt.Exec(args...)
 		if err != nil {
@@ -312,7 +312,7 @@ func (it *Session) execPrepare(name, sqlPrepare string, args ...interface{}) (re
 				it.log.Println(name+" Rollback Transaction Failed ", e.Error())
 			}
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" Transaction Execute SQL Failed ", err.Error())
+			it.log.Println(name+" Transaction Execute SQL Failed ", err.Error())
 		}
 	}
 	if stmt != nil {
@@ -343,7 +343,7 @@ func (it *Session) row2map(name string, rows *sql.Rows) (resultsSlice []map[stri
 	fields, err := rows.Columns()
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+" ", err.Error())
+		it.log.Println(name+" ", err.Error())
 	}
 	for rows.Next() {
 		res := make(map[string]string)
@@ -355,7 +355,7 @@ func (it *Session) row2map(name string, rows *sql.Rows) (resultsSlice []map[stri
 		}
 		if err = rows.Scan(list...); err != nil {
 			it.log.SetPrefix("[Fatal] ")
-			it.log.Fatalln(name+" ", err.Error())
+			it.log.Println(name+" ", err.Error())
 		}
 		for i := 0; i < num; i++ {
 			fields[i] = strings.ToLower(strings.ReplaceAll(fields[i], "_", ""))
@@ -412,7 +412,7 @@ func (it *Session) value2String(name string, rawValue *reflect.Value) (str strin
 	}
 	if err != nil {
 		it.log.SetPrefix("[Fatal] ")
-		it.log.Fatalln(name+" ", err.Error())
+		it.log.Println(name+" ", err.Error())
 	}
 	return
 }
